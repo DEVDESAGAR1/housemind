@@ -1,6 +1,18 @@
 import crypto from 'crypto';
 import firebaseConfig from '../../firebase-applet-config.json';
-import { HouseholdProfile, Expense, Asset, Transaction, DocumentRecord, HouseholdInsight, CopilotConversation, Scenario } from '../../src/types';
+import {
+  HouseholdProfile,
+  Expense,
+  Asset,
+  Transaction,
+  DocumentRecord,
+  HouseholdInsight,
+  CopilotConversation,
+  Scenario,
+  PrivacyCenterSummary,
+  DataSourceConnection,
+  ImportedSourceMetadata,
+} from '../../src/types';
 
 // In-Memory Multi-Tenant Master Storage (isolated strictly per userId)
 interface UserDataStore {
@@ -678,7 +690,23 @@ export class DatabaseService {
     ];
 
     demoExpenses.forEach((e) => {
-      store.expenses.set(e.id, { ...e, userId, createdAt: nowIso, updatedAt: nowIso });
+      store.expenses.set(e.id, {
+        ...e,
+        userId,
+        isDemo: true,
+        sourceMetadata: {
+          userId,
+          sourceType: 'demo_seed',
+          dataType: 'expense',
+          importedAt: nowIso,
+          userConfirmed: true,
+          processingStatus: 'confirmed',
+          deletionStatus: 'active',
+          isDemo: true,
+        },
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      });
     });
 
     // 3. Realistic Assets (Deterministic IDs)
@@ -760,7 +788,23 @@ export class DatabaseService {
     ];
 
     demoAssets.forEach((a) => {
-      store.assets.set(a.id, { ...a, userId, createdAt: nowIso, updatedAt: nowIso });
+      store.assets.set(a.id, {
+        ...a,
+        userId,
+        isDemo: true,
+        sourceMetadata: {
+          userId,
+          sourceType: 'demo_seed',
+          dataType: 'asset',
+          importedAt: nowIso,
+          userConfirmed: true,
+          processingStatus: 'confirmed',
+          deletionStatus: 'active',
+          isDemo: true,
+        },
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      });
     });
 
     // 4. Realistic Financial Transactions (Deterministic IDs)
@@ -888,7 +932,23 @@ export class DatabaseService {
     ];
 
     demoTransactions.forEach((t) => {
-      store.transactions.set(t.id, { ...t, userId, createdAt: nowIso, updatedAt: nowIso });
+      store.transactions.set(t.id, {
+        ...t,
+        userId,
+        isDemo: true,
+        sourceMetadata: {
+          userId,
+          sourceType: 'demo_seed',
+          dataType: 'transaction',
+          importedAt: nowIso,
+          userConfirmed: true,
+          processingStatus: 'confirmed',
+          deletionStatus: 'active',
+          isDemo: true,
+        },
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      });
     });
 
     // 5. Realistic Documents (Deterministic IDs)
@@ -950,7 +1010,21 @@ export class DatabaseService {
     ];
 
     demoDocuments.forEach((d) => {
-      store.documents.set(d.id, { ...d, userId });
+      store.documents.set(d.id, {
+        ...d,
+        userId,
+        isDemo: true,
+        sourceMetadata: {
+          userId,
+          sourceType: 'demo_seed',
+          dataType: 'document',
+          importedAt: nowIso,
+          userConfirmed: true,
+          processingStatus: 'confirmed',
+          deletionStatus: 'active',
+          isDemo: true,
+        },
+      });
     });
 
     // 6. Deterministic Insights
@@ -1068,13 +1142,28 @@ export class DatabaseService {
     ];
 
     demoInsights.forEach((i) => {
-      store.insights.set(i.id, { ...i, userId });
+      store.insights.set(i.id, {
+        ...i,
+        userId,
+        isDemo: true,
+        sourceMetadata: {
+          userId,
+          sourceType: 'demo_seed',
+          dataType: 'maintenance_log',
+          importedAt: nowIso,
+          userConfirmed: true,
+          processingStatus: 'confirmed',
+          deletionStatus: 'active',
+          isDemo: true,
+        },
+      });
     });
 
     // 7. Realistic Conversation (Deterministic ID)
     const demoConv: CopilotConversation = {
       id: 'demo_conv_welcome',
       userId,
+      isDemo: true,
       title: 'Household Overview & Cash Flow',
       createdAt: nowIso,
       updatedAt: nowIso,
@@ -1100,6 +1189,17 @@ export class DatabaseService {
     const demoScenario: Scenario = {
       id: 'demo_scen_inverter_ac',
       userId,
+      isDemo: true,
+      sourceMetadata: {
+        userId,
+        sourceType: 'demo_seed',
+        dataType: 'scenario',
+        importedAt: nowIso,
+        userConfirmed: true,
+        processingStatus: 'confirmed',
+        deletionStatus: 'active',
+        isDemo: true,
+      },
       title: 'Upgrade to 5-Star Dual Inverter AC',
       description: 'Simulating purchase of energy-efficient dual inverter heat pump AC with 12-month zero-cost EMI.',
       type: 'appliance_purchase',
@@ -1290,12 +1390,199 @@ export class DatabaseService {
       details.scenarios +
       details.conversations;
 
-    return { deletedCount, details };
+    const remainingUserRecords =
+      store.expenses.size +
+      store.assets.size +
+      store.transactions.size +
+      store.documents.size +
+      store.insights.size +
+      store.scenarios.size +
+      store.conversations.size;
+
+    return {
+      deletedCount,
+      details,
+      remainingCount: remainingUserRecords,
+      userRecordsCount: remainingUserRecords,
+    };
   }
 
-  // Clear data for test isolation
-  static clearUserData(userId: string): void {
+  /**
+   * Retrieves comprehensive privacy and data governance statistics
+   */
+  static getPrivacySummary(userId: string): PrivacyCenterSummary {
+    const store = getOrCreateUserStore(userId);
+
+    const isDemo = (id: string, item?: any): boolean => {
+      if (!id) return false;
+      if (
+        id.startsWith('demo_') ||
+        id.startsWith('ins_demo_') ||
+        id.startsWith('scen_demo_') ||
+        id.startsWith('cand_sal_')
+      ) {
+        return true;
+      }
+      if (item && (item.isDemo === true || item.source === 'demo_seed' || item.sourceType === 'demo_seed')) {
+        return true;
+      }
+      return false;
+    };
+
+    const countBreakdown = (map: Map<string, any>) => {
+      let demo = 0;
+      let user = 0;
+      for (const [id, item] of map.entries()) {
+        if (isDemo(id, item)) {
+          demo++;
+        } else {
+          user++;
+        }
+      }
+      return { total: map.size, user, demo };
+    };
+
+    const txBreakdown = countBreakdown(store.transactions);
+    const expBreakdown = countBreakdown(store.expenses);
+    const astBreakdown = countBreakdown(store.assets);
+    const docBreakdown = countBreakdown(store.documents);
+    const scnBreakdown = countBreakdown(store.scenarios);
+    const cnvBreakdown = countBreakdown(store.conversations);
+
+    const totalRecords =
+      txBreakdown.total +
+      expBreakdown.total +
+      astBreakdown.total +
+      docBreakdown.total +
+      scnBreakdown.total +
+      cnvBreakdown.total;
+
+    const demoRecordsCount =
+      txBreakdown.demo +
+      expBreakdown.demo +
+      astBreakdown.demo +
+      docBreakdown.demo +
+      scnBreakdown.demo +
+      cnvBreakdown.demo;
+
+    const userRecordsCount = totalRecords - demoRecordsCount;
+
+    const sources: DataSourceConnection[] = [
+      {
+        id: 'src_manual_upload',
+        sourceType: 'manual_upload',
+        name: 'Manual Document Ingestion & Parser',
+        description: 'Bank statements, salary slips, utility bills, receipts uploaded manually with explicit review & confirmation before committing.',
+        status: docBreakdown.user > 0 ? 'active' : 'ready',
+        statusLabel: docBreakdown.user > 0 ? `${docBreakdown.user} User Document(s) Stored` : 'Ready for Ingestion',
+        isConfigured: true,
+        recordsCount: docBreakdown.total,
+        demoRecordsCount: docBreakdown.demo,
+        canDisconnect: false,
+      },
+      {
+        id: 'src_manual_entry',
+        sourceType: 'manual_entry',
+        name: 'Manual Entry & Verification',
+        description: 'Direct user-entered expenses, equipment records, and custom what-if financial variables.',
+        status: userRecordsCount > 0 ? 'active' : 'ready',
+        statusLabel: userRecordsCount > 0 ? `${userRecordsCount} User Record(s)` : 'Ready',
+        isConfigured: true,
+        recordsCount: totalRecords,
+        demoRecordsCount: demoRecordsCount,
+        canDisconnect: false,
+      },
+      {
+        id: 'src_google_drive',
+        sourceType: 'google_drive',
+        name: 'Google Drive Connector (Architecture Ready)',
+        description: 'Folder-scoped read-only ingestion for monthly PDF bank statements and recurring bills with strict local authorization.',
+        status: 'ready',
+        statusLabel: 'Architecture Ready (OAuth Disabled / User Disconnected)',
+        isConfigured: false,
+        scope: 'https://www.googleapis.com/auth/drive.readonly (designated folder only)',
+        recordsCount: 0,
+        demoRecordsCount: 0,
+        canDisconnect: true,
+      },
+      {
+        id: 'src_gmail',
+        sourceType: 'gmail',
+        name: 'Gmail Financial Search (Architecture Ready)',
+        description: 'Narrow financial query ingestion for digital utility invoices, receipts, and salary notices.',
+        status: 'ready',
+        statusLabel: 'Architecture Ready (OAuth Disabled / User Disconnected)',
+        isConfigured: false,
+        scope: 'https://www.googleapis.com/auth/gmail.readonly (financial query restricted)',
+        recordsCount: 0,
+        demoRecordsCount: 0,
+        canDisconnect: true,
+      },
+      {
+        id: 'src_demo_seed',
+        sourceType: 'demo_seed',
+        name: 'Sample Household Starter Dataset',
+        description: 'Deterministic demo records including sample mortgage, utilities, heat pump warranty, and inverter AC scenario.',
+        status: demoRecordsCount > 0 ? 'active' : 'disconnected',
+        statusLabel: demoRecordsCount > 0 ? `${demoRecordsCount} Demo Record(s) Active` : 'Clean (No Demo Data)',
+        isConfigured: demoRecordsCount > 0,
+        recordsCount: demoRecordsCount,
+        demoRecordsCount: demoRecordsCount,
+        canDisconnect: true,
+      },
+    ];
+
+    return {
+      userId,
+      authStatus: 'authenticated',
+      isolationLevel: 'STRICT_USER_ISOLATED',
+      dataRetentionPolicy: 'Strict tenant UID isolation. Zero cross-household visibility. Explicit user-initiated deletion guarantees.',
+      totalRecords,
+      userRecordsCount,
+      demoRecordsCount,
+      recordsByType: {
+        transactions: txBreakdown,
+        expenses: expBreakdown,
+        assets: astBreakdown,
+        documents: docBreakdown,
+        scenarios: scnBreakdown,
+        conversations: cnvBreakdown,
+      },
+      sources,
+      aiPrivacyBoundary: {
+        status: 'MINIMAL_RELEVANT_CONTEXT_ONLY',
+        description: 'HouseMind strictly limits data sent to Gemini to the minimum relevant fields needed for your query.',
+        sharedElements: [
+          'Aggregated category spending totals & monthly recurring sums',
+          'Current country/currency/timezone settings for localized calculation',
+          'Appliance warranty deadlines & maintenance status flags',
+          'Specific scenario inputs explicitly simulated by the user',
+        ],
+        strictlyRedactedElements: [
+          'Full unmasked bank account numbers, PANs, card CVVs, and routing numbers',
+          'Personal Identifiable Information (SSN, National IDs, passwords)',
+          'Raw unparsed PDF document binaries or non-relevant files',
+          'Records from any other household or system tenant',
+        ],
+        retentionGuarantee: 'AI context payloads are ephemeral, never stored for model training or shared with third parties.',
+      },
+    };
+  }
+
+  // Clear data for test isolation & full user data reset
+  static clearUserData(userId: string): { resetCount: number } {
+    const store = getOrCreateUserStore(userId);
+    const count =
+      store.expenses.size +
+      store.assets.size +
+      store.transactions.size +
+      store.documents.size +
+      store.insights.size +
+      store.scenarios.size +
+      store.conversations.size;
+
     multiTenantStore.delete(userId);
+    return { resetCount: count };
   }
 
   static clearAll(): void {

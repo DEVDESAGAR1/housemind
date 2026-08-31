@@ -23,6 +23,41 @@ export interface HouseholdProfile {
   updatedAt: string;
 }
 
+// ==========================================
+// Phase 9: Unified Ingestion & Source Tracking
+// ==========================================
+
+export type IngestionSourceType =
+  | 'manual_entry'
+  | 'manual_upload'
+  | 'google_drive'
+  | 'gmail'
+  | 'demo_seed';
+
+export type IngestionDataType =
+  | 'transaction'
+  | 'expense'
+  | 'asset'
+  | 'maintenance_log'
+  | 'document'
+  | 'scenario';
+
+export type ProcessingStatus = 'pending' | 'processed' | 'confirmed' | 'failed';
+export type DeletionStatus = 'active' | 'deleted';
+
+export interface ImportedSourceMetadata {
+  userId: string;
+  sourceType: IngestionSourceType;
+  sourceId?: string; // documentId, messageId, or driveFileId
+  sourceReference?: string; // file name, sender email, subject
+  dataType: IngestionDataType;
+  importedAt: string;
+  userConfirmed: boolean;
+  processingStatus: ProcessingStatus;
+  deletionStatus: DeletionStatus;
+  isDemo?: boolean;
+}
+
 export type ExpenseCategory =
   | 'utilities'
   | 'maintenance'
@@ -45,6 +80,8 @@ export interface HouseholdExpense {
   isAutoPay: boolean;
   paymentStatus: PaymentStatus;
   notes?: string;
+  isDemo?: boolean;
+  sourceMetadata?: ImportedSourceMetadata;
   createdAt: string;
   updatedAt: string;
 }
@@ -75,6 +112,8 @@ export interface HomeAsset {
   currentStatus: AssetStatus;
   roomLocation?: string;
   maintenanceNotes?: string;
+  isDemo?: boolean;
+  sourceMetadata?: ImportedSourceMetadata;
   createdAt: string;
   updatedAt: string;
 }
@@ -162,6 +201,8 @@ export interface HouseholdInsight {
   };
   evidence: InsightEvidence;
   status: InsightStatus;
+  isDemo?: boolean;
+  sourceMetadata?: ImportedSourceMetadata;
   createdAt: string;
   updatedAt: string;
   geminiExplanation?: GeminiInsightExplanation | null;
@@ -231,6 +272,8 @@ export interface FinancialTransaction {
   isSalary?: boolean;
   isRecurring?: boolean;
   documentId?: string;
+  isDemo?: boolean;
+  sourceMetadata?: ImportedSourceMetadata;
   createdAt: string;
   updatedAt: string;
 }
@@ -290,11 +333,60 @@ export interface HouseholdDataSourcesSummary {
     registeredAssets: number;
     whatIfScenarios: number;
     copilotConversations: number;
+    demoRecordsCount?: number;
+    userRecordsCount?: number;
   };
   isolationStatus: 'STRICT_USER_ISOLATED';
   aiContextGrounding: {
     groundedSources: string[];
     excludedSensitiveData: string[];
+  };
+  sources?: DataSourceConnection[];
+}
+
+export interface DataSourceConnection {
+  id: string;
+  sourceType: IngestionSourceType;
+  name: string;
+  description: string;
+  status: 'active' | 'ready' | 'disconnected' | 'syncing' | 'error';
+  statusLabel: string;
+  isConfigured: boolean;
+  lastSyncAt?: string;
+  scope?: string;
+  selectableFilters?: {
+    folderId?: string;
+    folderName?: string;
+    queryFilter?: string;
+  };
+  recordsCount: number;
+  demoRecordsCount: number;
+  canDisconnect: boolean;
+}
+
+export interface PrivacyCenterSummary {
+  userId: string;
+  authStatus: 'authenticated' | 'unauthenticated';
+  isolationLevel: 'STRICT_USER_ISOLATED';
+  dataRetentionPolicy: string;
+  totalRecords: number;
+  userRecordsCount: number;
+  demoRecordsCount: number;
+  recordsByType: {
+    transactions: { total: number; user: number; demo: number };
+    expenses: { total: number; user: number; demo: number };
+    assets: { total: number; user: number; demo: number };
+    documents: { total: number; user: number; demo: number };
+    scenarios: { total: number; user: number; demo: number };
+    conversations: { total: number; user: number; demo: number };
+  };
+  sources: DataSourceConnection[];
+  aiPrivacyBoundary: {
+    status: 'MINIMAL_RELEVANT_CONTEXT_ONLY';
+    description: string;
+    sharedElements: string[];
+    strictlyRedactedElements: string[];
+    retentionGuarantee: string;
   };
 }
 
@@ -344,6 +436,8 @@ export interface HouseholdDocument {
   transactionCandidates: TransactionCandidate[];
   confirmedTransactionIds?: string[];
   notes?: string;
+  isDemo?: boolean;
+  sourceMetadata?: ImportedSourceMetadata;
   createdAt: string;
   updatedAt: string;
 }
@@ -487,6 +581,8 @@ export interface Scenario {
   affordability: AffordabilityIndicator;
   geminiExplanation?: ScenarioGeminiExplanation | null;
   isPinned?: boolean;
+  isDemo?: boolean;
+  sourceMetadata?: ImportedSourceMetadata;
   createdAt: string;
   updatedAt: string;
 }

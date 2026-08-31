@@ -1,39 +1,74 @@
-# HouseMind Privacy & Data Governance Architecture
+# HouseMind Privacy-First Data Architecture & Governance
 
-HouseMind is built with a privacy-by-design architecture, ensuring household financial information, home specifications, and extracted documents remain confidential, strictly isolated, and user-controlled.
+HouseMind is built with a **privacy-first architecture**, ensuring that household financial ledgers, property asset inventories, and extracted billing documents remain confidential, strictly isolated, and user-controlled.
 
----
-
-## 1. Core Privacy Commitments
-
-1. **Strict User Data Isolation**: Every transaction, document, asset, and conversation is stored within user-specific namespaces. No shared global datasets or cross-user aggregations occur.
-2. **Zero Secondary AI Training**: User financial transactions, bills, and documents sent to the Gemini API are processed in stateless sessions and are never used to train public foundation models.
-3. **Mandatory Human-in-the-Loop Review**: No automated extraction silently mutates user financial ledgers. All AI-parsed documents require explicit user confirmation before becoming active records.
-4. **Transparent Data Inventory**: Users can inspect their active storage footprint, grounded data elements, and excluded sensitive data via the **Data Sources & Transparency** console at any time.
-5. **Right to Purge & Reset**:
-   - **Remove Demo Data**: Users can purge sample starter records with a single click, preserving their real user-created data.
-   - **Account Reset**: Users can completely delete all stored records associated with their authenticated UID.
+> **Architecture Stance**: HouseMind does **not** claim that data is "local-only", as it operates as a full-stack platform leveraging Cloud Run containers, user-isolated Firestore databases, and stateless Gemini AI models. Instead, HouseMind strictly implements and adheres to **privacy-first data minimization**, **user-isolated cloud storage**, **explicit user consent**, and **controlled AI processing**.
 
 ---
 
-## 2. Sensitive Data Handling & Grounding Exclusions
+## 1. Core Privacy Principles
 
-Before assembling prompt contexts for Gemini Copilot or Household Investigator, the data pipeline applies strict sanitization rules:
+1. **Strict Multi-Tenant User Isolation**:
+   - Every single record (profile, transaction, expense, asset, document, scenario, conversation) is stored strictly under the authenticated user's Firebase Auth UID (`/users/{userId}/*`).
+   - Cross-user querying, sharing, or global table joins are structurally impossible.
+   - User A can never query, read, update, or delete any record belonging to User B.
 
-| Data Category | Grounding Status | Handling Rule |
+2. **Controlled AI Processing & Context Minimization**:
+   - The entire database is **never** transmitted to Gemini.
+   - When AI features are engaged (Copilot, What-If decision simulator, or Household Investigator), an ephemeral context compiler selects **only the minimum relevant fields** required for the specific query.
+   - Unmasked account numbers, full credit card PANs, passwords, and government IDs (SSN, SIN, PAN) are filtered out on both the client and server before payloads are constructed.
+
+3. **Zero Retention for Foundation Model Training**:
+   - All AI interactions with Gemini 2.5 use secure server-to-server API calls.
+   - Data transmitted for reasoning is processed statelessly and is never retained, logged for model retraining, or shared with third parties.
+
+4. **Explicit Human-in-the-Loop Review**:
+   - Ingested documents (bank statements, utility invoices, receipts) are parsed into temporary candidate drafts.
+   - No extracted transaction enters the active financial ledger until the user explicitly inspects, optionally edits, and confirms it.
+
+5. **Granular Source Metadata Tracking**:
+   - Every record in the system carries source tracking metadata:
+     - `sourceType`: `'manual_entry' | 'manual_upload' | 'google_drive' | 'gmail' | 'demo_seed'`
+     - `isDemo`: Boolean flag differentiating starter demo datasets from real user-authored data.
+     - `ingestionDate`: ISO timestamp of ingestion.
+     - `sourceReference`: Optional originating document identifier.
+
+6. **User-Controlled Data Deletion & Reset Rights**:
+   - **Surgical Demo Purge (`POST /api/household/demo-remove`)**: Deletes only records marked `isDemo: true`, instantly cleaning the workspace while preserving all user-created expenses, assets, and transactions.
+   - **Full Account Wipe (`POST /api/household/reset-data`)**: Securely deletes 100% of user data upon receiving explicit confirmation (`{ confirmPhrase: "DELETE MY DATA" }`).
+
+---
+
+## 2. Privacy Boundary & Grounding Matrix
+
+| Data Category | AI Context Status | Redaction & Minimization Rule |
 | :--- | :--- | :--- |
-| **Transaction Amounts & Categories** | Grounded | Aggregated and categorized for budget insights |
-| **Raw Credit Card / Account Numbers** | Excluded | Masked to last 4 digits or stripped entirely |
-| **Passwords / Auth Tokens / Secrets** | Excluded | Never included in AI context pipelines |
-| **Personal Identity Numbers (SSN/SIN/PAN)** | Excluded | Redacted during document preprocessing |
-| **Full Asset Maintenance Logs** | Grounded | Included to provide predictive replacement advice |
-| **What-If Simulations** | Grounded | Provided for comparative financial decision support |
+| **Aggregated Monthly Spending** | Minimally Shared | Summarized category totals only (e.g. `$450 Groceries`) |
+| **Account Numbers / Card PANs** | **Strictly Redacted** | Stripped or masked to last 4 digits (`*9921`) before compilation |
+| **Auth Credentials & Passwords** | **Strictly Excluded** | Never included in any AI prompt context |
+| **National IDs (SSN/SIN/PAN)** | **Strictly Redacted** | Filtered during document preprocessing and prompt assembly |
+| **Raw Binary Documents** | **Strictly Excluded** | Only verified text extracts are used; raw binaries are never sent to chat |
+| **Asset Age & Warranty Dates** | Minimally Shared | Used solely for maintenance forecasting and replacement timing |
+| **What-If Scenario Inputs** | Shared for Query | User-configured simulation variables used for financial modeling |
+| **Other Household Tenants** | **Strictly Isolated** | Zero cross-tenant data visibility |
 
 ---
 
-## 3. Data Retention & Deletion Lifecycle
+## 3. Data Sources & Ingestion Control Console
 
-- **Active Records**: Retained in the user's isolated Firestore database store for the duration of the account lifecycle.
-- **Uploaded Document Payloads**: Text and extracted structured items are stored encrypted in the user's document registry.
-- **Session Conversations**: Chat history is stored per conversation ID under the user namespace and can be deleted individually by the user.
-- **Account Data Purge**: Deletion requests through `/api/household/reset-data` immediately clear all Map and database records for that user identifier.
+Users can inspect their data footprint, ingestion connectors, and privacy boundaries at any time in the **Privacy Center & Data Transparency** console:
+
+- **Manual Document Ingestion**: Ingests user-uploaded statements and receipts with mandatory review.
+- **Manual Entry & Verification**: Direct user input with zero automated inferences.
+- **Google Drive Connector (Architecture Ready)**: Restricted to user-designated folders with read-only scopes.
+- **Gmail Financial Search (Architecture Ready)**: Restricted to narrow financial queries with explicit OAuth consent.
+- **Sample Household Starter Dataset**: Cleanable demo dataset tagged with `isDemo: true`.
+
+---
+
+## 4. API Endpoints for Privacy & Governance
+
+- `GET /api/household/privacy-center` — Returns real-time user vs demo record inventory, connected source statuses, and AI privacy boundaries.
+- `POST /api/household/demo-remove` — Surgically purges all `isDemo: true` records.
+- `POST /api/household/reset-data` — Purges all tenant records when supplied with `{ confirmPhrase: "DELETE MY DATA" }`.
+

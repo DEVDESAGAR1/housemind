@@ -653,6 +653,31 @@ router.post(['/demo-seed', '/seed-demo'], async (req: AuthenticatedRequest, res:
 });
 
 /**
+ * GET /api/household/privacy-summary & /api/household/privacy-center
+ * Returns privacy center metrics, data source connections, isolation status, and AI boundary rules
+ */
+router.get(['/privacy-summary', '/privacy-center', '/data-sources-summary'], async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+
+  try {
+    const summary = DatabaseService.getPrivacySummary(userId);
+    res.status(200).json({
+      success: true,
+      data: summary,
+    });
+  } catch (error: unknown) {
+    console.error('[PRIVACY-SUMMARY] Failed to get privacy summary', { userId });
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'Failed to retrieve privacy summary.',
+      },
+    });
+  }
+});
+
+/**
  * POST /api/household/demo-remove (or /clear-demo)
  * Safely purges ONLY demo records for the authenticated user without affecting real user records
  */
@@ -665,6 +690,8 @@ router.post(['/demo-remove', '/clear-demo', '/remove-demo'], async (req: Authent
     res.status(200).json({
       success: true,
       deletedCount: result.deletedCount,
+      remainingCount: result.remainingCount,
+      userRecordsCount: result.userRecordsCount,
       message: `Successfully removed ${result.deletedCount} demo record(s). Your real user data remains intact.`,
       data: result,
     });
@@ -686,24 +713,25 @@ router.post(['/demo-remove', '/clear-demo', '/remove-demo'], async (req: Authent
  */
 router.post('/reset-data', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   const userId = req.userId!;
-  const { confirm } = req.body;
+  const { confirm, confirmPhrase } = req.body || {};
 
-  if (confirm !== true) {
+  if (confirm !== true && confirmPhrase !== 'DELETE MY DATA') {
     res.status(400).json({
       success: false,
       error: {
         code: 'CONFIRMATION_REQUIRED',
-        message: 'Explicit confirmation { confirm: true } required to reset household data.',
+        message: 'Explicit confirmation { confirm: true } or confirmPhrase: "DELETE MY DATA" required to reset household data.',
       },
     });
     return;
   }
 
   try {
-    DatabaseService.clearUserData(userId);
+    const result = DatabaseService.clearUserData(userId);
     res.status(200).json({
       success: true,
       message: 'All household data for your account has been safely reset.',
+      data: result,
     });
   } catch (error: unknown) {
     console.error('[RESET-DATA] Failed to reset data', { userId });

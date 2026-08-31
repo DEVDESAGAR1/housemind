@@ -62,9 +62,18 @@ interface FinancialTransaction {
   sourceDocumentId?: string;
   isConfirmed: boolean;
   isSalary?: boolean;
+  isDemo?: boolean;              // Differentiates sample dataset from real user entries
+  sourceMetadata?: SourceMetadata; // Provenance tracking
   notes?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+interface SourceMetadata {
+  sourceType: 'manual_entry' | 'manual_upload' | 'google_drive' | 'gmail' | 'demo_seed';
+  isDemo: boolean;
+  ingestionDate: string;
+  sourceReference?: string;
 }
 ```
 

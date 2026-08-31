@@ -14,6 +14,7 @@ import { runFinancialFlowIntegrationTests } from './integration/financial-flow.t
 import { runDocumentFlowIntegrationTests } from './integration/document-flow.test';
 import { runIntelligenceFlowIntegrationTests } from './integration/intelligence-flow.test';
 import { runPersistenceIntegrationTests } from './integration/persistence.test';
+import { runPrivacyTests } from './backend/privacy.test';
 
 async function main() {
   console.log('\n===============================================================');
@@ -71,6 +72,9 @@ async function main() {
 
     console.log('\n--- 14. Integration: Database Service & State Persistence ---');
     await runPersistenceIntegrationTests(runner);
+
+    console.log('\n--- 15. Privacy-First Architecture & Demo Data Deletion ---');
+    await runPrivacyTests(runner);
   } finally {
     await stopTestServer();
   }

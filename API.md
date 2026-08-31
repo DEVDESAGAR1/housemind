@@ -5,16 +5,17 @@ All protected endpoints require a valid Firebase ID token passed via the HTTP he
 
 ---
 
-## 1. Household Profile & Configuration
+## 1. Household Profile, Privacy & Data Governance
 
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
 | `GET` | `/api/household/profile` | Retrieves the authenticated user's profile and localization config |
 | `PUT` | `/api/household/profile` | Updates household profile, country, currency, timezone, and specs |
-| `GET` | `/api/household/data-sources` | Returns data record counts, privacy guarantees, and grounding status |
-| `POST` | `/api/household/demo-seed` | Seeds realistic starter dataset for the calling user |
-| `POST` | `/api/household/demo-remove` | Safely purges only demo records without affecting user data |
-| `POST` | `/api/household/reset-data` | Completely resets user data (requires `{ confirm: true }`) |
+| `GET` | `/api/household/privacy-center` | Returns data inventory (user vs demo), connected source states, and AI privacy boundaries |
+| `GET` | `/api/household/data-sources` | Legacy alias for privacy and source metadata console |
+| `POST` | `/api/household/demo-seed` | Seeds deterministic starter dataset for the calling user |
+| `POST` | `/api/household/demo-remove` | Safely purges all `isDemo: true` records, preserving user-authored data |
+| `POST` | `/api/household/reset-data` | Completely resets user data (requires `{ confirmPhrase: "DELETE MY DATA" }` or `{ confirm: true }`) |
 
 ---
 

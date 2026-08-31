@@ -390,5 +390,58 @@ export const compareScenariosSchema = z.object({
   scenarioIds: z.array(z.string().min(1).max(128)).min(2, 'Select at least 2 scenarios to compare').max(5),
 });
 
+// ==========================================
+// Phase 9: Privacy & Data Source Schemas
+// ==========================================
+
+export const ingestionSourceTypeEnum = z.enum([
+  'manual_entry',
+  'manual_upload',
+  'google_drive',
+  'gmail',
+  'demo_seed',
+]);
+
+export const ingestionDataTypeEnum = z.enum([
+  'transaction',
+  'expense',
+  'asset',
+  'maintenance_log',
+  'document',
+  'scenario',
+]);
+
+export const sourceMetadataSchema = z.object({
+  userId: z.string().min(1).max(128),
+  sourceType: ingestionSourceTypeEnum,
+  sourceId: z.string().max(256).optional().nullable(),
+  sourceReference: z.string().max(256).optional().nullable(),
+  dataType: ingestionDataTypeEnum,
+  importedAt: z.string(),
+  userConfirmed: z.boolean(),
+  processingStatus: z.enum(['pending', 'processed', 'confirmed', 'failed']),
+  deletionStatus: z.enum(['active', 'deleted']),
+  isDemo: z.boolean().optional(),
+});
+
+export const resetUserDataSchema = z.object({
+  confirm: z.boolean().optional(),
+  confirmPhrase: z.string().optional(),
+}).refine(data => data.confirm === true || data.confirmPhrase === 'DELETE MY DATA', {
+  message: 'Explicit confirmation { confirm: true } or confirmPhrase: "DELETE MY DATA" required.',
+});
+
+export const deleteDemoDataSchema = z.object({
+  confirm: z.boolean().optional(),
+});
+
+export const toggleSourceSchema = z.object({
+  sourceType: ingestionSourceTypeEnum,
+  action: z.enum(['connect', 'disconnect', 'sync']),
+  folderId: z.string().max(256).optional().nullable(),
+  queryFilter: z.string().max(256).optional().nullable(),
+});
+
+
 
 

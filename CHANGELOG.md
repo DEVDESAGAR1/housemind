@@ -4,6 +4,24 @@ All notable changes to the HouseMind platform will be documented in this file.
 
 ---
 
+## [Phase 9] - 2026-08-31
+
+### Added
+- **Privacy-First Data Architecture & Privacy Center**:
+  - Dedicated `/api/household/privacy-center` endpoint providing live breakdown of user-authored vs sample starter records, connected ingestion source states, and AI context minimization boundary rules.
+  - Complete UI overhaul of `DataSourcesModal.tsx` into a tabbed Privacy Center featuring active storage inventory, ingestion connector settings, AI context protection boundaries, and data deletion tools.
+  - Provenance tracking with `SourceMetadata` (`sourceType`, `isDemo`, `ingestionDate`, `sourceReference`) across all entity schemas.
+- **Surgical Demo Data Purging & Account Wipe Controls**:
+  - `POST /api/household/demo-remove` non-destructively purges only `isDemo: true` records, leaving all user-created records untouched.
+  - `POST /api/household/reset-data` with required confirmation payload (`confirmPhrase: "DELETE MY DATA"` or `confirm: true`) ensuring zero accidental data loss.
+- **Privacy Integration Test Suite**:
+  - `tests/backend/privacy.test.ts` verifying inventory calculation, isolated demo purge, confirmation requirements, and multi-tenant isolation during full account wipes (78/78 tests passing).
+
+### Changed
+- Standardized documentation across all compliance guides (`README.md`, `PRIVACY.md`, `SECURITY.md`, `AI.md`, `DATA_MODEL.md`, `API.md`, `TESTING.md`, `AUDIT_REPORT.md`) adopting accurate privacy-first terminology.
+
+---
+
 ## [Phase 7 & 8] - 2026-08-31
 
 ### Added

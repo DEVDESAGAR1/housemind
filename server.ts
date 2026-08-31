@@ -1,6 +1,5 @@
 import express, { Express } from 'express';
 import path from 'path';
-import { fileURLToPath, pathToFileURL } from 'url';
 import { createServer as createViteServer } from 'vite';
 import {
   helmetMiddleware,
@@ -18,9 +17,6 @@ import intelligenceRouter from './server/routes/intelligence';
 import { documentsRouter, importsRouter } from './server/routes/documents';
 import { transactionsRouter } from './server/routes/transactions';
 import { scenariosRouter } from './server/routes/scenarios';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 export function buildExpressApp(): Express {
   const app = express();
@@ -54,7 +50,7 @@ export function buildExpressApp(): Express {
 
 async function startServer() {
   const app = buildExpressApp();
-  const PORT = 3000;
+  const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
   // 4. Vite Middleware (Dev) or Static Assets (Prod)
   if (process.env.NODE_ENV !== 'production') {
@@ -79,16 +75,19 @@ async function startServer() {
   });
 }
 
-// Only start the server if this file is run directly as the entry point
-const isDirectEntry = process.argv[1] && (
-  process.argv[1].endsWith('server.ts') ||
-  process.argv[1].endsWith('server.cjs') ||
-  process.argv[1].endsWith('server.js')
-);
+// Start server when executed directly as entrypoint
+const isDirectEntry =
+  process.env.NODE_ENV !== 'test' &&
+  typeof process.argv[1] === 'string' &&
+  (/server\.(ts|cjs|js)$/.test(process.argv[1]) ||
+    process.env.npm_lifecycle_event === 'dev' ||
+    process.env.npm_lifecycle_event === 'start');
 
-if (isDirectEntry && process.env.NODE_ENV !== 'test') {
+if (isDirectEntry) {
   startServer().catch((err) => {
     console.error('[HOUSEMIND SERVER] Fatal startup failure:', err);
     process.exit(1);
   });
 }
+
+
