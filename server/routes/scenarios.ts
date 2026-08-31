@@ -35,7 +35,7 @@ scenariosRouter.get('/baseline', async (req: AuthenticatedRequest, res: Response
       data: baseline,
     });
   } catch (error: any) {
-    console.error(`[SCENARIOS] Failed to compute baseline for ${userId}:`, error);
+    console.error('[SCENARIOS] Failed to compute baseline', { userId, message: error?.message });
     res.status(500).json({
       success: false,
       error: {
@@ -81,7 +81,7 @@ scenariosRouter.post('/simulate', async (req: AuthenticatedRequest, res: Respons
       },
     });
   } catch (error: any) {
-    console.error(`[SCENARIOS] Simulation error for ${userId}:`, error);
+    console.error('[SCENARIOS] Simulation error', { userId, message: error?.message });
     res.status(500).json({
       success: false,
       error: {
@@ -105,7 +105,7 @@ scenariosRouter.get('/', async (req: AuthenticatedRequest, res: Response): Promi
       data: scenarios,
     });
   } catch (error: any) {
-    console.error(`[SCENARIOS] Failed to list scenarios for ${userId}:`, error);
+    console.error('[SCENARIOS] Failed to list scenarios', { userId, message: error?.message });
     res.status(500).json({
       success: false,
       error: {
@@ -158,7 +158,7 @@ scenariosRouter.post('/', async (req: AuthenticatedRequest, res: Response): Prom
       data: saved,
     });
   } catch (error: any) {
-    console.error(`[SCENARIOS] Failed to create scenario for ${userId}:`, error);
+    console.error('[SCENARIOS] Failed to create scenario', { userId, message: error?.message });
     res.status(500).json({
       success: false,
       error: {
@@ -199,7 +199,7 @@ scenariosRouter.get('/:id', async (req: AuthenticatedRequest, res: Response): Pr
       data: scenario,
     });
   } catch (error: any) {
-    console.error(`[SCENARIOS] Failed to get scenario ${req.params.id}:`, error);
+    console.error('[SCENARIOS] Failed to get scenario', { id: req.params.id, message: error?.message });
     res.status(500).json({
       success: false,
       error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to fetch scenario.' },
@@ -280,7 +280,7 @@ scenariosRouter.put('/:id', async (req: AuthenticatedRequest, res: Response): Pr
       data: updated,
     });
   } catch (error: any) {
-    console.error(`[SCENARIOS] Failed to update scenario ${req.params.id}:`, error);
+    console.error('[SCENARIOS] Failed to update scenario', { id: req.params.id, message: error?.message });
     res.status(500).json({
       success: false,
       error: { code: 'UPDATE_FAILED', message: error.message || 'Failed to update scenario.' },
@@ -331,7 +331,7 @@ scenariosRouter.post('/:id/duplicate', async (req: AuthenticatedRequest, res: Re
       data: saved,
     });
   } catch (error: any) {
-    console.error(`[SCENARIOS] Failed to duplicate scenario ${req.params.id}:`, error);
+    console.error('[SCENARIOS] Failed to duplicate scenario', { id: req.params.id, message: error?.message });
     res.status(500).json({
       success: false,
       error: { code: 'DUPLICATION_FAILED', message: error.message || 'Failed to duplicate scenario.' },
@@ -387,7 +387,7 @@ scenariosRouter.post('/:id/recalculate', async (req: AuthenticatedRequest, res: 
       data: updated,
     });
   } catch (error: any) {
-    console.error(`[SCENARIOS] Failed to recalculate scenario ${req.params.id}:`, error);
+    console.error('[SCENARIOS] Failed to recalculate scenario', { id: req.params.id, message: error?.message });
     res.status(500).json({
       success: false,
       error: { code: 'RECALCULATION_FAILED', message: error.message || 'Failed to recalculate.' },
@@ -417,7 +417,7 @@ scenariosRouter.post('/:id/explain', async (req: AuthenticatedRequest, res: Resp
       data: explanation,
     });
   } catch (error: any) {
-    console.error(`[SCENARIOS] Failed to explain scenario ${req.params.id}:`, error);
+    console.error('[SCENARIOS] Failed to explain scenario', { id: req.params.id, message: error?.message });
     res.status(500).json({
       success: false,
       error: {
@@ -458,7 +458,7 @@ scenariosRouter.delete('/:id', async (req: AuthenticatedRequest, res: Response):
       data: { id: idResult.data.id, deleted: true },
     });
   } catch (error: any) {
-    console.error(`[SCENARIOS] Failed to delete scenario ${req.params.id}:`, error);
+    console.error('[SCENARIOS] Failed to delete scenario', { id: req.params.id, message: error?.message });
     res.status(500).json({
       success: false,
       error: { code: 'DELETE_FAILED', message: error.message || 'Failed to delete scenario.' },
@@ -557,7 +557,7 @@ scenariosRouter.post('/compare', async (req: AuthenticatedRequest, res: Response
       data: comparisonResult,
     });
   } catch (error: any) {
-    console.error(`[SCENARIOS] Comparison error for ${userId}:`, error);
+    console.error('[SCENARIOS] Comparison error', { userId, message: error?.message });
     res.status(500).json({
       success: false,
       error: { code: 'COMPARISON_ERROR', message: error.message || 'Failed to compare scenarios.' },

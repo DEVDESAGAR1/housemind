@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { Scenario, ScenarioType } from '../../types';
 import { AffordabilityBadge } from './AffordabilityBadge';
+import { formatCurrency } from '../../config/locationCurrencyConfig';
 
 interface ScenarioCardProps {
   scenario: Scenario;
@@ -187,7 +188,7 @@ export function ScenarioCard({
                   isSurplusPositive ? 'text-slate-900' : 'text-rose-600'
                 }`}
               >
-                {currency} {projectedMetrics.projectedNetSurplus.toLocaleString()}
+                {formatCurrency(projectedMetrics.projectedNetSurplus, currency)}
               </span>
               <span className="text-[11px] text-slate-400">/mo</span>
             </div>
@@ -197,7 +198,7 @@ export function ScenarioCard({
               }`}
             >
               {surplusDeltaPositive ? '+' : ''}
-              {currency} {projectedMetrics.surplusDelta.toLocaleString()}/mo
+              {formatCurrency(projectedMetrics.surplusDelta, currency)}/mo
             </span>
           </div>
 
@@ -226,16 +227,16 @@ export function ScenarioCard({
           {projectedMetrics.monthlyEmiPayment ? (
             <span className="flex items-center gap-1 font-medium text-indigo-700">
               <CreditCard className="w-3.5 h-3.5" />
-              EMI: {currency} {projectedMetrics.monthlyEmiPayment}/mo ({scenario.inputs.tenureMonths || 12} mos)
+              EMI: {formatCurrency(projectedMetrics.monthlyEmiPayment, currency)}/mo ({scenario.inputs.tenureMonths || 12} mos)
             </span>
           ) : projectedMetrics.oneTimeCashImpact ? (
             <span className="flex items-center gap-1 font-medium text-slate-700">
               <Zap className="w-3.5 h-3.5 text-amber-500" />
-              Cash Outflow: {currency} {projectedMetrics.oneTimeCashImpact.toLocaleString()}
+              Cash Outflow: {formatCurrency(projectedMetrics.oneTimeCashImpact, currency)}
             </span>
           ) : (
             <span className="text-slate-500">
-              Baseline Surplus: {currency} {baselineMetrics.netMonthlySurplus.toLocaleString()}/mo
+              Baseline Surplus: {formatCurrency(baselineMetrics.netMonthlySurplus, currency)}/mo
             </span>
           )}
 

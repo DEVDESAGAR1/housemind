@@ -30,6 +30,7 @@ import {
   FinancialCategory,
   HouseholdProfile,
 } from '../types';
+import { formatCurrency, getCurrencySymbol } from '../config/locationCurrencyConfig';
 
 interface FinancialViewProps {
   token: string;
@@ -309,10 +310,10 @@ export const FinancialView: React.FC<FinancialViewProps> = ({
           </div>
           <div className="mt-3">
             <div className="text-2xl font-bold text-slate-900">
-              {currency} {summary?.totalIncome?.toLocaleString() ?? '0.00'}
+              {formatCurrency(summary?.totalIncome ?? 0, currency, profile?.locale)}
             </div>
             <div className="mt-1 flex items-center gap-2 text-xs text-slate-500">
-              <span>Recurring: {currency} {summary?.recurringIncome?.toLocaleString() ?? '0.00'}</span>
+              <span>Recurring: {formatCurrency(summary?.recurringIncome ?? 0, currency, profile?.locale)}</span>
             </div>
           </div>
         </div>
@@ -329,10 +330,10 @@ export const FinancialView: React.FC<FinancialViewProps> = ({
           </div>
           <div className="mt-3">
             <div className="text-2xl font-bold text-slate-900">
-              {currency} {summary?.totalExpenses?.toLocaleString() ?? '0.00'}
+              {formatCurrency(summary?.totalExpenses ?? 0, currency, profile?.locale)}
             </div>
             <div className="mt-1 flex items-center gap-2 text-xs text-slate-500">
-              <span>Recurring: {currency} {summary?.recurringExpenses?.toLocaleString() ?? '0.00'}</span>
+              <span>Recurring: {formatCurrency(summary?.recurringExpenses ?? 0, currency, profile?.locale)}</span>
             </div>
           </div>
         </div>
@@ -360,7 +361,7 @@ export const FinancialView: React.FC<FinancialViewProps> = ({
               }`}
             >
               {(summary?.netCashFlow ?? 0) >= 0 ? '+' : ''}
-              {currency} {summary?.netCashFlow?.toLocaleString() ?? '0.00'}
+              {formatCurrency(summary?.netCashFlow ?? 0, currency, profile?.locale)}
             </div>
             <div className="mt-1 text-xs text-slate-500">
               Income minus verified expenses
@@ -404,7 +405,7 @@ export const FinancialView: React.FC<FinancialViewProps> = ({
                 <span className="text-xs font-semibold text-emerald-900">Total Credits (Deposits)</span>
               </div>
               <span className="text-sm font-bold text-emerald-800">
-                +{currency} {summary?.totalCredits?.toLocaleString() ?? '0.00'}
+                +{formatCurrency(summary?.totalCredits ?? 0, currency, profile?.locale)}
               </span>
             </div>
 
@@ -414,7 +415,7 @@ export const FinancialView: React.FC<FinancialViewProps> = ({
                 <span className="text-xs font-semibold text-rose-900">Total Debits (Withdrawals)</span>
               </div>
               <span className="text-sm font-bold text-rose-800">
-                -{currency} {summary?.totalDebits?.toLocaleString() ?? '0.00'}
+                -{formatCurrency(summary?.totalDebits ?? 0, currency, profile?.locale)}
               </span>
             </div>
 
@@ -424,7 +425,7 @@ export const FinancialView: React.FC<FinancialViewProps> = ({
                 <span className="text-xs font-semibold text-slate-700">Account Transfers</span>
               </div>
               <span className="text-sm font-bold text-slate-800">
-                {currency} {summary?.totalTransfers?.toLocaleString() ?? '0.00'}
+                {formatCurrency(summary?.totalTransfers ?? 0, currency, profile?.locale)}
               </span>
             </div>
           </div>
@@ -447,7 +448,7 @@ export const FinancialView: React.FC<FinancialViewProps> = ({
                   <div className="flex justify-between text-xs font-medium text-slate-700">
                     <span>{cat.category}</span>
                     <span>
-                      {currency} {cat.amount.toLocaleString()} ({cat.percentage}%)
+                      {formatCurrency(cat.amount, currency, profile?.locale)} ({cat.percentage}%)
                     </span>
                   </div>
                   <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
@@ -613,7 +614,7 @@ export const FinancialView: React.FC<FinancialViewProps> = ({
                         }
                       >
                         {tx.type === 'CREDIT' ? '+' : tx.type === 'DEBIT' ? '-' : ''}
-                        {tx.currency || currency} {Number(tx.amount).toFixed(2)}
+                        {formatCurrency(Number(tx.amount), tx.currency || currency, profile?.locale)}
                       </span>
                     </td>
 

@@ -1,6 +1,7 @@
 import { useState, useMemo, FormEvent } from 'react';
 import { Plus, Search, Filter, Trash2, Edit3, Wrench, CheckCircle2, AlertTriangle, ShieldAlert, X, Calendar, DollarSign } from 'lucide-react';
 import { HomeAsset, AssetCategory, AssetStatus } from '../types';
+import { formatCurrency, getCurrencySymbol } from '../config/locationCurrencyConfig';
 
 interface AssetsViewProps {
   assets: HomeAsset[];
@@ -44,7 +45,7 @@ export function AssetsView({
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const currencySymbol = currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : '$';
+  const currencySymbol = getCurrencySymbol(currency);
 
   const filteredAssets = useMemo(() => {
     return assets.filter((a) => {
@@ -294,7 +295,7 @@ export function AssetsView({
                     <div>
                       <span className="text-slate-400 block text-[10px] uppercase font-semibold">Purchase Cost</span>
                       <span className="font-medium text-slate-700">
-                        {currencySymbol}{asset.purchaseCost.toLocaleString()}
+                        {formatCurrency(asset.purchaseCost, currency)}
                       </span>
                     </div>
                   )}

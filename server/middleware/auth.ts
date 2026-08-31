@@ -66,7 +66,7 @@ export async function requireAuth(
     next();
   } catch (error: unknown) {
     // Log without exposing sensitive token string
-    console.warn(`[AUTH] Token verification failed for IP: ${req.ip}`);
+    console.warn('[AUTH] Token verification failed', { ip: req.ip });
     res.status(401).json({
       success: false,
       error: {

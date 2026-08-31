@@ -99,10 +99,59 @@ function decodeValue(val: any): any {
  * Universal Database Service with strict user-isolation and zero-permission-error fallback
  */
 export class DatabaseService {
-  private static getBaseUrl(): string {
-    const projectId = firebaseConfig.projectId;
-    const dbId = firebaseConfig.firestoreDatabaseId || '(default)';
-    return `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${dbId}/documents`;
+  private static readonly SAFE_ID_REGEX = /^[a-zA-Z0-9_-]{1,128}$/;
+
+  /**
+   * Builds and strictly validates Firestore REST API URLs to prevent SSRF and path traversal attacks.
+   */
+  private static buildFirestoreUrl(
+    pathSegments: string[],
+    queryParams?: Record<string, string>
+  ): string {
+    const rawProjectId = firebaseConfig.projectId || 'hack2skillnewproject';
+    const rawDbId = firebaseConfig.firestoreDatabaseId || '(default)';
+
+    if (!this.SAFE_ID_REGEX.test(rawProjectId)) {
+      throw new Error('Invalid Firebase Project ID configuration.');
+    }
+
+    for (const segment of pathSegments) {
+      if (!this.SAFE_ID_REGEX.test(segment)) {
+        throw new Error(`Invalid identifier in path segment: "${segment}"`);
+      }
+    }
+
+    const encodedSegments = pathSegments.map((s) => encodeURIComponent(s)).join('/');
+    const basePath = `/v1/projects/${encodeURIComponent(rawProjectId)}/databases/${encodeURIComponent(rawDbId)}/documents/${encodedSegments}`;
+
+    const url = new URL(basePath, 'https://firestore.googleapis.com');
+
+    if (queryParams) {
+      for (const [key, value] of Object.entries(queryParams)) {
+        url.searchParams.set(key, value);
+      }
+    }
+
+    // Explicit SSRF protection assert: strictly HTTPS and strictly firestore.googleapis.com
+    if (url.protocol !== 'https:' || url.hostname !== 'firestore.googleapis.com') {
+      throw new Error('Untrusted destination URL rejected.');
+    }
+
+    return url.toString();
+  }
+
+  /**
+   * Safe outbound request wrapper ensuring only validated Google Firestore endpoints are contacted.
+   */
+  private static async safeFirestoreFetch(
+    url: string,
+    options: RequestInit = {}
+  ): Promise<Response> {
+    const parsed = new URL(url);
+    if (parsed.protocol !== 'https:' || parsed.hostname !== 'firestore.googleapis.com') {
+      throw new Error('Security policy violation: outbound request blocked.');
+    }
+    return fetch(url, options);
   }
 
   // --- PROFILE ---
@@ -110,8 +159,8 @@ export class DatabaseService {
     const store = getOrCreateUserStore(userId);
     if (userToken && !userToken.startsWith('test-token-')) {
       try {
-        const url = `${this.getBaseUrl()}/users/${userId}/profile/current`;
-        const res = await fetch(url, {
+        const url = this.buildFirestoreUrl(['users', userId, 'profile', 'current']);
+        const res = await this.safeFirestoreFetch(url, {
           headers: { Authorization: `Bearer ${userToken}` },
         });
         if (res.ok) {
@@ -139,8 +188,8 @@ export class DatabaseService {
 
     if (userToken && !userToken.startsWith('test-token-')) {
       try {
-        const url = `${this.getBaseUrl()}/users/${userId}/profile/current`;
-        await fetch(url, {
+        const url = this.buildFirestoreUrl(['users', userId, 'profile', 'current']);
+        await this.safeFirestoreFetch(url, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
@@ -382,8 +431,8 @@ export class DatabaseService {
     const store = getOrCreateUserStore(userId);
     if (userToken && !userToken.startsWith('test-token-')) {
       try {
-        const url = `${this.getBaseUrl()}/users/${userId}/scenarios`;
-        const res = await fetch(url, {
+        const url = this.buildFirestoreUrl(['users', userId, 'scenarios']);
+        const res = await this.safeFirestoreFetch(url, {
           headers: { Authorization: `Bearer ${userToken}` },
         });
         if (res.ok) {
@@ -413,8 +462,8 @@ export class DatabaseService {
 
     if (userToken && !userToken.startsWith('test-token-')) {
       try {
-        const url = `${this.getBaseUrl()}/users/${userId}/scenarios/${id}`;
-        const res = await fetch(url, {
+        const url = this.buildFirestoreUrl(['users', userId, 'scenarios', id]);
+        const res = await this.safeFirestoreFetch(url, {
           headers: { Authorization: `Bearer ${userToken}` },
         });
         if (res.ok) {
@@ -454,8 +503,8 @@ export class DatabaseService {
 
     if (userToken && !userToken.startsWith('test-token-')) {
       try {
-        const url = `${this.getBaseUrl()}/users/${userId}/scenarios?documentId=${id}`;
-        await fetch(url, {
+        const url = this.buildFirestoreUrl(['users', userId, 'scenarios'], { documentId: id });
+        await this.safeFirestoreFetch(url, {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${userToken}`,
@@ -494,8 +543,8 @@ export class DatabaseService {
 
     if (userToken && !userToken.startsWith('test-token-')) {
       try {
-        const url = `${this.getBaseUrl()}/users/${userId}/scenarios/${id}`;
-        await fetch(url, {
+        const url = this.buildFirestoreUrl(['users', userId, 'scenarios', id]);
+        await this.safeFirestoreFetch(url, {
           method: 'PATCH',
           headers: {
             Authorization: `Bearer ${userToken}`,
@@ -517,8 +566,8 @@ export class DatabaseService {
 
     if (userToken && !userToken.startsWith('test-token-')) {
       try {
-        const url = `${this.getBaseUrl()}/users/${userId}/scenarios/${id}`;
-        await fetch(url, {
+        const url = this.buildFirestoreUrl(['users', userId, 'scenarios', id]);
+        await this.safeFirestoreFetch(url, {
           method: 'DELETE',
           headers: { Authorization: `Bearer ${userToken}` },
         });
@@ -1132,6 +1181,116 @@ export class DatabaseService {
       conversations: store.conversations.size,
       scenarios: store.scenarios.size,
     };
+  }
+
+  /**
+   * Safely clears ONLY demo/starter records for a user without affecting user-authored records
+   */
+  static clearDemoData(userId: string): {
+    deletedCount: number;
+    details: {
+      expenses: number;
+      assets: number;
+      transactions: number;
+      documents: number;
+      insights: number;
+      scenarios: number;
+      conversations: number;
+    };
+  } {
+    const store = getOrCreateUserStore(userId);
+    const details = {
+      expenses: 0,
+      assets: 0,
+      transactions: 0,
+      documents: 0,
+      insights: 0,
+      scenarios: 0,
+      conversations: 0,
+    };
+
+    const isDemoRecord = (id: string, item?: any): boolean => {
+      if (!id) return false;
+      if (
+        id.startsWith('demo_') ||
+        id.startsWith('ins_demo_') ||
+        id.startsWith('scen_demo_') ||
+        id.startsWith('cand_sal_')
+      ) {
+        return true;
+      }
+      if (item && (item.isDemo === true || item.source === 'demo_seed')) {
+        return true;
+      }
+      return false;
+    };
+
+    // 1. Expenses
+    for (const [id, exp] of Array.from(store.expenses.entries())) {
+      if (isDemoRecord(id, exp)) {
+        store.expenses.delete(id);
+        details.expenses++;
+      }
+    }
+
+    // 2. Assets
+    for (const [id, ast] of Array.from(store.assets.entries())) {
+      if (isDemoRecord(id, ast)) {
+        store.assets.delete(id);
+        details.assets++;
+      }
+    }
+
+    // 3. Transactions
+    for (const [id, tx] of Array.from(store.transactions.entries())) {
+      if (isDemoRecord(id, tx)) {
+        store.transactions.delete(id);
+        details.transactions++;
+      }
+    }
+
+    // 4. Documents
+    for (const [id, doc] of Array.from(store.documents.entries())) {
+      if (isDemoRecord(id, doc)) {
+        store.documents.delete(id);
+        details.documents++;
+      }
+    }
+
+    // 5. Insights
+    for (const [id, ins] of Array.from(store.insights.entries())) {
+      if (isDemoRecord(id, ins)) {
+        store.insights.delete(id);
+        details.insights++;
+      }
+    }
+
+    // 6. Scenarios
+    for (const [id, scn] of Array.from(store.scenarios.entries())) {
+      if (isDemoRecord(id, scn)) {
+        store.scenarios.delete(id);
+        details.scenarios++;
+      }
+    }
+
+    // 7. Conversations
+    for (const [id, cnv] of Array.from(store.conversations.entries())) {
+      if (isDemoRecord(id, cnv)) {
+        store.conversations.delete(id);
+        details.conversations++;
+      }
+    }
+
+    const deletedCount =
+      details.expenses +
+      details.assets +
+      details.transactions +
+      details.documents +
+      details.insights +
+      details.scenarios +
+      details.conversations;
+
+    return { deletedCount, details };
   }
 
   // Clear data for test isolation

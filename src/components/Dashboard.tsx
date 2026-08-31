@@ -26,6 +26,7 @@ import {
   HouseholdInsight,
   InsightStatus,
 } from '../types';
+import { formatCurrency, getCurrencySymbol } from '../config/locationCurrencyConfig';
 
 interface DashboardProps {
   profile: HouseholdProfile | null;
@@ -63,7 +64,9 @@ export function Dashboard({
 }: DashboardProps) {
   const [insightFilter, setInsightFilter] = useState<'active' | 'critical' | 'resolved' | 'all'>('active');
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const currencySymbol = profile?.currency === 'EUR' ? '€' : profile?.currency === 'GBP' ? '£' : '$';
+  const currencyCode = profile?.currency || 'USD';
+  const locale = profile?.locale || undefined;
+  const currencySymbol = getCurrencySymbol(currencyCode);
 
   const handleRefresh = async () => {
     try {
@@ -409,7 +412,7 @@ export function Dashboard({
           </div>
           <div>
             <div className="text-2xl font-bold text-slate-900">
-              {currencySymbol}{monthlyExpenseBurn.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {formatCurrency(monthlyExpenseBurn, currencyCode, locale)}
             </div>
             <div className="text-[11px] text-slate-400 mt-1">
               Based on {expenses.length} tracked expense records
@@ -427,7 +430,7 @@ export function Dashboard({
           </div>
           <div>
             <div className="text-2xl font-bold text-slate-900">
-              {currencySymbol}{pendingAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {formatCurrency(pendingAmount, currencyCode, locale)}
             </div>
             <div className="text-[11px] text-amber-600 font-medium mt-1">
               {pendingExpenses.length} payment{pendingExpenses.length !== 1 ? 's' : ''} currently pending
@@ -502,7 +505,7 @@ export function Dashboard({
                   </div>
                   <div className="text-right">
                     <div className="text-sm font-bold text-slate-900">
-                      {currencySymbol}{exp.amount.toFixed(2)}
+                      {formatCurrency(exp.amount, currencyCode, locale)}
                     </div>
                     <span
                       className={`inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full capitalize ${

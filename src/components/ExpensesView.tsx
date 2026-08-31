@@ -1,6 +1,7 @@
 import { useState, useMemo, FormEvent } from 'react';
 import { Plus, Search, Filter, Trash2, Edit3, Calendar, CheckCircle2, Clock, AlertCircle, DollarSign, X } from 'lucide-react';
 import { HouseholdExpense, ExpenseCategory, ExpenseFrequency, PaymentStatus } from '../types';
+import { formatCurrency, getCurrencySymbol } from '../config/locationCurrencyConfig';
 
 interface ExpensesViewProps {
   expenses: HouseholdExpense[];
@@ -39,7 +40,7 @@ export function ExpensesView({
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const currencySymbol = currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : '$';
+  const currencySymbol = getCurrencySymbol(currency);
 
   const filteredExpenses = useMemo(() => {
     return expenses.filter((e) => {
@@ -274,7 +275,7 @@ export function ExpensesView({
                 <div className="flex items-center justify-between sm:justify-end gap-4 pl-8 sm:pl-0">
                   <div className="text-left sm:text-right">
                     <div className="text-base sm:text-lg font-bold text-slate-900">
-                      {currencySymbol}{exp.amount.toFixed(2)}
+                      {formatCurrency(exp.amount, currency)}
                     </div>
                     <span
                       className={`inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full capitalize ${

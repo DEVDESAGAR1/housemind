@@ -27,6 +27,7 @@ import { DocumentManagerView } from './components/DocumentManagerView';
 import { ScenarioSimulatorView } from './components/scenarios/ScenarioSimulatorView';
 import { InvestigationModal } from './components/InvestigationModal';
 import { ProfileModal } from './components/ProfileModal';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { ToastContainer, ToastMessage } from './components/Toast';
 
 export default function App() {
@@ -318,83 +319,85 @@ export default function App() {
 
       {/* Main App Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {activeTab === 'dashboard' && (
-           <Dashboard
-             profile={profile}
-             expenses={expenses}
-             assets={assets}
-             insights={insights}
-             isLoadingInsights={isLoadingInsights}
-             onNavigate={(tab) => setActiveTab(tab as NavigationTab)}
-             onOpenAddExpense={() => setActiveTab('expenses')}
-             onOpenAddAsset={() => setActiveTab('assets')}
-             onOpenProfile={() => setIsProfileModalOpen(true)}
-             onSeedDemo={handleSeedDemo}
-             onRefreshInsights={handleRefreshInsights}
-             onInvestigateInsight={handleInvestigateInsight}
-             onUpdateInsightStatus={handleUpdateInsightStatus}
-             isSeeding={isSeeding}
-           />
-        )}
+        <ErrorBoundary fallbackTitle="View Rendering Error">
+          {activeTab === 'dashboard' && (
+             <Dashboard
+               profile={profile}
+               expenses={expenses}
+               assets={assets}
+               insights={insights}
+               isLoadingInsights={isLoadingInsights}
+               onNavigate={(tab) => setActiveTab(tab as NavigationTab)}
+               onOpenAddExpense={() => setActiveTab('expenses')}
+               onOpenAddAsset={() => setActiveTab('assets')}
+               onOpenProfile={() => setIsProfileModalOpen(true)}
+               onSeedDemo={handleSeedDemo}
+               onRefreshInsights={handleRefreshInsights}
+               onInvestigateInsight={handleInvestigateInsight}
+               onUpdateInsightStatus={handleUpdateInsightStatus}
+               isSeeding={isSeeding}
+             />
+          )}
 
-        {activeTab === 'finances' && (
-          <FinancialView
-            token={authToken}
-            profile={profile}
-            onNavigateToDocuments={() => setActiveTab('documents')}
-            onShowToast={(msg, type) =>
-              addToast(type || 'info', type === 'error' ? 'Finance Alert' : 'Finance Update', msg)
-            }
-          />
-        )}
+          {activeTab === 'finances' && (
+            <FinancialView
+              token={authToken}
+              profile={profile}
+              onNavigateToDocuments={() => setActiveTab('documents')}
+              onShowToast={(msg, type) =>
+                addToast(type || 'info', type === 'error' ? 'Finance Alert' : 'Finance Update', msg)
+              }
+            />
+          )}
 
-        {activeTab === 'documents' && (
-          <DocumentManagerView
-            token={authToken}
-            profile={profile}
-            onShowToast={(msg, type) =>
-              addToast(type || 'info', type === 'error' ? 'Document Alert' : 'Document Processed', msg)
-            }
-          />
-        )}
+          {activeTab === 'documents' && (
+            <DocumentManagerView
+              token={authToken}
+              profile={profile}
+              onShowToast={(msg, type) =>
+                addToast(type || 'info', type === 'error' ? 'Document Alert' : 'Document Processed', msg)
+              }
+            />
+          )}
 
-        {activeTab === 'expenses' && (
-          <ExpensesView
-            expenses={expenses}
-            currency={profile?.currency || 'USD'}
-            isLoading={isLoadingData}
-            onAddExpense={handleAddExpense}
-            onUpdateExpense={handleUpdateExpense}
-            onDeleteExpense={handleDeleteExpense}
-          />
-        )}
+          {activeTab === 'expenses' && (
+            <ExpensesView
+              expenses={expenses}
+              currency={profile?.currency || 'USD'}
+              isLoading={isLoadingData}
+              onAddExpense={handleAddExpense}
+              onUpdateExpense={handleUpdateExpense}
+              onDeleteExpense={handleDeleteExpense}
+            />
+          )}
 
-        {activeTab === 'assets' && (
-          <AssetsView
-            assets={assets}
-            currency={profile?.currency || 'USD'}
-            isLoading={isLoadingData}
-            onAddAsset={handleAddAsset}
-            onUpdateAsset={handleUpdateAsset}
-            onDeleteAsset={handleDeleteAsset}
-          />
-        )}
+          {activeTab === 'assets' && (
+            <AssetsView
+              assets={assets}
+              currency={profile?.currency || 'USD'}
+              isLoading={isLoadingData}
+              onAddAsset={handleAddAsset}
+              onUpdateAsset={handleUpdateAsset}
+              onDeleteAsset={handleDeleteAsset}
+            />
+          )}
 
-        {activeTab === 'simulator' && (
-          <ScenarioSimulatorView
-            currency={profile?.currency || 'USD'}
-            assets={assets}
-          />
-        )}
+          {activeTab === 'simulator' && (
+            <ScenarioSimulatorView
+              currency={profile?.currency || 'USD'}
+              assets={assets}
+            />
+          )}
 
-        {activeTab === 'copilot' && (
-          <CopilotView
-            profile={profile}
-            expenses={expenses}
-            assets={assets}
-            onNavigateTab={(tab) => setActiveTab(tab as NavigationTab)}
-          />
-        )}
+          {activeTab === 'copilot' && (
+            <CopilotView
+              profile={profile}
+              expenses={expenses}
+              assets={assets}
+              onNavigateTab={(tab) => setActiveTab(tab as NavigationTab)}
+            />
+          )}
+        </ErrorBoundary>
       </main>
 
 

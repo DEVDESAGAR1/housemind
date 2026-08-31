@@ -283,7 +283,7 @@ export const DocumentManagerView: React.FC<DocumentManagerViewProps> = ({
                   {/* Status & Type Pills */}
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                      {doc.documentType.replace('_', ' ')}
+                      {(doc.documentType || 'document').replace(/_/g, ' ')}
                     </span>
                     <span
                       className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
@@ -297,7 +297,7 @@ export const DocumentManagerView: React.FC<DocumentManagerViewProps> = ({
                       {doc.status === 'confirmed' && <CheckCircle2 className="w-3 h-3" />}
                       {doc.status === 'pending_review' && <Clock className="w-3 h-3" />}
                       {doc.status === 'rejected' && <AlertTriangle className="w-3 h-3" />}
-                      {doc.status.replace('_', ' ')}
+                      {(doc.status || 'pending').replace(/_/g, ' ')}
                     </span>
                   </div>
 

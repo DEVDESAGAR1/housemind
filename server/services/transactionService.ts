@@ -9,7 +9,7 @@ import {
 
 /**
  * Generate a deterministic, collision-resistant SHA-256 fingerprint for a transaction.
- * Scoped to the user and normalized across date, amount, direction, description, and reference.
+ * Scoped to the user and normalized across date, amount, direction, and description.
  */
 export function generateTransactionFingerprint(
   userId: string,
@@ -21,14 +21,12 @@ export function generateTransactionFingerprint(
   reference?: string | null
 ): string {
   const normUser = userId.trim();
-  const normAccount = (account || 'default').trim().toLowerCase();
-  const normDate = date.trim();
-  const normAmount = Number(amount).toFixed(2);
-  const normType = type.trim().toUpperCase();
-  const normDesc = description.trim().toLowerCase().replace(/\s+/g, ' ');
-  const normRef = (reference || '').trim().toLowerCase();
+  const normDate = (date || '').trim();
+  const normAmount = Number(amount || 0).toFixed(2);
+  const normType = (type || 'DEBIT').trim().toUpperCase();
+  const normDesc = (description || '').trim().toLowerCase().replace(/\s+/g, ' ');
 
-  const raw = `${normUser}|${normAccount}|${normDate}|${normAmount}|${normType}|${normDesc}|${normRef}`;
+  const raw = `${normUser}|${normDate}|${normAmount}|${normType}|${normDesc}`;
   return crypto.createHash('sha256').update(raw).digest('hex');
 }
 

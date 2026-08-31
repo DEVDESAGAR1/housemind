@@ -88,7 +88,7 @@ router.get('/insights', async (req: AuthenticatedRequest, res: Response): Promis
       data: insights,
     });
   } catch (error: unknown) {
-    console.error(`[INTELLIGENCE] Failed to retrieve insights for user ${userId}:`, error);
+    console.error('[INTELLIGENCE] Failed to retrieve insights', { userId });
     res.status(500).json({
       success: false,
       error: {
@@ -114,7 +114,7 @@ router.post('/insights/refresh', async (req: AuthenticatedRequest, res: Response
       data: insights,
     });
   } catch (error: any) {
-    console.error(`[INTELLIGENCE] Error refreshing insights for user ${userId}:`, error);
+    console.error('[INTELLIGENCE] Error refreshing insights', { userId, message: error?.message });
     res.status(500).json({
       success: false,
       error: {
@@ -154,7 +154,7 @@ router.post('/insights/:id/explain', async (req: AuthenticatedRequest, res: Resp
       data: explanation,
     });
   } catch (error: any) {
-    console.error(`[INTELLIGENCE] Error explaining insight ${id} for user ${userId}:`, error);
+    console.error('[INTELLIGENCE] Error explaining insight', { id, userId, message: error?.message });
     if (error.message === 'Insight record not found.') {
       res.status(404).json({
         success: false,
@@ -229,7 +229,7 @@ router.patch('/insights/:id/status', async (req: AuthenticatedRequest, res: Resp
       data: updated,
     });
   } catch (error: unknown) {
-    console.error(`[INTELLIGENCE] Error updating status for insight ${id} for user ${userId}:`, error);
+    console.error('[INTELLIGENCE] Error updating status for insight', { id, userId });
     res.status(500).json({
       success: false,
       error: {

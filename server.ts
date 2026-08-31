@@ -6,6 +6,8 @@ import {
   helmetMiddleware,
   corsMiddleware,
   apiLimiter,
+  uploadLimiter,
+  aiLimiter,
   requestLogger,
   errorHandler,
 } from './server/middleware/security';
@@ -37,10 +39,10 @@ export function buildExpressApp(): Express {
   app.use('/api', apiLimiter);
   app.use('/api/health', healthRouter);
   app.use('/api/household', householdRouter);
-  app.use('/api/copilot', copilotRouter);
-  app.use('/api/intelligence', intelligenceRouter);
-  app.use('/api/documents', documentsRouter);
-  app.use('/api/imports', importsRouter);
+  app.use('/api/copilot', aiLimiter, copilotRouter);
+  app.use('/api/intelligence', aiLimiter, intelligenceRouter);
+  app.use('/api/documents', uploadLimiter, documentsRouter);
+  app.use('/api/imports', uploadLimiter, importsRouter);
   app.use('/api/transactions', transactionsRouter);
   app.use('/api/scenarios', scenariosRouter);
 

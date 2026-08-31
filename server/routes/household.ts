@@ -4,11 +4,18 @@ import { DatabaseService } from '../services/dbService';
 import {
   idParamSchema,
   householdProfileSchema,
+  updateHouseholdProfileSchema,
   createExpenseSchema,
   updateExpenseSchema,
   createAssetSchema,
   updateAssetSchema,
 } from '../schemas';
+import {
+  SUPPORTED_COUNTRIES,
+  SUPPORTED_CURRENCIES,
+  getCountryConfig,
+} from '../../src/config/locationCurrencyConfig';
+import { HouseholdDataSourcesSummary } from '../../src/types';
 
 const router = Router();
 
@@ -16,7 +23,115 @@ const router = Router();
 router.use(requireAuth);
 
 // ==========================================
-// 1. HOUSEHOLD PROFILE ENDPOINTS
+// 1. GLOBAL LOCATION & CURRENCY CONFIGURATION
+// ==========================================
+
+/**
+ * GET /api/household/config/location
+ * Returns supported countries, localized categories, payment rails, and default regional settings
+ */
+router.get('/config/location', async (_req: AuthenticatedRequest, res: Response): Promise<void> => {
+  res.status(200).json({
+    success: true,
+    data: {
+      countries: SUPPORTED_COUNTRIES,
+    },
+  });
+});
+
+/**
+ * GET /api/household/config/currencies
+ * Returns supported currencies registry
+ */
+router.get('/config/currencies', async (_req: AuthenticatedRequest, res: Response): Promise<void> => {
+  res.status(200).json({
+    success: true,
+    data: {
+      currencies: SUPPORTED_CURRENCIES,
+    },
+  });
+});
+
+/**
+ * GET /api/household/data-sources
+ * Returns transparent summary of data sources, grounding guarantees, and strict user isolation
+ */
+router.get('/data-sources', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+
+  try {
+    const [profile, expenses, assets, transactions, documents, scenarios, conversations] =
+      await Promise.all([
+        DatabaseService.getProfile(userId, req.userToken),
+        DatabaseService.listExpenses(userId, req.userToken),
+        DatabaseService.listAssets(userId),
+        DatabaseService.listTransactions(userId),
+        DatabaseService.listDocuments(userId),
+        DatabaseService.listScenarios(userId, req.userToken),
+        DatabaseService.listConversations(userId),
+      ]);
+
+    const manualTransactionsCount = transactions.filter((t) => t.source === 'manual').length;
+    const importedTransactionsCount = transactions.filter((t) => t.source === 'statement_import').length;
+
+    const countryCfg = getCountryConfig(profile?.country);
+
+    const summary: HouseholdDataSourcesSummary = {
+      userId,
+      householdProfile: {
+        homeName: profile?.homeName || 'My Household',
+        country: profile?.country || countryCfg.name,
+        region: profile?.region || undefined,
+        city: profile?.city || undefined,
+        currency: profile?.currency || countryCfg.defaultCurrency,
+        locale: profile?.locale || countryCfg.defaultLocale,
+        timezone: profile?.timezone || countryCfg.defaultTimezone,
+      },
+      dataCounts: {
+        manualTransactions: manualTransactionsCount,
+        importedDocuments: documents.length,
+        confirmedTransactions: transactions.length,
+        recurringExpenses: expenses.length,
+        registeredAssets: assets.length,
+        whatIfScenarios: scenarios.length,
+        copilotConversations: conversations.length,
+      },
+      isolationStatus: 'STRICT_USER_ISOLATED',
+      aiContextGrounding: {
+        groundedSources: [
+          'User-confirmed Household Profile & Location Settings',
+          'User-confirmed Recurring Household Expenses & Bills',
+          'User-registered Home Assets, Appliances & Warranties',
+          'User-confirmed Financial Transactions Ledger (Bank & Card)',
+          'User-created What-If Financial Decision Scenarios',
+        ],
+        excludedSensitiveData: [
+          'Raw Bank Account & Routing Numbers',
+          'Credit & Debit Card Numbers (PANs / CVVs / Expiry Dates)',
+          'Personal Identification Numbers (SSN / Aadhaar / Passwords / OTPs)',
+          'Server Secrets, Firebase Auth Credentials & Gemini API Keys',
+        ],
+      },
+    };
+
+    res.status(200).json({
+      success: true,
+      data: summary,
+    });
+  } catch (error: unknown) {
+    console.error(`[DATA_SOURCES] Failed to compile data sources summary for user: ${userId}`);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'Failed to retrieve household data sources summary.',
+      },
+    });
+  }
+});
+
+// ==========================================
+// 2. HOUSEHOLD PROFILE ENDPOINTS
 // ==========================================
 
 /**
@@ -51,7 +166,7 @@ router.get('/profile', async (req: AuthenticatedRequest, res: Response): Promise
 router.put('/profile', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   const userId = req.userId!;
 
-  const parseResult = householdProfileSchema.safeParse(req.body);
+  const parseResult = updateHouseholdProfileSchema.safeParse(req.body);
   if (!parseResult.success) {
     res.status(400).json({
       success: false,
@@ -65,7 +180,9 @@ router.put('/profile', async (req: AuthenticatedRequest, res: Response): Promise
   }
 
   try {
-    const updated = await DatabaseService.setProfile(userId, parseResult.data, req.userToken);
+    const existing = await DatabaseService.getProfile(userId, req.userToken);
+    const merged = { ...existing, ...parseResult.data };
+    const updated = await DatabaseService.setProfile(userId, merged, req.userToken);
     res.status(200).json({
       success: true,
       data: updated,
@@ -505,7 +622,7 @@ router.delete('/assets/:id', async (req: AuthenticatedRequest, res: Response): P
 });
 
 // ==========================================
-// 4. DEMO SEED ENDPOINT (IDEMPOTENT)
+// 4. DEMO SEED & REMOVAL ENDPOINTS
 // ==========================================
 
 /**
@@ -524,12 +641,77 @@ router.post(['/demo-seed', '/seed-demo'], async (req: AuthenticatedRequest, res:
       data: counts,
     });
   } catch (error: unknown) {
-    console.error(`[DEMO-SEED] Failed to seed demo data for user: ${userId}`);
+    console.error('[DEMO-SEED] Failed to seed demo data', { userId });
     res.status(500).json({
       success: false,
       error: {
         code: 'INTERNAL_SERVER_ERROR',
         message: 'Failed to seed demo household data.',
+      },
+    });
+  }
+});
+
+/**
+ * POST /api/household/demo-remove (or /clear-demo)
+ * Safely purges ONLY demo records for the authenticated user without affecting real user records
+ */
+router.post(['/demo-remove', '/clear-demo', '/remove-demo'], async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+
+  try {
+    const result = DatabaseService.clearDemoData(userId);
+
+    res.status(200).json({
+      success: true,
+      deletedCount: result.deletedCount,
+      message: `Successfully removed ${result.deletedCount} demo record(s). Your real user data remains intact.`,
+      data: result,
+    });
+  } catch (error: unknown) {
+    console.error('[DEMO-REMOVE] Failed to remove demo data', { userId });
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'Failed to remove demo data.',
+      },
+    });
+  }
+});
+
+/**
+ * POST /api/household/reset-data
+ * Completely resets user data for the authenticated user only (requires explicit confirmation)
+ */
+router.post('/reset-data', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const { confirm } = req.body;
+
+  if (confirm !== true) {
+    res.status(400).json({
+      success: false,
+      error: {
+        code: 'CONFIRMATION_REQUIRED',
+        message: 'Explicit confirmation { confirm: true } required to reset household data.',
+      },
+    });
+    return;
+  }
+
+  try {
+    DatabaseService.clearUserData(userId);
+    res.status(200).json({
+      success: true,
+      message: 'All household data for your account has been safely reset.',
+    });
+  } catch (error: unknown) {
+    console.error('[RESET-DATA] Failed to reset data', { userId });
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'Failed to reset household data.',
       },
     });
   }

@@ -64,7 +64,32 @@ async function handleResponse<T>(res: Response): Promise<T> {
   return json.data as T;
 }
 
+export async function apiGet<T>(url: string): Promise<ApiResponse<T>> {
+  try {
+    const headers = await getAuthHeader();
+    const res = await fetch(url, { method: 'GET', headers });
+    const json: ApiResponse<T> = await res.json().catch(() => ({
+      success: false,
+      error: { code: 'NETWORK_ERROR', message: 'Failed to parse server response' },
+    }));
+    return json;
+  } catch (err: any) {
+    return {
+      success: false,
+      error: {
+        code: 'REQUEST_ERROR',
+        message: err.message || 'Error executing request',
+      },
+    };
+  }
+}
+
 export const api = {
+  // Data Sources
+  async getDataSourcesSummary() {
+    return apiGet<any>('/api/household/data-sources');
+  },
+
   // Health
   async checkHealth(): Promise<{ status: string; service: string }> {
     const res = await fetch('/api/health');
@@ -161,7 +186,7 @@ export const api = {
     return handleResponse<{ id: string; deleted: boolean }>(res);
   },
 
-  // Demo Data Seeding
+  // Demo Data Seeding & Cleanup
   async seedDemoData(): Promise<{ profileCreated: boolean; expensesCount: number; assetsCount: number }> {
     const headers = await getAuthHeader();
     const res = await fetch('/api/household/demo-seed', {
@@ -169,6 +194,25 @@ export const api = {
       headers,
     });
     return handleResponse<{ profileCreated: boolean; expensesCount: number; assetsCount: number }>(res);
+  },
+
+  async removeDemoData(): Promise<{ deletedCount: number; details: Record<string, number> }> {
+    const headers = await getAuthHeader();
+    const res = await fetch('/api/household/demo-remove', {
+      method: 'POST',
+      headers,
+    });
+    return handleResponse<{ deletedCount: number; details: Record<string, number> }>(res);
+  },
+
+  async resetUserData(confirm = true): Promise<{ success: boolean; message: string }> {
+    const headers = await getAuthHeader();
+    const res = await fetch('/api/household/reset-data', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ confirm }),
+    });
+    return handleResponse<{ success: boolean; message: string }>(res);
   },
 
   // Gemini Copilot AI Endpoints

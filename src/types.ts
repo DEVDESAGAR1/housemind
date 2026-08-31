@@ -11,7 +11,13 @@ export interface HouseholdProfile {
   homeType: 'single_family' | 'apartment' | 'condo' | 'townhouse' | 'multi_family';
   yearBuilt?: number;
   squareFootage?: number;
+  country?: string;
+  region?: string;
+  city?: string;
+  timezone?: string;
+  locale?: string;
   currency: string;
+  currencyOverride?: boolean;
   primaryHeating?: string;
   createdAt: string;
   updatedAt: string;
@@ -247,6 +253,8 @@ export interface TransactionCandidate {
   date: string; // YYYY-MM-DD
   description: string;
   amount: number;
+  currency?: string | null;
+  requiresCurrencyReview?: boolean;
   type: TransactionType;
   category: string;
   subcategory?: string;
@@ -261,6 +269,33 @@ export interface TransactionCandidate {
   fingerprint: string;
   selected: boolean;
   rawText?: string;
+}
+
+export interface HouseholdDataSourcesSummary {
+  userId: string;
+  householdProfile: {
+    homeName: string;
+    country: string;
+    region?: string;
+    city?: string;
+    currency: string;
+    locale: string;
+    timezone: string;
+  };
+  dataCounts: {
+    manualTransactions: number;
+    importedDocuments: number;
+    confirmedTransactions: number;
+    recurringExpenses: number;
+    registeredAssets: number;
+    whatIfScenarios: number;
+    copilotConversations: number;
+  };
+  isolationStatus: 'STRICT_USER_ISOLATED';
+  aiContextGrounding: {
+    groundedSources: string[];
+    excludedSensitiveData: string[];
+  };
 }
 
 export interface ExtractedDocumentSummary {

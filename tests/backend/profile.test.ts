@@ -42,6 +42,54 @@ export async function runProfileTests(runner: TestRunner) {
     }
   });
 
+  await runner.test('Update household profile with global localization and currency override', async () => {
+    const res = await apiRequest('/api/household/profile', {
+      method: 'PUT',
+      token,
+      body: {
+        country: 'Germany',
+        currency: 'EUR',
+        currencyOverride: false,
+        locale: 'de-DE',
+        timezone: 'Europe/Berlin',
+      },
+    });
+
+    if (res.status !== 200) {
+      throw new Error(`Expected 200 OK, got ${res.status}`);
+    }
+    if (res.body?.data?.country !== 'Germany' || res.body?.data?.currency !== 'EUR') {
+      throw new Error(`Expected Germany/EUR, got ${res.body?.data?.country}/${res.body?.data?.currency}`);
+    }
+  });
+
+  await runner.test('Fetch Data Sources summary with grounding info', async () => {
+    const res = await apiRequest('/api/household/data-sources', { token });
+    if (res.status !== 200) {
+      throw new Error(`Expected 200, got ${res.status}`);
+    }
+    if (!res.body?.data?.aiContextGrounding) {
+      throw new Error('Expected aiContextGrounding in data sources');
+    }
+  });
+
+  await runner.test('Seed and safely remove demo data without affecting custom items', async () => {
+    // 1. Seed demo data
+    const seedRes = await apiRequest('/api/household/demo-seed', { method: 'POST', token });
+    if (seedRes.status !== 200) {
+      throw new Error(`Expected 200 for demo-seed, got ${seedRes.status}`);
+    }
+
+    // 2. Remove demo data
+    const removeRes = await apiRequest('/api/household/demo-remove', { method: 'POST', token });
+    if (removeRes.status !== 200) {
+      throw new Error(`Expected 200 for demo-remove, got ${removeRes.status}`);
+    }
+    if (typeof removeRes.body?.deletedCount !== 'number') {
+      throw new Error('Expected deletedCount in demo-remove response');
+    }
+  });
+
   await runner.test('Validate profile reject negative square footage or invalid year', async () => {
     const res = await apiRequest('/api/household/profile', {
       method: 'PUT',

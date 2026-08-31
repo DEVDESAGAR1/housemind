@@ -26,11 +26,17 @@ export const householdProfileSchema = z.object({
     .max(100000, 'Square footage exceeds reasonable limits')
     .optional()
     .nullable(),
+  country: z.string().trim().max(100, 'Country name is too long').optional().nullable(),
+  region: z.string().trim().max(100, 'State/Province is too long').optional().nullable(),
+  city: z.string().trim().max(100, 'City is too long').optional().nullable(),
+  timezone: z.string().trim().max(100, 'Timezone is too long').optional().nullable(),
+  locale: z.string().trim().max(20, 'Locale is too long').optional().nullable(),
   currency: z
     .string()
     .trim()
     .length(3, 'Currency must be a 3-letter ISO code')
     .default('USD'),
+  currencyOverride: z.boolean().optional().default(false),
   primaryHeating: z
     .string()
     .trim()
@@ -38,6 +44,8 @@ export const householdProfileSchema = z.object({
     .optional()
     .nullable(),
 });
+
+export const updateHouseholdProfileSchema = householdProfileSchema.partial();
 
 // Household Expense Schema
 export const createExpenseSchema = z.object({
@@ -261,6 +269,8 @@ export const transactionCandidateSchema = z.object({
     .regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format'),
   description: z.string().trim().min(1).max(255),
   amount: z.number().positive(),
+  currency: z.string().trim().length(3).optional().nullable(),
+  requiresCurrencyReview: z.boolean().optional(),
   type: transactionTypeEnum,
   category: z.string().trim().min(1).max(100),
   subcategory: z.string().trim().max(100).optional().nullable(),
