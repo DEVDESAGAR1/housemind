@@ -1,8 +1,3 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
 import { useState, useEffect, useCallback } from 'react';
 import { onAuthStateChanged, signInWithPopup, signOut, User } from 'firebase/auth';
 import { auth, googleProvider } from './lib/firebase';
@@ -14,19 +9,32 @@ import {
   HouseholdInsight,
   GeminiInsightExplanation,
   InsightStatus,
+  Property,
+  Room,
+  WarrantyPolicy,
+  MaintenanceTask,
+  UtilityAccount,
+  HouseholdLoan,
+  CreditCardAccount,
+  HomeCommandCenterSummary,
+  HouseholdDocument,
+  HouseholdEntityType,
 } from './types';
-
-import { LandingPage } from './components/LandingPage';
 import { Navbar, NavigationTab } from './components/Navbar';
 import { Dashboard } from './components/Dashboard';
 import { ExpensesView } from './components/ExpensesView';
 import { AssetsView } from './components/AssetsView';
-import { CopilotView } from './components/CopilotView';
+import { PropertiesView } from './components/PropertiesView';
+import { MaintenanceWarrantiesView } from './components/MaintenanceWarrantiesView';
+import { UtilitiesDebtsView } from './components/UtilitiesDebtsView';
 import { FinancialView } from './components/FinancialView';
 import { DocumentManagerView } from './components/DocumentManagerView';
+import { DocumentEntityExtractionModal } from './components/DocumentEntityExtractionModal';
 import { ScenarioSimulatorView } from './components/scenarios/ScenarioSimulatorView';
+import { CopilotView } from './components/CopilotView';
 import { InvestigationModal } from './components/InvestigationModal';
 import { ProfileModal } from './components/ProfileModal';
+import { LandingPage } from './components/LandingPage';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ToastContainer, ToastMessage } from './components/Toast';
 
@@ -37,18 +45,36 @@ export default function App() {
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
 
-  // App Data State
+  // App Navigation & Profile
   const [activeTab, setActiveTab] = useState<NavigationTab>('dashboard');
   const [profile, setProfile] = useState<HouseholdProfile | null>(null);
 
+  // Financial & Asset Core Data
   const [expenses, setExpenses] = useState<HouseholdExpense[]>([]);
   const [assets, setAssets] = useState<HomeAsset[]>([]);
   const [insights, setInsights] = useState<HouseholdInsight[]>([]);
+  const [documents, setDocuments] = useState<HouseholdDocument[]>([]);
+
+  // Phase 10: "Run the Home" Data Store
+  const [properties, setProperties] = useState<Property[]>([]);
+  const [rooms, setRooms] = useState<Room[]>([]);
+  const [warranties, setWarranties] = useState<WarrantyPolicy[]>([]);
+  const [tasks, setTasks] = useState<MaintenanceTask[]>([]);
+  const [utilities, setUtilities] = useState<UtilityAccount[]>([]);
+  const [loans, setLoans] = useState<HouseholdLoan[]>([]);
+  const [creditCards, setCreditCards] = useState<CreditCardAccount[]>([]);
+  const [commandCenterSummary, setCommandCenterSummary] = useState<HomeCommandCenterSummary | null>(null);
+
+  // UI Modals & Loading State
   const [isLoadingData, setIsLoadingData] = useState(false);
   const [isLoadingInsights, setIsLoadingInsights] = useState(false);
   const [investigatingInsight, setInvestigatingInsight] = useState<HouseholdInsight | null>(null);
   const [isSeeding, setIsSeeding] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+
+  // Global Entity Extractor Modal
+  const [isEntityExtractorOpen, setIsEntityExtractorOpen] = useState(false);
+  const [extractorTargetType, setExtractorTargetType] = useState<HouseholdEntityType | undefined>(undefined);
 
   // Toasts
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -65,26 +91,58 @@ export default function App() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
 
-  // Fetch initial household data once user logs in
+  // Fetch comprehensive household data
   const loadHouseholdData = useCallback(async () => {
     if (!auth.currentUser) return;
     setIsLoadingData(true);
     setIsLoadingInsights(true);
     try {
-      const [profileData, expensesData, assetsData, insightsData] = await Promise.all([
+      const [
+        profileData,
+        expensesData,
+        assetsData,
+        insightsData,
+        propertiesData,
+        roomsData,
+        warrantiesData,
+        tasksData,
+        utilitiesData,
+        loansData,
+        cardsData,
+        summaryData,
+        docsData,
+      ] = await Promise.all([
         api.getProfile().catch(() => null),
         api.getExpenses().catch(() => []),
         api.getAssets().catch(() => []),
         api.getInsights().catch(() => []),
+        api.getProperties().catch(() => []),
+        api.getRooms().catch(() => []),
+        api.getWarranties().catch(() => []),
+        api.getMaintenanceTasks().catch(() => []),
+        api.getUtilities().catch(() => []),
+        api.getLoans().catch(() => []),
+        api.getCreditCards().catch(() => []),
+        api.getHomeCommandCenterSummary().catch(() => null),
+        api.getDocuments().catch(() => []),
       ]);
 
       if (profileData) setProfile(profileData);
       if (expensesData) setExpenses(expensesData);
       if (assetsData) setAssets(assetsData);
       if (insightsData) setInsights(insightsData);
+      if (propertiesData) setProperties(propertiesData);
+      if (roomsData) setRooms(roomsData);
+      if (warrantiesData) setWarranties(warrantiesData);
+      if (tasksData) setTasks(tasksData);
+      if (utilitiesData) setUtilities(utilitiesData);
+      if (loansData) setLoans(loansData);
+      if (cardsData) setCreditCards(cardsData);
+      if (summaryData) setCommandCenterSummary(summaryData);
+      if (docsData) setDocuments(docsData);
     } catch (err: any) {
-      console.error('Failed to load household data:', err);
-      addToast('error', 'Sync Warning', 'Could not load all household data from cloud.');
+      console.error('Failed to load complete household data:', err);
+      addToast('error', 'Sync Warning', 'Could not load all household systems from cloud.');
     } finally {
       setIsLoadingData(false);
       setIsLoadingInsights(false);
@@ -110,12 +168,20 @@ export default function App() {
         setExpenses([]);
         setAssets([]);
         setInsights([]);
+        setProperties([]);
+        setRooms([]);
+        setWarranties([]);
+        setTasks([]);
+        setUtilities([]);
+        setLoans([]);
+        setCreditCards([]);
+        setCommandCenterSummary(null);
+        setDocuments([]);
         setInvestigatingInsight(null);
       }
     });
     return () => unsubscribe();
   }, [loadHouseholdData]);
-
 
   // Auth actions
   const handleGoogleSignIn = async () => {
@@ -123,7 +189,7 @@ export default function App() {
     setIsAuthenticating(true);
     try {
       await signInWithPopup(auth, googleProvider);
-      addToast('success', 'Welcome to HouseMind', 'Successfully signed in.');
+      addToast('success', 'Welcome to HouseMind', 'Successfully signed in to your household vault.');
     } catch (err: unknown) {
       console.error('Sign-in error:', err);
       const errorMsg = err instanceof Error ? err.message : 'Failed to sign in with Google';
@@ -151,8 +217,8 @@ export default function App() {
       await loadHouseholdData();
       addToast(
         'success',
-        'Demo Data Populated',
-        `Seeded ${result.expensesCount} expenses and ${result.assetsCount} home assets.`
+        'Realistic Household Data Loaded',
+        `Seeded properties, assets, maintenance schedules, warranties, utilities, and financial ledger.`
       );
     } catch (err: any) {
       console.error('Seed demo error:', err);
@@ -234,7 +300,6 @@ export default function App() {
 
   const handleInvestigateInsight = (insight: HouseholdInsight) => {
     setInvestigatingInsight(insight);
-    // Automatically mark as viewed if it was new
     if (insight.status === 'new') {
       api.updateInsightStatus(insight.id, 'viewed').catch(console.error);
       setInsights((prev) =>
@@ -252,11 +317,7 @@ export default function App() {
       if (investigatingInsight && investigatingInsight.id === id) {
         setInvestigatingInsight((prev) => (prev ? { ...prev, status } : null));
       }
-      addToast(
-        'success',
-        'Status Updated',
-        `Insight marked as ${status}.`
-      );
+      addToast('success', 'Status Updated', `Insight marked as ${status}.`);
     } catch (err: any) {
       console.error('Update status error:', err);
       addToast('error', 'Update Failed', err.message || 'Failed to update status.');
@@ -276,8 +337,12 @@ export default function App() {
     return explanation;
   };
 
-  // Loading Screen during initial session check
+  const handleOpenGlobalExtractor = (type?: HouseholdEntityType) => {
+    setExtractorTargetType(type);
+    setIsEntityExtractorOpen(true);
+  };
 
+  // Loading Screen during initial session check
   if (isAuthChecking) {
     return (
       <div className="min-h-screen bg-slate-900 text-white flex flex-col items-center justify-center space-y-4">
@@ -321,22 +386,70 @@ export default function App() {
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <ErrorBoundary fallbackTitle="View Rendering Error">
           {activeTab === 'dashboard' && (
-             <Dashboard
-               profile={profile}
-               expenses={expenses}
-               assets={assets}
-               insights={insights}
-               isLoadingInsights={isLoadingInsights}
-               onNavigate={(tab) => setActiveTab(tab as NavigationTab)}
-               onOpenAddExpense={() => setActiveTab('expenses')}
-               onOpenAddAsset={() => setActiveTab('assets')}
-               onOpenProfile={() => setIsProfileModalOpen(true)}
-               onSeedDemo={handleSeedDemo}
-               onRefreshInsights={handleRefreshInsights}
-               onInvestigateInsight={handleInvestigateInsight}
-               onUpdateInsightStatus={handleUpdateInsightStatus}
-               isSeeding={isSeeding}
-             />
+            <Dashboard
+              profile={profile}
+              expenses={expenses}
+              assets={assets}
+              insights={insights}
+              isLoadingInsights={isLoadingInsights}
+              onNavigate={(tab) => setActiveTab(tab as NavigationTab)}
+              onOpenAddExpense={() => setActiveTab('expenses')}
+              onOpenAddAsset={() => setActiveTab('assets')}
+              onOpenProfile={() => setIsProfileModalOpen(true)}
+              onSeedDemo={handleSeedDemo}
+              onRefreshInsights={handleRefreshInsights}
+              onInvestigateInsight={handleInvestigateInsight}
+              onUpdateInsightStatus={handleUpdateInsightStatus}
+              isSeeding={isSeeding}
+            />
+          )}
+
+          {activeTab === 'properties' && (
+            <PropertiesView
+              properties={properties}
+              rooms={rooms}
+              assets={assets}
+              onRefresh={loadHouseholdData}
+              onOpenEntityExtractor={() => handleOpenGlobalExtractor('asset')}
+              addToast={addToast}
+            />
+          )}
+
+          {activeTab === 'assets' && (
+            <AssetsView
+              assets={assets}
+              currency={profile?.currency || 'USD'}
+              isLoading={isLoadingData}
+              onAddAsset={handleAddAsset}
+              onUpdateAsset={handleUpdateAsset}
+              onDeleteAsset={handleDeleteAsset}
+            />
+          )}
+
+          {activeTab === 'maintenance' && (
+            <MaintenanceWarrantiesView
+              tasks={tasks}
+              warranties={warranties}
+              assets={assets}
+              properties={properties}
+              onRefresh={loadHouseholdData}
+              onOpenEntityExtractor={(type) => handleOpenGlobalExtractor(type)}
+              addToast={addToast}
+              currency={profile?.currency || 'USD'}
+            />
+          )}
+
+          {activeTab === 'utilities' && (
+            <UtilitiesDebtsView
+              utilities={utilities}
+              loans={loans}
+              creditCards={creditCards}
+              properties={properties}
+              onRefresh={loadHouseholdData}
+              onOpenEntityExtractor={(type) => handleOpenGlobalExtractor(type)}
+              addToast={addToast}
+              currency={profile?.currency || 'USD'}
+            />
           )}
 
           {activeTab === 'finances' && (
@@ -346,16 +459,6 @@ export default function App() {
               onNavigateToDocuments={() => setActiveTab('documents')}
               onShowToast={(msg, type) =>
                 addToast(type || 'info', type === 'error' ? 'Finance Alert' : 'Finance Update', msg)
-              }
-            />
-          )}
-
-          {activeTab === 'documents' && (
-            <DocumentManagerView
-              token={authToken}
-              profile={profile}
-              onShowToast={(msg, type) =>
-                addToast(type || 'info', type === 'error' ? 'Document Alert' : 'Document Processed', msg)
               }
             />
           )}
@@ -371,14 +474,13 @@ export default function App() {
             />
           )}
 
-          {activeTab === 'assets' && (
-            <AssetsView
-              assets={assets}
-              currency={profile?.currency || 'USD'}
-              isLoading={isLoadingData}
-              onAddAsset={handleAddAsset}
-              onUpdateAsset={handleUpdateAsset}
-              onDeleteAsset={handleDeleteAsset}
+          {activeTab === 'documents' && (
+            <DocumentManagerView
+              token={authToken}
+              profile={profile}
+              onShowToast={(msg, type) =>
+                addToast(type || 'info', type === 'error' ? 'Document Alert' : 'Document Processed', msg)
+              }
             />
           )}
 
@@ -400,6 +502,25 @@ export default function App() {
         </ErrorBoundary>
       </main>
 
+      {/* Global Document Entity Extraction Modal */}
+      {isEntityExtractorOpen && (
+        <DocumentEntityExtractionModal
+          isOpen={isEntityExtractorOpen}
+          onClose={() => setIsEntityExtractorOpen(false)}
+          documents={documents}
+          preselectedEntityType={extractorTargetType}
+          currency={profile?.currency || 'USD'}
+          onEntitySaved={(type, entity) => {
+            loadHouseholdData();
+            addToast(
+              'success',
+              'Record Saved',
+              `Successfully added new ${type.replace('_', ' ')} record to your household system.`
+            );
+          }}
+          addToast={addToast}
+        />
+      )}
 
       {/* Investigation Modal */}
       {investigatingInsight && (
@@ -423,7 +544,6 @@ export default function App() {
         onClose={() => setIsProfileModalOpen(false)}
         onSave={handleSaveProfile}
       />
-
 
       {/* Toast Notifications */}
       <ToastContainer toasts={toasts} onDismiss={removeToast} />

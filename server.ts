@@ -37,6 +37,28 @@ export function buildExpressApp(): Express {
   // 3. Rate Limiting for all protected API surfaces
   app.use('/api', apiLimiter);
   app.use('/api/household', householdRouter);
+
+  // Top-level Phase 10 route aliases
+  const forwardToHousehold = (prefix: string) => (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    let sub = req.url;
+    if (sub === '/') {
+      sub = '';
+    } else if (sub.startsWith('/?')) {
+      sub = sub.slice(1);
+    }
+    req.url = prefix + sub;
+    householdRouter(req, res, next);
+  };
+
+  app.use('/api/properties', forwardToHousehold('/properties'));
+  app.use('/api/rooms', forwardToHousehold('/rooms'));
+  app.use('/api/warranties', forwardToHousehold('/warranties'));
+  app.use(['/api/maintenance-tasks', '/api/maintenances'], forwardToHousehold('/maintenances'));
+  app.use('/api/utilities', forwardToHousehold('/utilities'));
+  app.use('/api/loans', forwardToHousehold('/loans'));
+  app.use(['/api/credit-cards', '/api/cards'], forwardToHousehold('/credit-cards'));
+  app.use(['/api/home/command-center-summary', '/api/home/command-center'], forwardToHousehold('/command-center'));
+
   app.use('/api/copilot', aiLimiter, copilotRouter);
   app.use('/api/intelligence', aiLimiter, intelligenceRouter);
   app.use('/api/documents', uploadLimiter, documentsRouter);

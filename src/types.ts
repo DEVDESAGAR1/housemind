@@ -87,6 +87,12 @@ export interface HouseholdExpense {
 }
 
 export type AssetCategory =
+  | 'vehicle'
+  | 'appliance'
+  | 'major_appliance'
+  | 'electronics'
+  | 'property_related'
+  | 'furniture'
   | 'hvac'
   | 'plumbing'
   | 'kitchen'
@@ -95,13 +101,89 @@ export type AssetCategory =
   | 'electrical'
   | 'other';
 
-export type AssetStatus = 'operational' | 'needs_maintenance' | 'critical' | 'replaced';
+export type AssetStatus = 'operational' | 'needs_maintenance' | 'critical' | 'replaced' | 'sold';
+
+// ==========================================
+// Phase 10: Run the Home - Core Entities
+// ==========================================
+
+export type PropertyType =
+  | 'primary_home'
+  | 'additional_home'
+  | 'rental_property'
+  | 'vacation_home'
+  | 'plot_land'
+  | 'other';
+
+export interface PropertyAddress {
+  street?: string;
+  city?: string;
+  region?: string;
+  postalCode?: string;
+  country?: string;
+}
+
+export interface Property {
+  id: string;
+  userId: string;
+  name: string;
+  propertyType: PropertyType;
+  address?: PropertyAddress;
+  purchaseDate?: string;
+  purchaseValue?: number;
+  currentEstimatedValue?: number;
+  ownershipInfo?: string;
+  squareFootage?: number;
+  yearBuilt?: number;
+  notes?: string;
+  documentIds?: string[];
+  linkedLoanId?: string;
+  isDemo?: boolean;
+  sourceMetadata?: ImportedSourceMetadata;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type RoomType =
+  | 'living_room'
+  | 'bedroom'
+  | 'kitchen'
+  | 'bathroom'
+  | 'balcony'
+  | 'garage'
+  | 'office'
+  | 'storage'
+  | 'garden'
+  | 'dining_room'
+  | 'basement'
+  | 'attic'
+  | 'hallway'
+  | 'utility_area'
+  | 'other';
+
+export interface Room {
+  id: string;
+  userId: string;
+  propertyId: string;
+  name: string;
+  type: RoomType;
+  floor?: string;
+  notes?: string;
+  documentIds?: string[];
+  isDemo?: boolean;
+  sourceMetadata?: ImportedSourceMetadata;
+  createdAt: string;
+  updatedAt: string;
+}
 
 export interface HomeAsset {
   id: string;
   userId: string;
+  propertyId?: string;
+  roomId?: string;
   name: string;
   category: AssetCategory;
+  subcategory?: string;
   brand?: string;
   modelNumber?: string;
   serialNumber?: string;
@@ -109,13 +191,316 @@ export interface HomeAsset {
   warrantyExpiryDate?: string;
   expectedLifespanYears?: number;
   purchaseCost?: number;
+  currentEstimatedValue?: number;
   currentStatus: AssetStatus;
   roomLocation?: string;
   maintenanceNotes?: string;
+  imageUrl?: string;
+  invoiceDocumentId?: string;
+  warrantyDocumentId?: string;
+  supportingDocumentIds?: string[];
   isDemo?: boolean;
   sourceMetadata?: ImportedSourceMetadata;
   createdAt: string;
   updatedAt: string;
+}
+
+export type WarrantyStatus = 'active' | 'expiring_soon' | 'expired';
+
+export interface Warranty {
+  id: string;
+  userId: string;
+  assetId?: string;
+  propertyId?: string;
+  warrantyProvider: string;
+  policyNumber?: string;
+  startDate: string;
+  endDate: string;
+  durationMonths?: number;
+  coverageNotes?: string;
+  contactInfo?: {
+    phone?: string;
+    email?: string;
+    website?: string;
+  };
+  documentId?: string;
+  status: WarrantyStatus;
+  isDemo?: boolean;
+  sourceMetadata?: ImportedSourceMetadata;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type MaintenanceSchedule =
+  | 'none'
+  | 'monthly'
+  | 'quarterly'
+  | 'semi_annual'
+  | 'annual'
+  | 'custom';
+
+export type MaintenanceStatus = 'scheduled' | 'completed' | 'overdue';
+
+export interface MaintenanceTask {
+  id: string;
+  userId: string;
+  title: string;
+  assetId?: string;
+  propertyId?: string;
+  roomId?: string;
+  serviceDate: string;
+  cost: number;
+  serviceProvider?: string;
+  contactPhone?: string;
+  notes?: string;
+  receiptDocumentId?: string;
+  nextServiceDate?: string;
+  recurringSchedule: MaintenanceSchedule;
+  status: MaintenanceStatus;
+  isDemo?: boolean;
+  sourceMetadata?: ImportedSourceMetadata;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type UtilityServiceType =
+  | 'electricity'
+  | 'water'
+  | 'gas'
+  | 'internet'
+  | 'mobile'
+  | 'trash'
+  | 'hoa'
+  | 'heating_oil'
+  | 'solar'
+  | 'other';
+
+export type UtilityBillingCycle = 'monthly' | 'bi_monthly' | 'quarterly' | 'annual';
+
+export interface UtilityAccount {
+  id: string;
+  userId: string;
+  propertyId?: string;
+  name: string;
+  serviceType: UtilityServiceType;
+  provider: string;
+  accountIdentifier?: string;
+  billingCycle: UtilityBillingCycle;
+  dueDateDay?: number;
+  nextDueDate?: string;
+  typicalAmount: number;
+  latestBillAmount?: number;
+  paymentStatus: 'paid' | 'pending' | 'overdue';
+  isAutoPay: boolean;
+  documentIds?: string[];
+  notes?: string;
+  isDemo?: boolean;
+  sourceMetadata?: ImportedSourceMetadata;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type LoanType =
+  | 'home_loan'
+  | 'vehicle_loan'
+  | 'personal_loan'
+  | 'appliance_loan'
+  | 'education_loan'
+  | 'solar_loan'
+  | 'other';
+
+export interface HouseholdLoan {
+  id: string;
+  userId: string;
+  propertyId?: string;
+  assetId?: string;
+  loanName: string;
+  loanType: LoanType;
+  lender: string;
+  principalAmount: number;
+  interestRate: number; // e.g. 6.5 for 6.5%
+  emiAmount: number;
+  startDate: string;
+  endDate: string;
+  tenureMonths: number;
+  paymentDueDay: number;
+  outstandingAmount: number;
+  documentIds?: string[];
+  status: 'active' | 'closed';
+  notes?: string;
+  isDemo?: boolean;
+  sourceMetadata?: ImportedSourceMetadata;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreditCardAccount {
+  id: string;
+  userId: string;
+  cardNickname: string;
+  cardIssuer: string;
+  last4Digits: string; // strictly 4 digits, NO full PAN
+  creditLimit: number;
+  billingCycleDay?: number;
+  statementDate?: string;
+  paymentDueDate: string;
+  outstandingAmount: number;
+  minimumDue: number;
+  aprRate?: number;
+  paymentStatus: 'paid' | 'pending' | 'overdue';
+  isAutoPay: boolean;
+  documentIds?: string[];
+  notes?: string;
+  isDemo?: boolean;
+  sourceMetadata?: ImportedSourceMetadata;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface HomeCommandCenterSummary {
+  today: {
+    urgentTasks: Array<{
+      id: string;
+      type: 'bill_due' | 'maintenance_due' | 'overdue_payment' | 'warranty_expiring';
+      title: string;
+      subtitle?: string;
+      amount?: number;
+      dueDate: string;
+      severity: 'low' | 'medium' | 'high' | 'critical';
+    }>;
+    overdueCount: number;
+    dueTodayCount: number;
+  };
+  upcoming30Days: {
+    totalObligationsAmount: number;
+    emis: Array<{
+      id: string;
+      name: string;
+      amount: number;
+      dueDate: string;
+      lender: string;
+    }>;
+    creditCards: Array<{
+      id: string;
+      nickname: string;
+      last4: string;
+      amount: number;
+      dueDate: string;
+      isAutoPay: boolean;
+    }>;
+    utilities: Array<{
+      id: string;
+      name: string;
+      provider: string;
+      amount: number;
+      dueDate: string;
+      isAutoPay: boolean;
+    }>;
+    warrantiesExpiring: Array<{
+      id: string;
+      provider: string;
+      assetName?: string;
+      expiryDate: string;
+      daysRemaining: number;
+    }>;
+    maintenanceTasks: Array<{
+      id: string;
+      title: string;
+      targetName?: string;
+      dueDate: string;
+      status: MaintenanceStatus;
+    }>;
+  };
+  homeSpaces: {
+    propertiesCount: number;
+    roomsCount: number;
+    assetsCount: number;
+    totalAssetValuation: number;
+    totalPropertyValuation: number;
+    assetsNeedingAttention: number;
+  };
+  financialObligations: {
+    monthlyLoansTotal: number;
+    monthlyUtilitiesTotal: number;
+    monthlyCreditCardsTotal: number;
+    monthlyRecurringExpensesTotal: number;
+    totalMonthlyObligations: number;
+  };
+  documents: {
+    totalDocuments: number;
+    expiringDocumentsCount: number;
+    recentDocuments: DocumentRecord[];
+  };
+}
+
+export type ExtractedTargetEntityType =
+  | 'asset'
+  | 'warranty'
+  | 'maintenance'
+  | 'utility'
+  | 'loan'
+  | 'credit_card'
+  | 'expense'
+  | 'document';
+
+export interface ExtractedEntityReviewData {
+  documentType: DocumentType;
+  suggestedEntity: ExtractedTargetEntityType;
+  confidence: number;
+  rawTextPreview?: string;
+  extractedFields: {
+    // General
+    title?: string;
+    merchantOrIssuer?: string;
+    date?: string;
+    amount?: number;
+    currency?: string;
+    notes?: string;
+    // Asset
+    brand?: string;
+    modelNumber?: string;
+    serialNumber?: string;
+    assetCategory?: AssetCategory;
+    purchaseCost?: number;
+    installDate?: string;
+    expectedLifespanYears?: number;
+    // Warranty
+    warrantyProvider?: string;
+    policyNumber?: string;
+    warrantyStartDate?: string;
+    warrantyEndDate?: string;
+    warrantyDurationMonths?: number;
+    coverageNotes?: string;
+    contactPhone?: string;
+    // Maintenance
+    taskTitle?: string;
+    serviceProvider?: string;
+    serviceCost?: number;
+    serviceDate?: string;
+    nextServiceDate?: string;
+    // Utility
+    utilityProvider?: string;
+    utilityType?: UtilityServiceType;
+    accountIdentifier?: string;
+    billAmount?: number;
+    dueDate?: string;
+    billingCycle?: UtilityBillingCycle;
+    // Loan
+    loanName?: string;
+    lender?: string;
+    loanType?: LoanType;
+    principalAmount?: number;
+    interestRate?: number;
+    emiAmount?: number;
+    tenureMonths?: number;
+    // Credit Card
+    cardNickname?: string;
+    cardIssuer?: string;
+    last4Digits?: string;
+    creditLimit?: number;
+    outstandingAmount?: number;
+    minimumDue?: number;
+  };
 }
 
 export interface ChatMessage {
@@ -333,6 +718,13 @@ export interface HouseholdDataSourcesSummary {
     confirmedTransactions: number;
     recurringExpenses: number;
     registeredAssets: number;
+    properties?: number;
+    rooms?: number;
+    warranties?: number;
+    maintenances?: number;
+    utilities?: number;
+    loans?: number;
+    creditCards?: number;
     whatIfScenarios: number;
     copilotConversations: number;
     demoRecordsCount?: number;
@@ -378,6 +770,13 @@ export interface PrivacyCenterSummary {
     transactions: { total: number; user: number; demo: number };
     expenses: { total: number; user: number; demo: number };
     assets: { total: number; user: number; demo: number };
+    properties?: { total: number; user: number; demo: number };
+    rooms?: { total: number; user: number; demo: number };
+    warranties?: { total: number; user: number; demo: number };
+    maintenances?: { total: number; user: number; demo: number };
+    utilities?: { total: number; user: number; demo: number };
+    loans?: { total: number; user: number; demo: number };
+    creditCards?: { total: number; user: number; demo: number };
     documents: { total: number; user: number; demo: number };
     scenarios: { total: number; user: number; demo: number };
     conversations: { total: number; user: number; demo: number };

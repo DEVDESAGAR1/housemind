@@ -15,10 +15,11 @@ import { runDocumentFlowIntegrationTests } from './integration/document-flow.tes
 import { runIntelligenceFlowIntegrationTests } from './integration/intelligence-flow.test';
 import { runPersistenceIntegrationTests } from './integration/persistence.test';
 import { runPrivacyTests } from './backend/privacy.test';
+import { runPhase10HomeSystemsTests } from './backend/phase10_home_systems.test';
 
 async function main() {
   console.log('\n===============================================================');
-  console.log('  HOUSEMIND PHASE 5 RELEASE CANDIDATE TEST SUITE EXECUTION');
+  console.log('  HOUSEMIND PHASE 10 RELEASE CANDIDATE TEST SUITE EXECUTION');
   console.log('===============================================================\n');
 
   process.env.NODE_ENV = 'test';
@@ -59,6 +60,9 @@ async function main() {
 
     console.log('\n--- 11. Error Recovery & Graceful Degradation ---');
     await runErrorHandlingTests(runner);
+
+    console.log('\n--- 12. Phase 10: Run the Home Systems & AI Entity Extraction ---');
+    await runPhase10HomeSystemsTests(runner);
 
     // Integration Suites
     console.log('\n--- 11. Integration: End-to-End Financial Intelligence Flow ---');

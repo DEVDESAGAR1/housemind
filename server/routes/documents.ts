@@ -16,8 +16,108 @@ import {
 } from '../services/transactionService';
 import { DatabaseService } from '../services/dbService';
 import { HouseholdDocument, DocumentType } from '../../src/types';
+import {
+  extractEntityFromDocument,
+  saveExtractedEntity,
+} from '../services/entityExtractionService';
+import {
+  extractEntityFromDocSchema,
+  saveExtractedEntitySchema,
+} from '../schemas';
 
 export const documentsRouter = Router();
+
+/**
+ * POST /api/documents/extract-entity
+ * Extracts structured home entity data (asset, warranty, maintenance, utility, loan, credit_card) from raw or base64 document
+ */
+documentsRouter.post(
+  '/extract-entity',
+  requireAuth as any,
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    const userId = req.userId!;
+    const { documentText, fileBase64, fileName, fileType, documentType, suggestedType, targetEntityHint } = req.body;
+
+    try {
+      const result = await extractEntityFromDocument(userId, {
+        documentText,
+        fileBase64,
+        fileName: fileName || 'document.pdf',
+        fileType: fileType || 'application/pdf',
+        documentType,
+        targetEntityHint: targetEntityHint || suggestedType,
+      });
+
+      res.status(200).json({
+        success: true,
+        entityType: result.detectedEntityType,
+        extractedData: result.extractedFields,
+        extractedFields: result.extractedFields,
+        confidence: result.confidenceScore,
+        confidenceScore: result.confidenceScore,
+        sourceReferences: result.sourceReferences,
+        warnings: result.warnings,
+        data: result,
+      });
+    } catch (error: unknown) {
+      console.error('[DOCUMENTS_ROUTER] Extract entity failed:', error);
+      res.status(500).json({
+        success: false,
+        error: {
+          code: 'EXTRACTION_ERROR',
+          message: error instanceof Error ? error.message : 'Entity extraction failed.',
+        },
+      });
+    }
+  }
+);
+
+/**
+ * POST /api/documents/save-extracted-entity
+ * Directly persists an extracted entity to the appropriate household collection
+ */
+documentsRouter.post(
+  '/save-extracted-entity',
+  requireAuth as any,
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    const userId = req.userId!;
+    const parseResult = saveExtractedEntitySchema.safeParse(req.body);
+    if (!parseResult.success) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Invalid payload for saving extracted entity.',
+          details: parseResult.error.flatten().fieldErrors,
+        },
+      });
+      return;
+    }
+
+    try {
+      const saved = await saveExtractedEntity(
+        userId,
+        parseResult.data.targetEntity,
+        parseResult.data.payload,
+        parseResult.data.documentId || undefined
+      );
+
+      res.status(201).json({
+        success: true,
+        data: saved,
+      });
+    } catch (error: unknown) {
+      console.error('[DOCUMENTS_ROUTER] Save entity failed:', error);
+      res.status(500).json({
+        success: false,
+        error: {
+          code: 'SAVE_FAILED',
+          message: error instanceof Error ? error.message : 'Failed to save entity record.',
+        },
+      });
+    }
+  }
+);
 
 // Configure Multer for secure in-memory uploads (Max 10MB)
 const upload = multer({

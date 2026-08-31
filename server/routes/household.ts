@@ -9,6 +9,29 @@ import {
   updateExpenseSchema,
   createAssetSchema,
   updateAssetSchema,
+  createPropertySchema,
+  updatePropertySchema,
+  propertyIdParamSchema,
+  createRoomSchema,
+  updateRoomSchema,
+  roomIdParamSchema,
+  createWarrantySchema,
+  updateWarrantySchema,
+  warrantyIdParamSchema,
+  createMaintenanceSchema,
+  updateMaintenanceSchema,
+  maintenanceIdParamSchema,
+  createUtilitySchema,
+  updateUtilitySchema,
+  utilityIdParamSchema,
+  createLoanSchema,
+  updateLoanSchema,
+  loanIdParamSchema,
+  createCreditCardSchema,
+  updateCreditCardSchema,
+  creditCardIdParamSchema,
+  extractEntityFromDocSchema,
+  saveExtractedEntitySchema,
 } from '../schemas';
 import {
   SUPPORTED_COUNTRIES,
@@ -16,6 +39,10 @@ import {
   getCountryConfig,
 } from '../../src/config/locationCurrencyConfig';
 import { HouseholdDataSourcesSummary } from '../../src/types';
+import {
+  extractEntityFromDocument,
+  saveExtractedEntity,
+} from '../services/entityExtractionService';
 
 const router = Router();
 
@@ -657,7 +684,1005 @@ router.delete('/assets/:id', async (req: AuthenticatedRequest, res: Response): P
 });
 
 // ==========================================
-// 4. DEMO SEED & REMOVAL ENDPOINTS
+// 4. HOME COMMAND CENTER SUMMARY
+// ==========================================
+
+/**
+ * GET /api/household/command-center
+ * Returns aggregated Home Command Center summary metrics and action items
+ */
+router.get(['/command-center', '/home-command-center', '/command-center-summary'], async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+
+  try {
+    const summary = await DatabaseService.getHomeCommandCenterSummary(userId);
+    res.status(200).json({
+      success: true,
+      data: summary,
+      summary,
+    });
+  } catch (error: unknown) {
+    console.error('[COMMAND_CENTER] Failed to fetch command center summary:', {
+      userId,
+      message: error instanceof Error ? error.message : String(error),
+    });
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'Failed to retrieve household command center summary.',
+      },
+    });
+  }
+});
+
+// ==========================================
+// 5. PROPERTIES CRUD
+// ==========================================
+
+/**
+ * GET /api/household/properties
+ */
+router.get('/properties', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  try {
+    const properties = await DatabaseService.listProperties(userId);
+    res.status(200).json({
+      success: true,
+      data: properties,
+      properties,
+    });
+  } catch (error: unknown) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to list properties.' },
+    });
+  }
+});
+
+/**
+ * GET /api/household/properties/:id
+ */
+router.get('/properties/:id', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const { id } = req.params;
+
+  const prop = await DatabaseService.getProperty(userId, id);
+  if (!prop) {
+    res.status(404).json({
+      success: false,
+      error: { code: 'NOT_FOUND', message: 'Property not found.' },
+    });
+    return;
+  }
+
+  res.status(200).json({ success: true, data: prop, property: prop });
+});
+
+/**
+ * POST /api/household/properties
+ */
+router.post('/properties', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const parseResult = createPropertySchema.safeParse(req.body);
+  if (!parseResult.success) {
+    res.status(400).json({
+      success: false,
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Invalid property payload.',
+        details: parseResult.error.flatten().fieldErrors,
+      },
+    });
+    return;
+  }
+
+  try {
+    const property = await DatabaseService.createProperty(userId, parseResult.data);
+    res.status(201).json({ success: true, data: property, property });
+  } catch (error: unknown) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to create property.' },
+    });
+  }
+});
+
+/**
+ * PUT /api/household/properties/:id
+ */
+router.put('/properties/:id', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const { id } = req.params;
+
+  const parseResult = updatePropertySchema.safeParse(req.body);
+  if (!parseResult.success) {
+    res.status(400).json({
+      success: false,
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Invalid property update payload.',
+        details: parseResult.error.flatten().fieldErrors,
+      },
+    });
+    return;
+  }
+
+  try {
+    const updated = await DatabaseService.updateProperty(userId, id, parseResult.data);
+    if (!updated) {
+      res.status(404).json({
+        success: false,
+        error: { code: 'NOT_FOUND', message: 'Property not found.' },
+      });
+      return;
+    }
+    res.status(200).json({ success: true, data: updated, property: updated });
+  } catch (error: unknown) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to update property.' },
+    });
+  }
+});
+
+/**
+ * DELETE /api/household/properties/:id
+ */
+router.delete('/properties/:id', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const { id } = req.params;
+
+  try {
+    const deleted = await DatabaseService.deleteProperty(userId, id);
+    if (!deleted) {
+      res.status(404).json({
+        success: false,
+        error: { code: 'NOT_FOUND', message: 'Property not found.' },
+      });
+      return;
+    }
+    res.status(200).json({ success: true, data: { id, deleted: true } });
+  } catch (error: unknown) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to delete property.' },
+    });
+  }
+});
+
+// ==========================================
+// 6. ROOMS & AREAS CRUD
+// ==========================================
+
+/**
+ * GET /api/household/rooms
+ */
+router.get('/rooms', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const propertyId = req.query.propertyId as string | undefined;
+
+  try {
+    const rooms = await DatabaseService.listRooms(userId, propertyId);
+    res.status(200).json({ success: true, data: rooms, rooms });
+  } catch (error: unknown) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to list rooms.' },
+    });
+  }
+});
+
+/**
+ * GET /api/household/rooms/:id
+ */
+router.get('/rooms/:id', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const { id } = req.params;
+
+  const room = await DatabaseService.getRoom(userId, id);
+  if (!room) {
+    res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Room not found.' } });
+    return;
+  }
+  res.status(200).json({ success: true, data: room, room });
+});
+
+/**
+ * POST /api/household/rooms
+ */
+router.post('/rooms', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const parseResult = createRoomSchema.safeParse(req.body);
+  if (!parseResult.success) {
+    res.status(400).json({
+      success: false,
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Invalid room payload.',
+        details: parseResult.error.flatten().fieldErrors,
+      },
+    });
+    return;
+  }
+
+  try {
+    const room = await DatabaseService.createRoom(userId, parseResult.data);
+    res.status(201).json({ success: true, data: room, room });
+  } catch (error: unknown) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to create room.' },
+    });
+  }
+});
+
+/**
+ * PUT /api/household/rooms/:id
+ */
+router.put('/rooms/:id', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const { id } = req.params;
+
+  const parseResult = updateRoomSchema.safeParse(req.body);
+  if (!parseResult.success) {
+    res.status(400).json({
+      success: false,
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Invalid room update payload.',
+        details: parseResult.error.flatten().fieldErrors,
+      },
+    });
+    return;
+  }
+
+  try {
+    const updated = await DatabaseService.updateRoom(userId, id, parseResult.data);
+    if (!updated) {
+      res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Room not found.' } });
+      return;
+    }
+    res.status(200).json({ success: true, data: updated, room: updated });
+  } catch (error: unknown) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to update room.' },
+    });
+  }
+});
+
+/**
+ * DELETE /api/household/rooms/:id
+ */
+router.delete('/rooms/:id', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const { id } = req.params;
+
+  try {
+    const deleted = await DatabaseService.deleteRoom(userId, id);
+    if (!deleted) {
+      res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Room not found.' } });
+      return;
+    }
+    res.status(200).json({ success: true, data: { id, deleted: true } });
+  } catch (error: unknown) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to delete room.' },
+    });
+  }
+});
+
+// ==========================================
+// 7. WARRANTIES CRUD
+// ==========================================
+
+/**
+ * GET /api/household/warranties
+ */
+router.get('/warranties', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const assetId = req.query.assetId as string | undefined;
+
+  try {
+    const warranties = await DatabaseService.listWarranties(userId, assetId);
+    res.status(200).json({ success: true, data: warranties, warranties });
+  } catch (error: unknown) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to list warranties.' },
+    });
+  }
+});
+
+/**
+ * GET /api/household/warranties/:id
+ */
+router.get('/warranties/:id', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const { id } = req.params;
+
+  const warranty = await DatabaseService.getWarranty(userId, id);
+  if (!warranty) {
+    res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Warranty not found.' } });
+    return;
+  }
+  res.status(200).json({ success: true, data: warranty, warranty });
+});
+
+/**
+ * POST /api/household/warranties
+ */
+router.post('/warranties', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const parseResult = createWarrantySchema.safeParse(req.body);
+  if (!parseResult.success) {
+    res.status(400).json({
+      success: false,
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Invalid warranty payload.',
+        details: parseResult.error.flatten().fieldErrors,
+      },
+    });
+    return;
+  }
+
+  try {
+    const warranty = await DatabaseService.createWarranty(userId, parseResult.data);
+    res.status(201).json({ success: true, data: warranty, warranty });
+  } catch (error: unknown) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to create warranty.' },
+    });
+  }
+});
+
+/**
+ * PUT /api/household/warranties/:id
+ */
+router.put('/warranties/:id', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const { id } = req.params;
+
+  const parseResult = updateWarrantySchema.safeParse(req.body);
+  if (!parseResult.success) {
+    res.status(400).json({
+      success: false,
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Invalid warranty update payload.',
+        details: parseResult.error.flatten().fieldErrors,
+      },
+    });
+    return;
+  }
+
+  try {
+    const updated = await DatabaseService.updateWarranty(userId, id, parseResult.data);
+    if (!updated) {
+      res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Warranty not found.' } });
+      return;
+    }
+    res.status(200).json({ success: true, data: updated, warranty: updated });
+  } catch (error: unknown) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to update warranty.' },
+    });
+  }
+});
+
+/**
+ * DELETE /api/household/warranties/:id
+ */
+router.delete('/warranties/:id', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const { id } = req.params;
+
+  try {
+    const deleted = await DatabaseService.deleteWarranty(userId, id);
+    if (!deleted) {
+      res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Warranty not found.' } });
+      return;
+    }
+    res.status(200).json({ success: true, data: { id, deleted: true } });
+  } catch (error: unknown) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to delete warranty.' },
+    });
+  }
+});
+
+// ==========================================
+// 8. MAINTENANCE TASKS CRUD
+// ==========================================
+
+/**
+ * GET /api/household/maintenances
+ */
+router.get(['/maintenances', '/maintenance', '/maintenance-tasks'], async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const assetId = req.query.assetId as string | undefined;
+  const propertyId = req.query.propertyId as string | undefined;
+
+  try {
+    const tasks = await DatabaseService.listMaintenances(userId, assetId, propertyId);
+    res.status(200).json({ success: true, data: tasks, tasks });
+  } catch (error: unknown) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to list maintenance tasks.' },
+    });
+  }
+});
+
+/**
+ * GET /api/household/maintenances/:id
+ */
+router.get(['/maintenances/:id', '/maintenance/:id', '/maintenance-tasks/:id'], async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const { id } = req.params;
+
+  const task = await DatabaseService.getMaintenance(userId, id);
+  if (!task) {
+    res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Maintenance task not found.' } });
+    return;
+  }
+  res.status(200).json({ success: true, data: task, task });
+});
+
+/**
+ * POST /api/household/maintenances
+ */
+router.post(['/maintenances', '/maintenance', '/maintenance-tasks'], async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const parseResult = createMaintenanceSchema.safeParse(req.body);
+  if (!parseResult.success) {
+    res.status(400).json({
+      success: false,
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Invalid maintenance task payload.',
+        details: parseResult.error.flatten().fieldErrors,
+      },
+    });
+    return;
+  }
+
+  try {
+    const task = await DatabaseService.createMaintenance(userId, parseResult.data);
+    res.status(201).json({ success: true, data: task, task });
+  } catch (error: unknown) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to create maintenance task.' },
+    });
+  }
+});
+
+/**
+ * PUT /api/household/maintenances/:id
+ */
+router.put(['/maintenances/:id', '/maintenance/:id', '/maintenance-tasks/:id'], async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const { id } = req.params;
+
+  const parseResult = updateMaintenanceSchema.safeParse(req.body);
+  if (!parseResult.success) {
+    res.status(400).json({
+      success: false,
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Invalid maintenance update payload.',
+        details: parseResult.error.flatten().fieldErrors,
+      },
+    });
+    return;
+  }
+
+  try {
+    const updated = await DatabaseService.updateMaintenance(userId, id, parseResult.data);
+    if (!updated) {
+      res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Maintenance task not found.' } });
+      return;
+    }
+    res.status(200).json({ success: true, data: updated, task: updated });
+  } catch (error: unknown) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to update maintenance task.' },
+    });
+  }
+});
+
+/**
+ * DELETE /api/household/maintenances/:id
+ */
+router.delete(['/maintenances/:id', '/maintenance/:id', '/maintenance-tasks/:id'], async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const { id } = req.params;
+
+  try {
+    const deleted = await DatabaseService.deleteMaintenance(userId, id);
+    if (!deleted) {
+      res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Maintenance task not found.' } });
+      return;
+    }
+    res.status(200).json({ success: true, data: { id, deleted: true } });
+  } catch (error: unknown) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to delete maintenance task.' },
+    });
+  }
+});
+
+// ==========================================
+// 9. UTILITIES CRUD
+// ==========================================
+
+/**
+ * GET /api/household/utilities
+ */
+router.get('/utilities', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const propertyId = req.query.propertyId as string | undefined;
+
+  try {
+    const utilities = await DatabaseService.listUtilities(userId, propertyId);
+    res.status(200).json({ success: true, data: utilities, utilities });
+  } catch (error: unknown) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to list utility accounts.' },
+    });
+  }
+});
+
+/**
+ * GET /api/household/utilities/:id
+ */
+router.get('/utilities/:id', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const { id } = req.params;
+
+  const util = await DatabaseService.getUtility(userId, id);
+  if (!util) {
+    res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Utility account not found.' } });
+    return;
+  }
+  res.status(200).json({ success: true, data: util, utility: util });
+});
+
+/**
+ * POST /api/household/utilities
+ */
+router.post('/utilities', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const parseResult = createUtilitySchema.safeParse(req.body);
+  if (!parseResult.success) {
+    res.status(400).json({
+      success: false,
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Invalid utility account payload.',
+        details: parseResult.error.flatten().fieldErrors,
+      },
+    });
+    return;
+  }
+
+  try {
+    const util = await DatabaseService.createUtility(userId, parseResult.data);
+    res.status(201).json({ success: true, data: util, utility: util });
+  } catch (error: unknown) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to create utility account.' },
+    });
+  }
+});
+
+/**
+ * PUT /api/household/utilities/:id
+ */
+router.put('/utilities/:id', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const { id } = req.params;
+
+  const parseResult = updateUtilitySchema.safeParse(req.body);
+  if (!parseResult.success) {
+    res.status(400).json({
+      success: false,
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Invalid utility update payload.',
+        details: parseResult.error.flatten().fieldErrors,
+      },
+    });
+    return;
+  }
+
+  try {
+    const updated = await DatabaseService.updateUtility(userId, id, parseResult.data);
+    if (!updated) {
+      res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Utility account not found.' } });
+      return;
+    }
+    res.status(200).json({ success: true, data: updated, utility: updated });
+  } catch (error: unknown) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to update utility account.' },
+    });
+  }
+});
+
+/**
+ * DELETE /api/household/utilities/:id
+ */
+router.delete('/utilities/:id', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const { id } = req.params;
+
+  try {
+    const deleted = await DatabaseService.deleteUtility(userId, id);
+    if (!deleted) {
+      res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Utility account not found.' } });
+      return;
+    }
+    res.status(200).json({ success: true, data: { id, deleted: true } });
+  } catch (error: unknown) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to delete utility account.' },
+    });
+  }
+});
+
+// ==========================================
+// 10. HOUSEHOLD LOANS CRUD
+// ==========================================
+
+/**
+ * GET /api/household/loans
+ */
+router.get('/loans', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const propertyId = req.query.propertyId as string | undefined;
+
+  try {
+    const loans = await DatabaseService.listLoans(userId, propertyId);
+    res.status(200).json({ success: true, data: loans, loans });
+  } catch (error: unknown) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to list loans.' },
+    });
+  }
+});
+
+/**
+ * GET /api/household/loans/:id
+ */
+router.get('/loans/:id', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const { id } = req.params;
+
+  const loan = await DatabaseService.getLoan(userId, id);
+  if (!loan) {
+    res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Loan not found.' } });
+    return;
+  }
+  res.status(200).json({ success: true, data: loan, loan });
+});
+
+/**
+ * POST /api/household/loans
+ */
+router.post('/loans', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const parseResult = createLoanSchema.safeParse(req.body);
+  if (!parseResult.success) {
+    res.status(400).json({
+      success: false,
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Invalid loan payload.',
+        details: parseResult.error.flatten().fieldErrors,
+      },
+    });
+    return;
+  }
+
+  try {
+    const loan = await DatabaseService.createLoan(userId, parseResult.data);
+    res.status(201).json({ success: true, data: loan, loan });
+  } catch (error: unknown) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to create loan.' },
+    });
+  }
+});
+
+/**
+ * PUT /api/household/loans/:id
+ */
+router.put('/loans/:id', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const { id } = req.params;
+
+  const parseResult = updateLoanSchema.safeParse(req.body);
+  if (!parseResult.success) {
+    res.status(400).json({
+      success: false,
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Invalid loan update payload.',
+        details: parseResult.error.flatten().fieldErrors,
+      },
+    });
+    return;
+  }
+
+  try {
+    const updated = await DatabaseService.updateLoan(userId, id, parseResult.data);
+    if (!updated) {
+      res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Loan not found.' } });
+      return;
+    }
+    res.status(200).json({ success: true, data: updated, loan: updated });
+  } catch (error: unknown) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to update loan.' },
+    });
+  }
+});
+
+/**
+ * DELETE /api/household/loans/:id
+ */
+router.delete('/loans/:id', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const { id } = req.params;
+
+  try {
+    const deleted = await DatabaseService.deleteLoan(userId, id);
+    if (!deleted) {
+      res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Loan not found.' } });
+      return;
+    }
+    res.status(200).json({ success: true, data: { id, deleted: true } });
+  } catch (error: unknown) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to delete loan.' },
+    });
+  }
+});
+
+// ==========================================
+// 11. CREDIT CARDS CRUD
+// ==========================================
+
+/**
+ * GET /api/household/credit-cards
+ */
+router.get(['/credit-cards', '/cards'], async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+
+  try {
+    const cards = await DatabaseService.listCreditCards(userId);
+    res.status(200).json({ success: true, data: cards, creditCards: cards });
+  } catch (error: unknown) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to list credit card accounts.' },
+    });
+  }
+});
+
+/**
+ * GET /api/household/credit-cards/:id
+ */
+router.get(['/credit-cards/:id', '/cards/:id'], async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const { id } = req.params;
+
+  const card = await DatabaseService.getCreditCard(userId, id);
+  if (!card) {
+    res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Credit card not found.' } });
+    return;
+  }
+  res.status(200).json({ success: true, data: card, creditCard: card });
+});
+
+/**
+ * POST /api/household/credit-cards
+ */
+router.post(['/credit-cards', '/cards'], async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const parseResult = createCreditCardSchema.safeParse(req.body);
+  if (!parseResult.success) {
+    res.status(400).json({
+      success: false,
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Invalid credit card payload.',
+        details: parseResult.error.flatten().fieldErrors,
+      },
+    });
+    return;
+  }
+
+  try {
+    const card = await DatabaseService.createCreditCard(userId, parseResult.data);
+    res.status(201).json({ success: true, data: card, creditCard: card });
+  } catch (error: unknown) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to create credit card.' },
+    });
+  }
+});
+
+/**
+ * PUT /api/household/credit-cards/:id
+ */
+router.put(['/credit-cards/:id', '/cards/:id'], async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const { id } = req.params;
+
+  const parseResult = updateCreditCardSchema.safeParse(req.body);
+  if (!parseResult.success) {
+    res.status(400).json({
+      success: false,
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Invalid credit card update payload.',
+        details: parseResult.error.flatten().fieldErrors,
+      },
+    });
+    return;
+  }
+
+  try {
+    const updated = await DatabaseService.updateCreditCard(userId, id, parseResult.data);
+    if (!updated) {
+      res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Credit card not found.' } });
+      return;
+    }
+    res.status(200).json({ success: true, data: updated, creditCard: updated });
+  } catch (error: unknown) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to update credit card.' },
+    });
+  }
+});
+
+/**
+ * DELETE /api/household/credit-cards/:id
+ */
+router.delete(['/credit-cards/:id', '/cards/:id'], async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const { id } = req.params;
+
+  try {
+    const deleted = await DatabaseService.deleteCreditCard(userId, id);
+    if (!deleted) {
+      res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Credit card not found.' } });
+      return;
+    }
+    res.status(200).json({ success: true, data: { id, deleted: true } });
+  } catch (error: unknown) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to delete credit card.' },
+    });
+  }
+});
+
+// ==========================================
+// 12. IMAGE/PDF FIRST AI ENTITY EXTRACTION & SAVE
+// ==========================================
+
+/**
+ * POST /api/household/extract-entity-from-doc
+ * Extracts structured Property, Asset, Warranty, Maintenance, Utility, Loan, or Card data
+ * from an uploaded document for user review.
+ */
+router.post('/extract-entity-from-doc', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const parseResult = extractEntityFromDocSchema.safeParse(req.body);
+  if (!parseResult.success) {
+    res.status(400).json({
+      success: false,
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Invalid entity extraction request payload.',
+        details: parseResult.error.flatten().fieldErrors,
+      },
+    });
+    return;
+  }
+
+  const { documentId, targetEntityType, notes } = parseResult.data;
+
+  try {
+    const reviewData = await extractEntityFromDocument(userId, documentId, targetEntityType, notes);
+    res.status(200).json({
+      success: true,
+      data: reviewData,
+    });
+  } catch (error: unknown) {
+    console.error('[EXTRACT_ENTITY] Failed to extract entity from doc:', {
+      userId,
+      documentId,
+      message: error instanceof Error ? error.message : String(error),
+    });
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'EXTRACTION_FAILED',
+        message: error instanceof Error ? error.message : 'Failed to extract entity from document.',
+      },
+    });
+  }
+});
+
+/**
+ * POST /api/household/save-extracted-entity
+ * Persists the user-reviewed and approved entity into the database.
+ */
+router.post('/save-extracted-entity', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const parseResult = saveExtractedEntitySchema.safeParse(req.body);
+  if (!parseResult.success) {
+    res.status(400).json({
+      success: false,
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Invalid extracted entity save payload.',
+        details: parseResult.error.flatten().fieldErrors,
+      },
+    });
+    return;
+  }
+
+  const { entityType, entityData, sourceDocumentId } = parseResult.data;
+
+  try {
+    const result = await saveExtractedEntity(userId, entityType, entityData, sourceDocumentId);
+    res.status(201).json({
+      success: true,
+      message: `Successfully created and saved ${entityType} record with document link.`,
+      data: result,
+    });
+  } catch (error: unknown) {
+    console.error('[SAVE_EXTRACTED_ENTITY] Failed to save entity:', {
+      userId,
+      entityType,
+      message: error instanceof Error ? error.message : String(error),
+    });
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'SAVE_FAILED',
+        message: error instanceof Error ? error.message : 'Failed to save extracted entity.',
+      },
+    });
+  }
+});
+
+// ==========================================
+// 13. DEMO SEED & REMOVAL ENDPOINTS
 // ==========================================
 
 /**

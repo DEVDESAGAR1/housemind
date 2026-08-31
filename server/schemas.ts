@@ -79,6 +79,12 @@ export const updateExpenseSchema = createExpenseSchema.partial();
 export const createAssetSchema = z.object({
   name: z.string().trim().min(1, 'Asset name is required').max(100, 'Asset name is too long'),
   category: z.enum([
+    'vehicle',
+    'appliance',
+    'major_appliance',
+    'electronics',
+    'property_related',
+    'furniture',
     'hvac',
     'plumbing',
     'kitchen',
@@ -87,6 +93,7 @@ export const createAssetSchema = z.object({
     'electrical',
     'other',
   ]),
+  subcategory: z.string().trim().max(100).optional().nullable(),
   brand: z.string().trim().max(100, 'Brand is too long').optional().nullable(),
   modelNumber: z.string().trim().max(100, 'Model number is too long').optional().nullable(),
   serialNumber: z.string().trim().max(100, 'Serial number is too long').optional().nullable(),
@@ -113,9 +120,17 @@ export const createAssetSchema = z.object({
     .max(10000000, 'Purchase cost exceeds bounds')
     .optional()
     .nullable(),
+  currentEstimatedValue: z
+    .number()
+    .nonnegative('Estimated value cannot be negative')
+    .max(100000000)
+    .optional()
+    .nullable(),
   currentStatus: z
-    .enum(['operational', 'needs_maintenance', 'critical', 'replaced'])
+    .enum(['operational', 'needs_maintenance', 'critical', 'replaced', 'sold'])
     .default('operational'),
+  propertyId: z.string().trim().max(128).optional().nullable(),
+  roomId: z.string().trim().max(128).optional().nullable(),
   roomLocation: z.string().trim().max(100, 'Room location is too long').optional().nullable(),
   maintenanceNotes: z
     .string()
@@ -123,9 +138,478 @@ export const createAssetSchema = z.object({
     .max(2000, 'Maintenance notes cannot exceed 2000 characters')
     .optional()
     .nullable(),
+  imageUrl: z.string().trim().max(2000).optional().nullable(),
+  invoiceDocumentId: z.string().trim().max(128).optional().nullable(),
+  warrantyDocumentId: z.string().trim().max(128).optional().nullable(),
+  supportingDocumentIds: z.array(z.string().trim().max(128)).max(20).optional().nullable(),
 });
 
 export const updateAssetSchema = createAssetSchema.partial();
+
+// ==========================================
+// Phase 10: Property & Room Schemas
+// ==========================================
+
+export const propertyTypeEnum = z.enum([
+  'primary_home',
+  'additional_home',
+  'rental_property',
+  'vacation_home',
+  'plot_land',
+  'other',
+]);
+
+export const propertyAddressSchema = z.object({
+  street: z.string().trim().max(200).optional().nullable(),
+  city: z.string().trim().max(100).optional().nullable(),
+  region: z.string().trim().max(100).optional().nullable(),
+  postalCode: z.string().trim().max(50).optional().nullable(),
+  country: z.string().trim().max(100).optional().nullable(),
+});
+
+function preprocessProperty(val: any) {
+  if (val && typeof val === 'object') {
+    const raw = { ...val };
+    if (typeof raw.address === 'string') {
+      raw.address = { street: raw.address };
+    }
+    if (raw.propertyType === 'single_family' || raw.propertyType === 'apartment' || raw.propertyType === 'house') {
+      raw.propertyType = 'primary_home';
+    } else if (raw.propertyType === 'land') {
+      raw.propertyType = 'plot_land';
+    }
+    return raw;
+  }
+  return val;
+}
+
+const basePropertySchema = z.object({
+  name: z.string().trim().min(1, 'Property name is required').max(100, 'Name is too long'),
+  propertyType: propertyTypeEnum.default('primary_home'),
+  address: propertyAddressSchema.optional().nullable(),
+  purchaseDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Purchase date must be YYYY-MM-DD')
+    .optional()
+    .nullable(),
+  purchaseValue: z.number().nonnegative().max(1000000000).optional().nullable(),
+  currentEstimatedValue: z.number().nonnegative().max(1000000000).optional().nullable(),
+  ownershipInfo: z.string().trim().max(200).optional().nullable(),
+  squareFootage: z.number().positive().max(1000000).optional().nullable(),
+  yearBuilt: z.number().int().min(1800).max(new Date().getFullYear() + 5).optional().nullable(),
+  notes: z.string().trim().max(2000).optional().nullable(),
+  documentIds: z.array(z.string().max(128)).max(50).optional().nullable(),
+  linkedLoanId: z.string().max(128).optional().nullable(),
+});
+
+export const createPropertySchema = z.preprocess(preprocessProperty, basePropertySchema);
+export const updatePropertySchema = z.preprocess(preprocessProperty, basePropertySchema.partial());
+
+export const roomTypeEnum = z.enum([
+  'living_room',
+  'bedroom',
+  'kitchen',
+  'bathroom',
+  'balcony',
+  'garage',
+  'office',
+  'storage',
+  'garden',
+  'dining_room',
+  'basement',
+  'attic',
+  'hallway',
+  'utility_area',
+  'other',
+]);
+
+function preprocessRoom(val: any) {
+  if (val && typeof val === 'object') {
+    const raw = { ...val };
+    if (!raw.type && raw.roomType) {
+      raw.type = raw.roomType;
+    }
+    if (raw.floorLevel !== undefined && raw.floor === undefined) {
+      raw.floor = String(raw.floorLevel);
+    }
+    return raw;
+  }
+  return val;
+}
+
+const baseRoomSchema = z.object({
+  propertyId: z.string().min(1, 'Property ID is required').max(128),
+  name: z.string().trim().min(1, 'Room name is required').max(100),
+  type: roomTypeEnum.default('other'),
+  floor: z.string().trim().max(50).optional().nullable(),
+  notes: z.string().trim().max(1000).optional().nullable(),
+  documentIds: z.array(z.string().max(128)).max(50).optional().nullable(),
+});
+
+export const createRoomSchema = z.preprocess(preprocessRoom, baseRoomSchema);
+export const updateRoomSchema = z.preprocess(preprocessRoom, baseRoomSchema.partial());
+
+// ==========================================
+// Phase 10: Warranty, Maintenance & Utility Schemas
+// ==========================================
+
+export const warrantyStatusEnum = z.enum(['active', 'expiring_soon', 'expired']);
+
+function preprocessWarranty(val: any) {
+  if (val && typeof val === 'object') {
+    const raw = { ...val };
+    if (!raw.warrantyProvider && raw.providerName) {
+      raw.warrantyProvider = raw.providerName;
+    } else if (!raw.warrantyProvider && raw.title) {
+      raw.warrantyProvider = raw.title;
+    }
+    if (!raw.endDate && raw.expirationDate) {
+      raw.endDate = raw.expirationDate;
+    }
+    if (!raw.startDate) {
+      raw.startDate = new Date().toISOString().slice(0, 10);
+    }
+    if (!raw.endDate) {
+      raw.endDate = new Date(Date.now() + 365 * 86400000).toISOString().slice(0, 10);
+    }
+    if (!raw.coverageNotes && raw.coverageType) {
+      raw.coverageNotes = raw.coverageType;
+    }
+    if (!raw.contactInfo && raw.supportPhone) {
+      raw.contactInfo = { phone: raw.supportPhone };
+    }
+    return raw;
+  }
+  return val;
+}
+
+const baseWarrantySchema = z.object({
+  assetId: z.string().max(128).optional().nullable(),
+  propertyId: z.string().max(128).optional().nullable(),
+  warrantyProvider: z.string().trim().min(1, 'Provider is required').max(150),
+  policyNumber: z.string().trim().max(150).optional().nullable(),
+  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Start date must be YYYY-MM-DD'),
+  endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'End date must be YYYY-MM-DD'),
+  durationMonths: z.number().int().positive().max(600).optional().nullable(),
+  coverageNotes: z.string().trim().max(2000).optional().nullable(),
+  contactInfo: z
+    .object({
+      phone: z.string().trim().max(50).optional().nullable(),
+      email: z.string().trim().email().max(150).optional().nullable(),
+      website: z.string().trim().max(300).optional().nullable(),
+    })
+    .optional()
+    .nullable(),
+  documentId: z.string().max(128).optional().nullable(),
+  status: warrantyStatusEnum.default('active'),
+});
+
+export const createWarrantySchema = z.preprocess(preprocessWarranty, baseWarrantySchema);
+export const updateWarrantySchema = z.preprocess(preprocessWarranty, baseWarrantySchema.partial());
+
+export const maintenanceScheduleEnum = z.enum([
+  'none',
+  'monthly',
+  'quarterly',
+  'semi_annual',
+  'annual',
+  'custom',
+]);
+
+export const maintenanceStatusEnum = z.enum(['scheduled', 'completed', 'overdue']);
+
+function preprocessMaintenance(val: any) {
+  if (val && typeof val === 'object') {
+    const raw = { ...val };
+    if (!raw.serviceDate && raw.dueDate) {
+      raw.serviceDate = raw.dueDate;
+    } else if (!raw.serviceDate) {
+      raw.serviceDate = new Date().toISOString().slice(0, 10);
+    }
+    if (raw.cost === undefined && raw.estimatedCost !== undefined) {
+      raw.cost = raw.estimatedCost;
+    } else if (raw.cost === undefined && raw.actualCost !== undefined) {
+      raw.cost = raw.actualCost;
+    }
+    if (raw.status === 'pending') {
+      raw.status = 'scheduled';
+    }
+    if (!raw.recurringSchedule && raw.recurrenceIntervalMonths) {
+      if (raw.recurrenceIntervalMonths === 1) raw.recurringSchedule = 'monthly';
+      else if (raw.recurrenceIntervalMonths === 3) raw.recurringSchedule = 'quarterly';
+      else if (raw.recurrenceIntervalMonths === 6) raw.recurringSchedule = 'semi_annual';
+      else if (raw.recurrenceIntervalMonths === 12) raw.recurringSchedule = 'annual';
+    }
+    return raw;
+  }
+  return val;
+}
+
+const baseMaintenanceSchema = z.object({
+  title: z.string().trim().min(1, 'Task title is required').max(150),
+  assetId: z.string().max(128).optional().nullable(),
+  propertyId: z.string().max(128).optional().nullable(),
+  roomId: z.string().max(128).optional().nullable(),
+  serviceDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Service date must be YYYY-MM-DD'),
+  cost: z.number().nonnegative('Cost cannot be negative').max(10000000).default(0),
+  serviceProvider: z.string().trim().max(150).optional().nullable(),
+  contactPhone: z.string().trim().max(50).optional().nullable(),
+  notes: z.string().trim().max(2000).optional().nullable(),
+  receiptDocumentId: z.string().max(128).optional().nullable(),
+  nextServiceDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Next service date must be YYYY-MM-DD')
+    .optional()
+    .nullable(),
+  recurringSchedule: maintenanceScheduleEnum.default('none'),
+  status: maintenanceStatusEnum.default('scheduled'),
+});
+
+export const createMaintenanceSchema = z.preprocess(preprocessMaintenance, baseMaintenanceSchema);
+export const updateMaintenanceSchema = z.preprocess(preprocessMaintenance, baseMaintenanceSchema.partial());
+
+export const utilityServiceTypeEnum = z.enum([
+  'electricity',
+  'water',
+  'gas',
+  'internet',
+  'mobile',
+  'trash',
+  'hoa',
+  'heating_oil',
+  'solar',
+  'other',
+]);
+
+export const utilityBillingCycleEnum = z.enum(['monthly', 'bi_monthly', 'quarterly', 'annual']);
+
+function preprocessUtility(val: any) {
+  if (val && typeof val === 'object') {
+    const raw = { ...val };
+    if (!raw.serviceType && raw.utilityType) {
+      raw.serviceType = raw.utilityType;
+    }
+    if (!raw.provider && raw.providerName) {
+      raw.provider = raw.providerName;
+    }
+    if (!raw.accountIdentifier && raw.accountNumber) {
+      raw.accountIdentifier = raw.accountNumber;
+    }
+    if (raw.typicalAmount === undefined && raw.typicalMonthlyCost !== undefined) {
+      raw.typicalAmount = raw.typicalMonthlyCost;
+    }
+    if (raw.isAutoPay === undefined && raw.autoPayEnabled !== undefined) {
+      raw.isAutoPay = raw.autoPayEnabled;
+    }
+    if (raw.dueDateDay === undefined && raw.paymentDueDay !== undefined) {
+      raw.dueDateDay = raw.paymentDueDay;
+    }
+    return raw;
+  }
+  return val;
+}
+
+const baseUtilitySchema = z.object({
+  propertyId: z.string().max(128).optional().nullable(),
+  name: z.string().trim().min(1, 'Utility name is required').max(100),
+  serviceType: utilityServiceTypeEnum.default('electricity'),
+  provider: z.string().trim().min(1, 'Provider name is required').max(150),
+  accountIdentifier: z.string().trim().max(100).optional().nullable(),
+  billingCycle: utilityBillingCycleEnum.default('monthly'),
+  dueDateDay: z.number().int().min(1).max(31).optional().nullable(),
+  nextDueDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Next due date must be YYYY-MM-DD')
+    .optional()
+    .nullable(),
+  typicalAmount: z.number().nonnegative().max(10000000),
+  latestBillAmount: z.number().nonnegative().max(10000000).optional().nullable(),
+  paymentStatus: z.enum(['paid', 'pending', 'overdue']).default('pending'),
+  isAutoPay: z.boolean().default(false),
+  documentIds: z.array(z.string().max(128)).max(50).optional().nullable(),
+  notes: z.string().trim().max(1000).optional().nullable(),
+});
+
+export const createUtilitySchema = z.preprocess(preprocessUtility, baseUtilitySchema);
+export const updateUtilitySchema = z.preprocess(preprocessUtility, baseUtilitySchema.partial());
+
+// ==========================================
+// Phase 10: Loans & Credit Cards Schemas
+// ==========================================
+
+export const loanTypeEnum = z.enum([
+  'home_loan',
+  'vehicle_loan',
+  'personal_loan',
+  'appliance_loan',
+  'education_loan',
+  'solar_loan',
+  'other',
+]);
+
+function preprocessLoan(val: any) {
+  if (val && typeof val === 'object') {
+    const raw = { ...val };
+    if (!raw.loanName && raw.name) {
+      raw.loanName = raw.name;
+    }
+    if (!raw.lender && raw.lenderName) {
+      raw.lender = raw.lenderName;
+    }
+    if (raw.loanType === 'mortgage') {
+      raw.loanType = 'home_loan';
+    }
+    if (raw.principalAmount === undefined && raw.originalPrincipal !== undefined) {
+      raw.principalAmount = raw.originalPrincipal;
+    }
+    if (raw.interestRate === undefined && raw.interestRatePercent !== undefined) {
+      raw.interestRate = raw.interestRatePercent;
+    }
+    if (raw.emiAmount === undefined && raw.monthlyPayment !== undefined) {
+      raw.emiAmount = raw.monthlyPayment;
+    }
+    if (raw.outstandingAmount === undefined && raw.currentBalance !== undefined) {
+      raw.outstandingAmount = raw.currentBalance;
+    }
+    if (!raw.startDate) {
+      raw.startDate = new Date().toISOString().slice(0, 10);
+    }
+    if (!raw.endDate) {
+      if (raw.maturityYear) {
+        raw.endDate = `${raw.maturityYear}-12-31`;
+      } else {
+        raw.endDate = new Date(Date.now() + 360 * 30 * 86400000).toISOString().slice(0, 10);
+      }
+    }
+    if (raw.tenureMonths === undefined) {
+      raw.tenureMonths = 360;
+    }
+    return raw;
+  }
+  return val;
+}
+
+const baseLoanSchema = z.object({
+  propertyId: z.string().max(128).optional().nullable(),
+  assetId: z.string().max(128).optional().nullable(),
+  loanName: z.string().trim().min(1, 'Loan name is required').max(150),
+  loanType: loanTypeEnum.default('home_loan'),
+  lender: z.string().trim().min(1, 'Lender is required').max(150),
+  principalAmount: z.number().positive().max(1000000000),
+  interestRate: z.number().min(0).max(100),
+  emiAmount: z.number().positive().max(10000000),
+  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Start date must be YYYY-MM-DD'),
+  endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'End date must be YYYY-MM-DD'),
+  tenureMonths: z.number().int().min(1).max(600),
+  paymentDueDay: z.number().int().min(1).max(31).default(1),
+  outstandingAmount: z.number().nonnegative().max(1000000000),
+  documentIds: z.array(z.string().max(128)).max(50).optional().nullable(),
+  status: z.enum(['active', 'closed']).default('active'),
+  notes: z.string().trim().max(2000).optional().nullable(),
+});
+
+export const createLoanSchema = z.preprocess(preprocessLoan, baseLoanSchema);
+export const updateLoanSchema = z.preprocess(preprocessLoan, baseLoanSchema.partial());
+
+function preprocessCreditCard(val: any) {
+  if (val && typeof val === 'object') {
+    const raw = { ...val };
+    if (!raw.cardNickname && raw.cardName) {
+      raw.cardNickname = raw.cardName;
+    }
+    if (!raw.cardIssuer && raw.issuer) {
+      raw.cardIssuer = raw.issuer;
+    }
+    if (!raw.last4Digits && raw.lastFourDigits) {
+      raw.last4Digits = raw.lastFourDigits;
+    }
+    if (raw.outstandingAmount === undefined && raw.currentBalance !== undefined) {
+      raw.outstandingAmount = raw.currentBalance;
+    }
+    if (raw.minimumDue === undefined && raw.minimumPaymentDue !== undefined) {
+      raw.minimumDue = raw.minimumPaymentDue;
+    }
+    if (raw.aprRate === undefined && raw.aprPercent !== undefined) {
+      raw.aprRate = raw.aprPercent;
+    }
+    if (raw.isAutoPay === undefined && raw.autoPayEnabled !== undefined) {
+      raw.isAutoPay = raw.autoPayEnabled;
+    }
+    if (!raw.paymentDueDate) {
+      raw.paymentDueDate = new Date(Date.now() + 20 * 86400000).toISOString().slice(0, 10);
+    }
+    return raw;
+  }
+  return val;
+}
+
+const baseCreditCardSchema = z.object({
+  cardNickname: z.string().trim().min(1, 'Card nickname is required').max(100),
+  cardIssuer: z.string().trim().min(1, 'Issuer is required').max(100),
+  last4Digits: z
+    .string()
+    .trim()
+    .regex(/^\d{4}$/, 'Last 4 digits must be exactly 4 numeric digits (no full numbers/CVV allowed)'),
+  creditLimit: z.number().positive().max(10000000),
+  billingCycleDay: z.number().int().min(1).max(31).optional().nullable(),
+  statementDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Statement date must be YYYY-MM-DD')
+    .optional()
+    .nullable(),
+  paymentDueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Payment due date must be YYYY-MM-DD'),
+  outstandingAmount: z.number().nonnegative().max(10000000),
+  minimumDue: z.number().nonnegative().max(10000000).default(0),
+  aprRate: z.number().min(0).max(100).optional().nullable(),
+  paymentStatus: z.enum(['paid', 'pending', 'overdue']).default('pending'),
+  isAutoPay: z.boolean().default(false),
+  documentIds: z.array(z.string().max(128)).max(50).optional().nullable(),
+  notes: z.string().trim().max(1000).optional().nullable(),
+});
+
+export const createCreditCardSchema = z.preprocess(preprocessCreditCard, baseCreditCardSchema);
+export const updateCreditCardSchema = z.preprocess(preprocessCreditCard, baseCreditCardSchema.partial());
+
+// Document Upload & Confirmation Types Enum
+export const documentTypeEnum = z.enum([
+  'bank_statement',
+  'credit_card_statement',
+  'salary_slip',
+  'utility_bill',
+  'invoice_receipt',
+  'insurance_policy',
+  'warranty_doc',
+  'other',
+]);
+
+// ==========================================
+// Phase 10: AI Document Extraction & Review Schemas
+// ==========================================
+
+export const extractEntityFromDocSchema = z.object({
+  fileBase64: z.string().min(1, 'File data is required'),
+  fileName: z.string().min(1, 'File name is required').max(255),
+  fileType: z.string().min(1, 'File type is required').max(100),
+  documentType: documentTypeEnum.optional(),
+  targetEntityHint: z
+    .enum(['asset', 'warranty', 'maintenance', 'utility', 'loan', 'credit_card', 'expense', 'document'])
+    .optional(),
+});
+
+export const saveExtractedEntitySchema = z.object({
+  targetEntity: z.enum([
+    'asset',
+    'warranty',
+    'maintenance',
+    'utility',
+    'loan',
+    'credit_card',
+    'expense',
+    'document',
+  ]),
+  documentId: z.string().max(128).optional().nullable(),
+  payload: z.record(z.any()),
+});
 
 // Copilot Chat Schema
 export const chatMessageSchema = z.object({
@@ -251,17 +735,6 @@ export const queryTransactionsSchema = z.object({
 });
 
 // Document Upload & Confirmation Schemas
-export const documentTypeEnum = z.enum([
-  'bank_statement',
-  'credit_card_statement',
-  'salary_slip',
-  'utility_bill',
-  'invoice_receipt',
-  'insurance_policy',
-  'warranty_doc',
-  'other',
-]);
-
 export const transactionCandidateSchema = z.object({
   id: z.string(),
   date: z

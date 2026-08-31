@@ -20,6 +20,16 @@ import {
   AffordabilityIndicator,
   ScenarioGeminiExplanation,
   ScenarioComparison,
+  Property,
+  Room,
+  Warranty,
+  MaintenanceTask,
+  UtilityAccount,
+  HouseholdLoan,
+  CreditCardAccount,
+  HomeCommandCenterSummary,
+  ExtractedEntityReviewData,
+  HouseholdEntityType,
 } from '../types';
 
 
@@ -461,6 +471,321 @@ export const api = {
       body: JSON.stringify({ scenarioIds }),
     });
     return handleResponse<ScenarioComparison>(res);
+  },
+
+  // ==========================================
+  // PHASE 10: HOME COMMAND CENTER & MANAGEMENT
+  // ==========================================
+
+  // Command Center
+  async getCommandCenterSummary(): Promise<HomeCommandCenterSummary> {
+    const headers = await getAuthHeader();
+    const res = await fetch('/api/household/command-center', { method: 'GET', headers });
+    return handleResponse<HomeCommandCenterSummary>(res);
+  },
+
+  // Properties
+  async getProperties(): Promise<Property[]> {
+    const headers = await getAuthHeader();
+    const res = await fetch('/api/household/properties', { method: 'GET', headers });
+    return handleResponse<Property[]>(res);
+  },
+
+  async getProperty(id: string): Promise<Property> {
+    const headers = await getAuthHeader();
+    const res = await fetch(`/api/household/properties/${encodeURIComponent(id)}`, { method: 'GET', headers });
+    return handleResponse<Property>(res);
+  },
+
+  async createProperty(data: Partial<Property>): Promise<Property> {
+    const headers = await getAuthHeader();
+    const res = await fetch('/api/household/properties', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(data),
+    });
+    return handleResponse<Property>(res);
+  },
+
+  async updateProperty(id: string, data: Partial<Property>): Promise<Property> {
+    const headers = await getAuthHeader();
+    const res = await fetch(`/api/household/properties/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify(data),
+    });
+    return handleResponse<Property>(res);
+  },
+
+  async deleteProperty(id: string): Promise<{ id: string; deleted: boolean }> {
+    const headers = await getAuthHeader();
+    const res = await fetch(`/api/household/properties/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      headers,
+    });
+    return handleResponse<{ id: string; deleted: boolean }>(res);
+  },
+
+  // Rooms
+  async getRooms(propertyId?: string): Promise<Room[]> {
+    const headers = await getAuthHeader();
+    const url = propertyId
+      ? `/api/household/rooms?propertyId=${encodeURIComponent(propertyId)}`
+      : '/api/household/rooms';
+    const res = await fetch(url, { method: 'GET', headers });
+    return handleResponse<Room[]>(res);
+  },
+
+  async createRoom(data: Partial<Room>): Promise<Room> {
+    const headers = await getAuthHeader();
+    const res = await fetch('/api/household/rooms', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(data),
+    });
+    return handleResponse<Room>(res);
+  },
+
+  async updateRoom(id: string, data: Partial<Room>): Promise<Room> {
+    const headers = await getAuthHeader();
+    const res = await fetch(`/api/household/rooms/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify(data),
+    });
+    return handleResponse<Room>(res);
+  },
+
+  async deleteRoom(id: string): Promise<{ id: string; deleted: boolean }> {
+    const headers = await getAuthHeader();
+    const res = await fetch(`/api/household/rooms/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      headers,
+    });
+    return handleResponse<{ id: string; deleted: boolean }>(res);
+  },
+
+  // Warranties
+  async getWarranties(assetId?: string, propertyId?: string): Promise<Warranty[]> {
+    const headers = await getAuthHeader();
+    const params = new URLSearchParams();
+    if (assetId) params.append('assetId', assetId);
+    if (propertyId) params.append('propertyId', propertyId);
+    const url = `/api/household/warranties${params.toString() ? `?${params.toString()}` : ''}`;
+    const res = await fetch(url, { method: 'GET', headers });
+    return handleResponse<Warranty[]>(res);
+  },
+
+  async createWarranty(data: Partial<Warranty>): Promise<Warranty> {
+    const headers = await getAuthHeader();
+    const res = await fetch('/api/household/warranties', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(data),
+    });
+    return handleResponse<Warranty>(res);
+  },
+
+  async updateWarranty(id: string, data: Partial<Warranty>): Promise<Warranty> {
+    const headers = await getAuthHeader();
+    const res = await fetch(`/api/household/warranties/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify(data),
+    });
+    return handleResponse<Warranty>(res);
+  },
+
+  async deleteWarranty(id: string): Promise<{ id: string; deleted: boolean }> {
+    const headers = await getAuthHeader();
+    const res = await fetch(`/api/household/warranties/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      headers,
+    });
+    return handleResponse<{ id: string; deleted: boolean }>(res);
+  },
+
+  // Maintenances
+  async getMaintenances(assetId?: string, propertyId?: string): Promise<MaintenanceTask[]> {
+    const headers = await getAuthHeader();
+    const params = new URLSearchParams();
+    if (assetId) params.append('assetId', assetId);
+    if (propertyId) params.append('propertyId', propertyId);
+    const url = `/api/household/maintenances${params.toString() ? `?${params.toString()}` : ''}`;
+    const res = await fetch(url, { method: 'GET', headers });
+    return handleResponse<MaintenanceTask[]>(res);
+  },
+
+  async createMaintenance(data: Partial<MaintenanceTask>): Promise<MaintenanceTask> {
+    const headers = await getAuthHeader();
+    const res = await fetch('/api/household/maintenances', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(data),
+    });
+    return handleResponse<MaintenanceTask>(res);
+  },
+
+  async updateMaintenance(id: string, data: Partial<MaintenanceTask>): Promise<MaintenanceTask> {
+    const headers = await getAuthHeader();
+    const res = await fetch(`/api/household/maintenances/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify(data),
+    });
+    return handleResponse<MaintenanceTask>(res);
+  },
+
+  async deleteMaintenance(id: string): Promise<{ id: string; deleted: boolean }> {
+    const headers = await getAuthHeader();
+    const res = await fetch(`/api/household/maintenances/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      headers,
+    });
+    return handleResponse<{ id: string; deleted: boolean }>(res);
+  },
+
+  // Utilities
+  async getUtilities(propertyId?: string): Promise<UtilityAccount[]> {
+    const headers = await getAuthHeader();
+    const url = propertyId
+      ? `/api/household/utilities?propertyId=${encodeURIComponent(propertyId)}`
+      : '/api/household/utilities';
+    const res = await fetch(url, { method: 'GET', headers });
+    return handleResponse<UtilityAccount[]>(res);
+  },
+
+  async createUtility(data: Partial<UtilityAccount>): Promise<UtilityAccount> {
+    const headers = await getAuthHeader();
+    const res = await fetch('/api/household/utilities', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(data),
+    });
+    return handleResponse<UtilityAccount>(res);
+  },
+
+  async updateUtility(id: string, data: Partial<UtilityAccount>): Promise<UtilityAccount> {
+    const headers = await getAuthHeader();
+    const res = await fetch(`/api/household/utilities/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify(data),
+    });
+    return handleResponse<UtilityAccount>(res);
+  },
+
+  async deleteUtility(id: string): Promise<{ id: string; deleted: boolean }> {
+    const headers = await getAuthHeader();
+    const res = await fetch(`/api/household/utilities/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      headers,
+    });
+    return handleResponse<{ id: string; deleted: boolean }>(res);
+  },
+
+  // Loans
+  async getLoans(propertyId?: string): Promise<HouseholdLoan[]> {
+    const headers = await getAuthHeader();
+    const url = propertyId
+      ? `/api/household/loans?propertyId=${encodeURIComponent(propertyId)}`
+      : '/api/household/loans';
+    const res = await fetch(url, { method: 'GET', headers });
+    return handleResponse<HouseholdLoan[]>(res);
+  },
+
+  async createLoan(data: Partial<HouseholdLoan>): Promise<HouseholdLoan> {
+    const headers = await getAuthHeader();
+    const res = await fetch('/api/household/loans', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(data),
+    });
+    return handleResponse<HouseholdLoan>(res);
+  },
+
+  async updateLoan(id: string, data: Partial<HouseholdLoan>): Promise<HouseholdLoan> {
+    const headers = await getAuthHeader();
+    const res = await fetch(`/api/household/loans/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify(data),
+    });
+    return handleResponse<HouseholdLoan>(res);
+  },
+
+  async deleteLoan(id: string): Promise<{ id: string; deleted: boolean }> {
+    const headers = await getAuthHeader();
+    const res = await fetch(`/api/household/loans/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      headers,
+    });
+    return handleResponse<{ id: string; deleted: boolean }>(res);
+  },
+
+  // Credit Cards
+  async getCreditCards(): Promise<CreditCardAccount[]> {
+    const headers = await getAuthHeader();
+    const res = await fetch('/api/household/credit-cards', { method: 'GET', headers });
+    return handleResponse<CreditCardAccount[]>(res);
+  },
+
+  async createCreditCard(data: Partial<CreditCardAccount>): Promise<CreditCardAccount> {
+    const headers = await getAuthHeader();
+    const res = await fetch('/api/household/credit-cards', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(data),
+    });
+    return handleResponse<CreditCardAccount>(res);
+  },
+
+  async updateCreditCard(id: string, data: Partial<CreditCardAccount>): Promise<CreditCardAccount> {
+    const headers = await getAuthHeader();
+    const res = await fetch(`/api/household/credit-cards/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify(data),
+    });
+    return handleResponse<CreditCardAccount>(res);
+  },
+
+  async deleteCreditCard(id: string): Promise<{ id: string; deleted: boolean }> {
+    const headers = await getAuthHeader();
+    const res = await fetch(`/api/household/credit-cards/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      headers,
+    });
+    return handleResponse<{ id: string; deleted: boolean }>(res);
+  },
+
+  // AI Document-First Entity Extraction & Review
+  async extractEntityFromDoc(
+    documentId: string,
+    targetEntityType?: HouseholdEntityType,
+    notes?: string
+  ): Promise<ExtractedEntityReviewData> {
+    const headers = await getAuthHeader();
+    const res = await fetch('/api/household/extract-entity-from-doc', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ documentId, targetEntityType, notes }),
+    });
+    return handleResponse<ExtractedEntityReviewData>(res);
+  },
+
+  async saveExtractedEntity(
+    entityType: HouseholdEntityType,
+    entityData: Record<string, any>,
+    sourceDocumentId?: string
+  ): Promise<{ success: boolean; entityId: string; entityType: HouseholdEntityType; entity: any }> {
+    const headers = await getAuthHeader();
+    const res = await fetch('/api/household/save-extracted-entity', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ entityType, entityData, sourceDocumentId }),
+    });
+    return handleResponse<{ success: boolean; entityId: string; entityType: HouseholdEntityType; entity: any }>(res);
   },
 };
 

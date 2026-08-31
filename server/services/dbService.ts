@@ -12,13 +12,28 @@ import {
   PrivacyCenterSummary,
   DataSourceConnection,
   ImportedSourceMetadata,
+  Property,
+  Room,
+  Warranty,
+  MaintenanceTask,
+  UtilityAccount,
+  HouseholdLoan,
+  CreditCardAccount,
+  HomeCommandCenterSummary,
 } from '../../src/types';
 
 // In-Memory Multi-Tenant Master Storage (isolated strictly per userId)
 interface UserDataStore {
   profile: Record<string, any>;
+  properties: Map<string, any>;
+  rooms: Map<string, any>;
   expenses: Map<string, any>;
   assets: Map<string, any>;
+  warranties: Map<string, any>;
+  maintenances: Map<string, any>;
+  utilities: Map<string, any>;
+  loans: Map<string, any>;
+  creditCards: Map<string, any>;
   transactions: Map<string, any>;
   documents: Map<string, any>;
   insights: Map<string, any>;
@@ -43,8 +58,15 @@ export function getOrCreateUserStore(userId: string): UserDataStore {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       },
+      properties: new Map(),
+      rooms: new Map(),
       expenses: new Map(),
       assets: new Map(),
+      warranties: new Map(),
+      maintenances: new Map(),
+      utilities: new Map(),
+      loans: new Map(),
+      creditCards: new Map(),
       transactions: new Map(),
       documents: new Map(),
       insights: new Map(),
@@ -310,6 +332,662 @@ export class DatabaseService {
   static async deleteAsset(userId: string, id: string): Promise<boolean> {
     const store = getOrCreateUserStore(userId);
     return store.assets.delete(id);
+  }
+
+  // --- PROPERTIES ---
+  static async listProperties(userId: string): Promise<Property[]> {
+    const store = getOrCreateUserStore(userId);
+    return Array.from(store.properties.values()).sort(
+      (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+    );
+  }
+
+  static async getProperty(userId: string, id: string): Promise<Property | null> {
+    const store = getOrCreateUserStore(userId);
+    return store.properties.get(id) || null;
+  }
+
+  static async createProperty(userId: string, data: any, customId?: string): Promise<Property> {
+    const store = getOrCreateUserStore(userId);
+    const id = customId || `prop_${crypto.randomUUID()}`;
+    const timestamp = new Date().toISOString();
+    const property: Property = {
+      id,
+      userId,
+      ...data,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
+    store.properties.set(id, property);
+    return property;
+  }
+
+  static async updateProperty(userId: string, id: string, data: any): Promise<Property | null> {
+    const store = getOrCreateUserStore(userId);
+    const existing = store.properties.get(id);
+    if (!existing) return null;
+    const updated: Property = {
+      ...existing,
+      ...data,
+      id,
+      userId,
+      updatedAt: new Date().toISOString(),
+    };
+    store.properties.set(id, updated);
+    return updated;
+  }
+
+  static async deleteProperty(userId: string, id: string): Promise<boolean> {
+    const store = getOrCreateUserStore(userId);
+    // When a property is deleted, also update associated rooms and assets if any
+    for (const [roomId, room] of store.rooms.entries()) {
+      if (room.propertyId === id) {
+        store.rooms.delete(roomId);
+      }
+    }
+    return store.properties.delete(id);
+  }
+
+  // --- ROOMS ---
+  static async listRooms(userId: string, propertyId?: string): Promise<Room[]> {
+    const store = getOrCreateUserStore(userId);
+    let items = Array.from(store.rooms.values());
+    if (propertyId) {
+      items = items.filter((r) => r.propertyId === propertyId);
+    }
+    return items.sort(
+      (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+    );
+  }
+
+  static async getRoom(userId: string, id: string): Promise<Room | null> {
+    const store = getOrCreateUserStore(userId);
+    return store.rooms.get(id) || null;
+  }
+
+  static async createRoom(userId: string, data: any, customId?: string): Promise<Room> {
+    const store = getOrCreateUserStore(userId);
+    const id = customId || `room_${crypto.randomUUID()}`;
+    const timestamp = new Date().toISOString();
+    const room: Room = {
+      id,
+      userId,
+      ...data,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
+    store.rooms.set(id, room);
+    return room;
+  }
+
+  static async updateRoom(userId: string, id: string, data: any): Promise<Room | null> {
+    const store = getOrCreateUserStore(userId);
+    const existing = store.rooms.get(id);
+    if (!existing) return null;
+    const updated: Room = {
+      ...existing,
+      ...data,
+      id,
+      userId,
+      updatedAt: new Date().toISOString(),
+    };
+    store.rooms.set(id, updated);
+    return updated;
+  }
+
+  static async deleteRoom(userId: string, id: string): Promise<boolean> {
+    const store = getOrCreateUserStore(userId);
+    return store.rooms.delete(id);
+  }
+
+  // --- WARRANTIES ---
+  static async listWarranties(userId: string, assetId?: string): Promise<Warranty[]> {
+    const store = getOrCreateUserStore(userId);
+    let items = Array.from(store.warranties.values());
+    if (assetId) {
+      items = items.filter((w) => w.assetId === assetId);
+    }
+    const today = new Date().toISOString().split('T')[0];
+    // Dynamic status calculation
+    return items
+      .map((w) => {
+        let status = w.status;
+        if (w.endDate) {
+          const end = new Date(w.endDate).getTime();
+          const now = new Date(today).getTime();
+          const daysLeft = Math.ceil((end - now) / (1000 * 60 * 60 * 24));
+          if (daysLeft < 0) status = 'expired';
+          else if (daysLeft <= 60) status = 'expiring_soon';
+          else status = 'active';
+        }
+        return { ...w, status };
+      })
+      .sort((a, b) => new Date(a.endDate || 0).getTime() - new Date(b.endDate || 0).getTime());
+  }
+
+  static async getWarranty(userId: string, id: string): Promise<Warranty | null> {
+    const store = getOrCreateUserStore(userId);
+    return store.warranties.get(id) || null;
+  }
+
+  static async createWarranty(userId: string, data: any, customId?: string): Promise<Warranty> {
+    const store = getOrCreateUserStore(userId);
+    const id = customId || `war_${crypto.randomUUID()}`;
+    const timestamp = new Date().toISOString();
+    const warranty: Warranty = {
+      id,
+      userId,
+      ...data,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
+    store.warranties.set(id, warranty);
+    return warranty;
+  }
+
+  static async updateWarranty(userId: string, id: string, data: any): Promise<Warranty | null> {
+    const store = getOrCreateUserStore(userId);
+    const existing = store.warranties.get(id);
+    if (!existing) return null;
+    const updated: Warranty = {
+      ...existing,
+      ...data,
+      id,
+      userId,
+      updatedAt: new Date().toISOString(),
+    };
+    store.warranties.set(id, updated);
+    return updated;
+  }
+
+  static async deleteWarranty(userId: string, id: string): Promise<boolean> {
+    const store = getOrCreateUserStore(userId);
+    return store.warranties.delete(id);
+  }
+
+  // --- MAINTENANCE TASKS ---
+  static async listMaintenances(
+    userId: string,
+    assetId?: string,
+    propertyId?: string
+  ): Promise<MaintenanceTask[]> {
+    const store = getOrCreateUserStore(userId);
+    let items = Array.from(store.maintenances.values());
+    if (assetId) items = items.filter((m) => m.assetId === assetId);
+    if (propertyId) items = items.filter((m) => m.propertyId === propertyId);
+    const today = new Date().toISOString().split('T')[0];
+    return items
+      .map((m) => {
+        let status = m.status;
+        if (m.status !== 'completed' && m.nextServiceDate) {
+          if (m.nextServiceDate < today) status = 'overdue';
+          else status = 'scheduled';
+        }
+        return { ...m, status };
+      })
+      .sort((a, b) => new Date(a.serviceDate || 0).getTime() - new Date(b.serviceDate || 0).getTime());
+  }
+
+  static async getMaintenance(userId: string, id: string): Promise<MaintenanceTask | null> {
+    const store = getOrCreateUserStore(userId);
+    return store.maintenances.get(id) || null;
+  }
+
+  static async createMaintenance(userId: string, data: any, customId?: string): Promise<MaintenanceTask> {
+    const store = getOrCreateUserStore(userId);
+    const id = customId || `maint_${crypto.randomUUID()}`;
+    const timestamp = new Date().toISOString();
+    const task: MaintenanceTask = {
+      id,
+      userId,
+      ...data,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
+    store.maintenances.set(id, task);
+    return task;
+  }
+
+  static async updateMaintenance(userId: string, id: string, data: any): Promise<MaintenanceTask | null> {
+    const store = getOrCreateUserStore(userId);
+    const existing = store.maintenances.get(id);
+    if (!existing) return null;
+    const updated: MaintenanceTask = {
+      ...existing,
+      ...data,
+      id,
+      userId,
+      updatedAt: new Date().toISOString(),
+    };
+    store.maintenances.set(id, updated);
+    return updated;
+  }
+
+  static async deleteMaintenance(userId: string, id: string): Promise<boolean> {
+    const store = getOrCreateUserStore(userId);
+    return store.maintenances.delete(id);
+  }
+
+  // --- UTILITIES ---
+  static async listUtilities(userId: string, propertyId?: string): Promise<UtilityAccount[]> {
+    const store = getOrCreateUserStore(userId);
+    let items = Array.from(store.utilities.values());
+    if (propertyId) items = items.filter((u) => u.propertyId === propertyId);
+    return items.sort(
+      (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+    );
+  }
+
+  static async getUtility(userId: string, id: string): Promise<UtilityAccount | null> {
+    const store = getOrCreateUserStore(userId);
+    return store.utilities.get(id) || null;
+  }
+
+  static async createUtility(userId: string, data: any, customId?: string): Promise<UtilityAccount> {
+    const store = getOrCreateUserStore(userId);
+    const id = customId || `util_${crypto.randomUUID()}`;
+    const timestamp = new Date().toISOString();
+    const utility: UtilityAccount = {
+      id,
+      userId,
+      ...data,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
+    store.utilities.set(id, utility);
+    return utility;
+  }
+
+  static async updateUtility(userId: string, id: string, data: any): Promise<UtilityAccount | null> {
+    const store = getOrCreateUserStore(userId);
+    const existing = store.utilities.get(id);
+    if (!existing) return null;
+    const updated: UtilityAccount = {
+      ...existing,
+      ...data,
+      id,
+      userId,
+      updatedAt: new Date().toISOString(),
+    };
+    store.utilities.set(id, updated);
+    return updated;
+  }
+
+  static async deleteUtility(userId: string, id: string): Promise<boolean> {
+    const store = getOrCreateUserStore(userId);
+    return store.utilities.delete(id);
+  }
+
+  // --- LOANS & EMI ---
+  static async listLoans(userId: string): Promise<HouseholdLoan[]> {
+    const store = getOrCreateUserStore(userId);
+    return Array.from(store.loans.values()).sort(
+      (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+    );
+  }
+
+  static async getLoan(userId: string, id: string): Promise<HouseholdLoan | null> {
+    const store = getOrCreateUserStore(userId);
+    return store.loans.get(id) || null;
+  }
+
+  static async createLoan(userId: string, data: any, customId?: string): Promise<HouseholdLoan> {
+    const store = getOrCreateUserStore(userId);
+    const id = customId || `loan_${crypto.randomUUID()}`;
+    const timestamp = new Date().toISOString();
+    const loan: HouseholdLoan = {
+      id,
+      userId,
+      ...data,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
+    store.loans.set(id, loan);
+    return loan;
+  }
+
+  static async updateLoan(userId: string, id: string, data: any): Promise<HouseholdLoan | null> {
+    const store = getOrCreateUserStore(userId);
+    const existing = store.loans.get(id);
+    if (!existing) return null;
+    const updated: HouseholdLoan = {
+      ...existing,
+      ...data,
+      id,
+      userId,
+      updatedAt: new Date().toISOString(),
+    };
+    store.loans.set(id, updated);
+    return updated;
+  }
+
+  static async deleteLoan(userId: string, id: string): Promise<boolean> {
+    const store = getOrCreateUserStore(userId);
+    return store.loans.delete(id);
+  }
+
+  // --- CREDIT CARDS ---
+  static async listCreditCards(userId: string): Promise<CreditCardAccount[]> {
+    const store = getOrCreateUserStore(userId);
+    return Array.from(store.creditCards.values()).sort(
+      (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+    );
+  }
+
+  static async getCreditCard(userId: string, id: string): Promise<CreditCardAccount | null> {
+    const store = getOrCreateUserStore(userId);
+    return store.creditCards.get(id) || null;
+  }
+
+  static async createCreditCard(userId: string, data: any, customId?: string): Promise<CreditCardAccount> {
+    const store = getOrCreateUserStore(userId);
+    const id = customId || `cc_${crypto.randomUUID()}`;
+    const timestamp = new Date().toISOString();
+    const cc: CreditCardAccount = {
+      id,
+      userId,
+      ...data,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
+    store.creditCards.set(id, cc);
+    return cc;
+  }
+
+  static async updateCreditCard(userId: string, id: string, data: any): Promise<CreditCardAccount | null> {
+    const store = getOrCreateUserStore(userId);
+    const existing = store.creditCards.get(id);
+    if (!existing) return null;
+    const updated: CreditCardAccount = {
+      ...existing,
+      ...data,
+      id,
+      userId,
+      updatedAt: new Date().toISOString(),
+    };
+    store.creditCards.set(id, updated);
+    return updated;
+  }
+
+  static async deleteCreditCard(userId: string, id: string): Promise<boolean> {
+    const store = getOrCreateUserStore(userId);
+    return store.creditCards.delete(id);
+  }
+
+  // --- HOME COMMAND CENTER SUMMARY ---
+  static async getHomeCommandCenterSummary(userId: string): Promise<HomeCommandCenterSummary> {
+    const store = getOrCreateUserStore(userId);
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+    const in30Days = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+    const properties = Array.from(store.properties.values());
+    const rooms = Array.from(store.rooms.values());
+    const assets = Array.from(store.assets.values());
+    const warranties = Array.from(store.warranties.values());
+    const maintenances = Array.from(store.maintenances.values());
+    const utilities = Array.from(store.utilities.values());
+    const loans = Array.from(store.loans.values());
+    const creditCards = Array.from(store.creditCards.values());
+    const expenses = Array.from(store.expenses.values());
+    const documents = Array.from(store.documents.values());
+
+    // 1. Today & Urgent Tasks
+    const urgentTasks: HomeCommandCenterSummary['today']['urgentTasks'] = [];
+    let overdueCount = 0;
+    let dueTodayCount = 0;
+
+    // Check overdue/due expenses
+    for (const exp of expenses) {
+      if (exp.paymentStatus !== 'paid' && exp.dueDate) {
+        if (exp.dueDate < todayStr) {
+          overdueCount++;
+          urgentTasks.push({
+            id: `urg_exp_${exp.id}`,
+            type: 'overdue_payment',
+            title: `Overdue: ${exp.title}`,
+            amount: exp.amount,
+            dueDate: exp.dueDate,
+            severity: 'critical',
+          });
+        } else if (exp.dueDate === todayStr) {
+          dueTodayCount++;
+          urgentTasks.push({
+            id: `urg_exp_${exp.id}`,
+            type: 'bill_due',
+            title: `Due Today: ${exp.title}`,
+            amount: exp.amount,
+            dueDate: exp.dueDate,
+            severity: 'high',
+          });
+        }
+      }
+    }
+
+    // Check overdue/due credit cards
+    for (const cc of creditCards) {
+      if (cc.paymentStatus !== 'paid' && cc.paymentDueDate) {
+        if (cc.paymentDueDate < todayStr) {
+          overdueCount++;
+          urgentTasks.push({
+            id: `urg_cc_${cc.id}`,
+            type: 'overdue_payment',
+            title: `Overdue Card Bill: ${cc.cardNickname} (*${cc.last4Digits})`,
+            amount: cc.outstandingAmount,
+            dueDate: cc.paymentDueDate,
+            severity: 'critical',
+          });
+        } else if (cc.paymentDueDate === todayStr) {
+          dueTodayCount++;
+          urgentTasks.push({
+            id: `urg_cc_${cc.id}`,
+            type: 'bill_due',
+            title: `Card Payment Due: ${cc.cardNickname}`,
+            amount: cc.minimumDue || cc.outstandingAmount,
+            dueDate: cc.paymentDueDate,
+            severity: 'high',
+          });
+        }
+      }
+    }
+
+    // Check maintenance overdue
+    for (const m of maintenances) {
+      const dueDate = m.nextServiceDate || m.serviceDate;
+      if (m.status !== 'completed' && dueDate) {
+        if (dueDate < todayStr) {
+          overdueCount++;
+          urgentTasks.push({
+            id: `urg_maint_${m.id}`,
+            type: 'maintenance_due',
+            title: `Overdue Service: ${m.title}`,
+            dueDate,
+            severity: 'high',
+          });
+        } else if (dueDate === todayStr) {
+          dueTodayCount++;
+          urgentTasks.push({
+            id: `urg_maint_${m.id}`,
+            type: 'maintenance_due',
+            title: `Service Due Today: ${m.title}`,
+            dueDate,
+            severity: 'medium',
+          });
+        }
+      }
+    }
+
+    // Check warranties expiring soon (< 30 days)
+    for (const w of warranties) {
+      if (w.endDate && w.endDate >= todayStr && w.endDate <= in30Days) {
+        const daysLeft = Math.max(
+          0,
+          Math.ceil(
+            (new Date(w.endDate).getTime() - new Date(todayStr).getTime()) / (1000 * 60 * 60 * 24)
+          )
+        );
+        urgentTasks.push({
+          id: `urg_war_${w.id}`,
+          type: 'warranty_expiring',
+          title: `Warranty Expiring: ${w.warrantyProvider}`,
+          subtitle: `${daysLeft} days remaining`,
+          dueDate: w.endDate,
+          severity: daysLeft <= 7 ? 'high' : 'medium',
+        });
+      }
+    }
+
+    // 2. Upcoming 30 Days Breakdown
+    const upcomingEmis = loans
+      .filter((l) => l.status === 'active')
+      .map((l) => {
+        const dueDay = l.paymentDueDay || 1;
+        const dueFormatted = `${todayStr.slice(0, 7)}-${String(dueDay).padStart(2, '0')}`;
+        return {
+          id: l.id,
+          name: l.loanName,
+          amount: l.emiAmount,
+          dueDate: dueFormatted,
+          lender: l.lender,
+        };
+      });
+
+    const upcomingCreditCards = creditCards.map((cc) => ({
+      id: cc.id,
+      nickname: cc.cardNickname,
+      last4: cc.last4Digits,
+      amount: cc.outstandingAmount,
+      dueDate: cc.paymentDueDate,
+      isAutoPay: cc.isAutoPay,
+    }));
+
+    const upcomingUtilities = utilities.map((u) => ({
+      id: u.id,
+      name: u.name,
+      provider: u.provider,
+      amount: u.latestBillAmount || u.typicalAmount,
+      dueDate: u.nextDueDate || `${todayStr.slice(0, 7)}-${String(u.dueDateDay || 15).padStart(2, '0')}`,
+      isAutoPay: u.isAutoPay,
+    }));
+
+    const upcomingWarranties = warranties
+      .filter((w) => w.endDate && w.endDate >= todayStr && w.endDate <= in30Days)
+      .map((w) => {
+        const targetAsset = w.assetId ? store.assets.get(w.assetId) : null;
+        const daysRemaining = Math.max(
+          0,
+          Math.ceil(
+            (new Date(w.endDate).getTime() - new Date(todayStr).getTime()) / (1000 * 60 * 60 * 24)
+          )
+        );
+        return {
+          id: w.id,
+          provider: w.warrantyProvider,
+          assetName: targetAsset?.name,
+          expiryDate: w.endDate,
+          daysRemaining,
+        };
+      });
+
+    const upcomingMaintenance = maintenances
+      .filter((m) => {
+        const d = m.nextServiceDate || m.serviceDate;
+        return m.status !== 'completed' && d >= todayStr && d <= in30Days;
+      })
+      .map((m) => {
+        const targetAsset = m.assetId ? store.assets.get(m.assetId) : null;
+        return {
+          id: m.id,
+          title: m.title,
+          targetName: targetAsset?.name,
+          dueDate: m.nextServiceDate || m.serviceDate,
+          status: m.status,
+        };
+      });
+
+    const totalUpcomingObligations =
+      upcomingEmis.reduce((sum, e) => sum + e.amount, 0) +
+      upcomingCreditCards.reduce((sum, c) => sum + c.amount, 0) +
+      upcomingUtilities.reduce((sum, u) => sum + u.amount, 0);
+
+    // 3. Home Spaces
+    const totalAssetValuation = assets.reduce(
+      (sum, a) => sum + (a.currentEstimatedValue || a.purchaseCost || 0),
+      0
+    );
+    const totalPropertyValuation = properties.reduce(
+      (sum, p) => sum + (p.currentEstimatedValue || p.purchaseValue || 0),
+      0
+    );
+    const assetsNeedingAttention = assets.filter(
+      (a) => a.currentStatus === 'needs_maintenance' || a.currentStatus === 'critical'
+    ).length;
+
+    // 4. Financial Obligations (Monthly Sums)
+    const monthlyLoansTotal = loans
+      .filter((l) => l.status === 'active')
+      .reduce((sum, l) => sum + (l.emiAmount || 0), 0);
+
+    const monthlyUtilitiesTotal = utilities.reduce(
+      (sum, u) => sum + (u.typicalAmount || u.latestBillAmount || 0),
+      0
+    );
+
+    const monthlyCreditCardsTotal = creditCards.reduce(
+      (sum, cc) => sum + (cc.outstandingAmount || 0),
+      0
+    );
+
+    const monthlyRecurringExpensesTotal = expenses
+      .filter((e) => e.frequency === 'monthly')
+      .reduce((sum, e) => sum + (e.amount || 0), 0);
+
+    const totalMonthlyObligations =
+      monthlyLoansTotal +
+      monthlyUtilitiesTotal +
+      monthlyCreditCardsTotal +
+      monthlyRecurringExpensesTotal;
+
+    // 5. Documents
+    const recentDocs = documents
+      .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
+      .slice(0, 5);
+
+    return {
+      today: {
+        urgentTasks,
+        overdueCount,
+        dueTodayCount,
+      },
+      upcoming30Days: {
+        totalObligationsAmount: totalUpcomingObligations,
+        emis: upcomingEmis,
+        creditCards: upcomingCreditCards,
+        utilities: upcomingUtilities,
+        warrantiesExpiring: upcomingWarranties,
+        maintenanceTasks: upcomingMaintenance,
+      },
+      homeSpaces: {
+        propertiesCount: properties.length,
+        roomsCount: rooms.length,
+        assetsCount: assets.length,
+        totalAssetValuation,
+        totalPropertyValuation,
+        assetsNeedingAttention,
+      },
+      financialObligations: {
+        monthlyLoansTotal,
+        monthlyUtilitiesTotal,
+        monthlyCreditCardsTotal,
+        monthlyRecurringExpensesTotal,
+        totalMonthlyObligations,
+      },
+      documents: {
+        totalDocuments: documents.length,
+        expiringDocumentsCount: upcomingWarranties.length,
+        recentDocuments: recentDocs,
+      },
+    };
   }
 
   // --- TRANSACTIONS ---
@@ -713,67 +1391,81 @@ export class DatabaseService {
     const demoAssets = [
       {
         id: 'demo_ast_hvac',
-        name: 'Trane XV20i Inverter Heat Pump',
+        name: 'Trane XV20i Variable Speed Heat Pump',
         category: 'hvac',
+        propertyId: 'demo_prop_primary',
+        roomId: 'demo_room_hvac_pad',
         brand: 'Trane',
-        modelNumber: 'XV20i-4TTR0',
-        serialNumber: 'TRN-2018-9941A',
-        installDate: '2019-04-12',
-        warrantyExpiryDate: '2026-09-30', // Expiring within 30-60 days!
+        modelNumber: '4TWV0036A1000A',
+        serialNumber: 'TRN-2016-88912',
+        installDate: '2016-09-15',
+        warrantyExpiryDate: '2026-09-30', // Expiring in 30 days!
         expectedLifespanYears: 15,
         purchaseCost: 8500,
+        currentEstimatedValue: 7200,
         currentStatus: 'operational',
-        roomLocation: 'Utility Closet & Exterior Yard',
-        maintenanceNotes: 'Annual compressor inspection completed spring 2026. Filter size 20x25x4 MERV 11.',
+        roomLocation: 'Exterior HVAC Pad',
+        maintenanceNotes: 'Annual tune-up completed May 2026. Coil cleaned. Warranty expires September 2026.',
       },
       {
         id: 'demo_ast_water_heater',
-        name: 'Rheem Hybrid Electric Water Heater',
+        name: 'Rheem Performance Platinum 50 Gal Hybrid',
         category: 'plumbing',
+        propertyId: 'demo_prop_primary',
+        roomId: 'demo_room_hvac_pad',
         brand: 'Rheem',
-        modelNumber: 'PROG50-38N',
-        serialNumber: 'RHM-2021-4822',
-        installDate: '2021-08-20',
-        warrantyExpiryDate: '2031-08-20',
+        modelNumber: 'XE50T10H45U0',
+        serialNumber: 'RHM-2022-44120',
+        installDate: '2022-03-10',
+        warrantyExpiryDate: '2032-03-10',
         expectedLifespanYears: 12,
         purchaseCost: 1650,
+        currentEstimatedValue: 1400,
         currentStatus: 'operational',
-        roomLocation: 'Basement Mechanical Room',
-        maintenanceNotes: 'Anode rod inspected 2025. Tank drained annually.',
+        roomLocation: 'Utility Closet',
+        maintenanceNotes: 'Anode rod inspected. Heat pump filter cleaned quarterly.',
       },
       {
         id: 'demo_ast_dishwasher',
         name: 'Bosch 800 Series Dishwasher',
         category: 'kitchen',
+        propertyId: 'demo_prop_primary',
+        roomId: 'demo_room_kitchen',
         brand: 'Bosch',
-        modelNumber: 'SHP878ZD5N',
-        serialNumber: 'BSH-2022-7719',
-        installDate: '2022-03-15',
-        warrantyExpiryDate: '2024-03-15',
+        modelNumber: 'SHP78CM5N',
+        serialNumber: 'BSH-2023-10992',
+        installDate: '2023-05-18',
+        warrantyExpiryDate: '2025-05-18',
         expectedLifespanYears: 10,
-        purchaseCost: 1100,
-        currentStatus: 'needs_maintenance', // Needs maintenance flag!
+        purchaseCost: 1150,
+        currentEstimatedValue: 900,
+        currentStatus: 'needs_maintenance',
         roomLocation: 'Kitchen',
-        maintenanceNotes: 'Drain pump filter requires clearing. Error code E15 cleared.',
+        maintenanceNotes: 'E24 error code observed intermittently. Drain pump filter requires clearing.',
       },
       {
         id: 'demo_ast_roof',
-        name: 'CertainTeed Landmark Architectural Roof',
+        name: 'CertainTeed Landmark Pro Architectural Shingle Roof',
         category: 'roofing_exterior',
+        propertyId: 'demo_prop_primary',
         brand: 'CertainTeed',
-        modelNumber: 'Landmark Pro',
-        installDate: '2018-06-01',
-        warrantyExpiryDate: '2048-06-01',
+        modelNumber: 'Landmark Pro Max Def',
+        serialNumber: 'CT-2016-ROOF',
+        installDate: '2016-08-01',
+        warrantyExpiryDate: '2046-08-01',
         expectedLifespanYears: 30,
         purchaseCost: 14000,
+        currentEstimatedValue: 12500,
         currentStatus: 'operational',
-        roomLocation: 'Main Roof & Gables',
-        maintenanceNotes: 'Gutter clearing and flashing check performed bi-annually.',
+        roomLocation: 'Roof & Exterior',
+        maintenanceNotes: 'Inspected post-hailstorm in 2024. Granule retention good. Flashing intact.',
       },
       {
         id: 'demo_ast_fridge',
         name: 'LG French Door Smart Refrigerator',
         category: 'major_appliance',
+        propertyId: 'demo_prop_primary',
+        roomId: 'demo_room_kitchen',
         brand: 'LG',
         modelNumber: 'LRFCS25D3S',
         serialNumber: 'LG-2023-9011',
@@ -781,11 +1473,539 @@ export class DatabaseService {
         warrantyExpiryDate: '2028-01-10',
         expectedLifespanYears: 12,
         purchaseCost: 1900,
+        currentEstimatedValue: 1500,
         currentStatus: 'operational',
         roomLocation: 'Kitchen',
         maintenanceNotes: 'Water filter replaced every 6 months (LT1000P).',
       },
+      {
+        id: 'demo_ast_car',
+        name: 'Tesla Model Y Long Range AWD',
+        category: 'vehicle',
+        propertyId: 'demo_prop_primary',
+        roomId: 'demo_room_garage',
+        brand: 'Tesla',
+        modelNumber: 'Model Y LR',
+        serialNumber: '5YJYGDEE8NF-001',
+        installDate: '2024-03-12',
+        warrantyExpiryDate: '2028-03-12',
+        expectedLifespanYears: 12,
+        purchaseCost: 48000,
+        currentEstimatedValue: 36000,
+        currentStatus: 'operational',
+        roomLocation: 'Garage',
+        maintenanceNotes: 'Tire rotation scheduled at 10,000 miles. Cabin air filter replaced annually.',
+      },
+      {
+        id: 'demo_ast_macbook',
+        name: 'Apple MacBook Pro 16" (M3 Max, 64GB)',
+        category: 'electronics',
+        propertyId: 'demo_prop_primary',
+        roomId: 'demo_room_primary_bed',
+        brand: 'Apple',
+        modelNumber: 'MUW63LL/A',
+        serialNumber: 'C02G99XXMD6R',
+        installDate: '2024-01-10',
+        warrantyExpiryDate: '2027-01-10',
+        expectedLifespanYears: 6,
+        purchaseCost: 3499,
+        currentEstimatedValue: 2900,
+        currentStatus: 'operational',
+        roomLocation: 'Primary Bedroom / Office',
+        maintenanceNotes: 'Protected under AppleCare+ with accidental damage coverage.',
+      },
     ];
+
+    // 3b. Properties
+    const demoProperties: Property[] = [
+      {
+        id: 'demo_prop_primary',
+        userId,
+        name: 'Maplewood Haven',
+        propertyType: 'primary_home',
+        address: {
+          street: '742 Evergreen Terrace',
+          city: 'Portland',
+          region: 'Oregon',
+          postalCode: '97201',
+          country: 'United States',
+        },
+        purchaseDate: '2021-08-15',
+        purchaseValue: 485000,
+        currentEstimatedValue: 620000,
+        ownershipInfo: 'Sole Ownership (Deed in escrow)',
+        squareFootage: 2450,
+        yearBuilt: 2016,
+        notes: 'Primary residential dwelling. 4 bed, 3 bath with attached 2-car garage.',
+        linkedLoanId: 'demo_loan_mortgage',
+        isDemo: true,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      },
+      {
+        id: 'demo_prop_cabin',
+        userId,
+        name: 'Whispering Pines Cabin',
+        propertyType: 'vacation_home',
+        address: {
+          street: '12 Timberline Ridge Road',
+          city: 'Government Camp',
+          region: 'Oregon',
+          postalCode: '97028',
+          country: 'United States',
+        },
+        purchaseDate: '2019-11-20',
+        purchaseValue: 220000,
+        currentEstimatedValue: 265000,
+        ownershipInfo: 'Joint Family Trust',
+        squareFootage: 1200,
+        yearBuilt: 2019,
+        notes: 'Rustic retreat cabin with metal standing seam roof and wood stove.',
+        isDemo: true,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      },
+    ];
+
+    demoProperties.forEach((p) => {
+      store.properties.set(p.id, p);
+    });
+
+    // 3c. Rooms
+    const demoRooms: Room[] = [
+      {
+        id: 'demo_room_kitchen',
+        userId,
+        propertyId: 'demo_prop_primary',
+        name: 'Chef Kitchen',
+        type: 'kitchen',
+        floor: 'Ground Floor',
+        notes: 'Open layout with center island and quartz countertops.',
+        isDemo: true,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      },
+      {
+        id: 'demo_room_living',
+        userId,
+        propertyId: 'demo_prop_primary',
+        name: 'Family Living Room',
+        type: 'living_room',
+        floor: 'Ground Floor',
+        notes: 'Main entertainment and relaxation zone.',
+        isDemo: true,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      },
+      {
+        id: 'demo_room_primary_bed',
+        userId,
+        propertyId: 'demo_prop_primary',
+        name: 'Primary Bedroom & Suite',
+        type: 'bedroom',
+        floor: 'Second Floor',
+        notes: 'Master suite with private ensuite and desk area.',
+        isDemo: true,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      },
+      {
+        id: 'demo_room_garage',
+        userId,
+        propertyId: 'demo_prop_primary',
+        name: 'Attached Garage & Workshop',
+        type: 'garage',
+        floor: 'Ground Floor',
+        notes: '2-car bay with Level 2 EV charging station installed.',
+        isDemo: true,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      },
+      {
+        id: 'demo_room_hvac_pad',
+        userId,
+        propertyId: 'demo_prop_primary',
+        name: 'Utility & Mechanical Zone',
+        type: 'utility_area',
+        floor: 'Basement / Exterior',
+        notes: 'Houses heat pump compressor, water heater, and electrical panel.',
+        isDemo: true,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      },
+      {
+        id: 'demo_room_cabin_living',
+        userId,
+        propertyId: 'demo_prop_cabin',
+        name: 'Great Room & Fireplace',
+        type: 'living_room',
+        floor: 'Main Floor',
+        notes: 'Cathedral ceiling with timber trusses and wood stove.',
+        isDemo: true,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      },
+    ];
+
+    demoRooms.forEach((r) => {
+      store.rooms.set(r.id, r);
+    });
+
+    // 3d. Warranties
+    const demoWarranties: Warranty[] = [
+      {
+        id: 'demo_war_trane',
+        userId,
+        assetId: 'demo_ast_hvac',
+        propertyId: 'demo_prop_primary',
+        warrantyProvider: 'Trane Technologies',
+        policyNumber: 'TRN-WARR-88192',
+        startDate: '2016-09-30',
+        endDate: '2026-09-30', // Expiring in 30 days!
+        durationMonths: 120,
+        coverageNotes: '10-year limited parts and compressor warranty. Requires annual registered maintenance.',
+        contactInfo: {
+          phone: '1-800-945-5884',
+          website: 'https://www.trane.com/residential/en/warranty-and-registration/',
+        },
+        status: 'expiring_soon',
+        isDemo: true,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      },
+      {
+        id: 'demo_war_rheem',
+        userId,
+        assetId: 'demo_ast_water_heater',
+        propertyId: 'demo_prop_primary',
+        warrantyProvider: 'Rheem Care Protection',
+        policyNumber: 'RHM-HYB-44120',
+        startDate: '2022-03-10',
+        endDate: '2032-03-10',
+        durationMonths: 120,
+        coverageNotes: '10-year limited tank and parts warranty.',
+        contactInfo: {
+          phone: '1-800-432-8373',
+          website: 'https://www.rheem.com',
+        },
+        status: 'active',
+        isDemo: true,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      },
+      {
+        id: 'demo_war_apple',
+        userId,
+        assetId: 'demo_ast_macbook',
+        warrantyProvider: 'AppleCare+ Protection Plan',
+        policyNumber: 'APP-C02G99-PLUS',
+        startDate: '2024-01-10',
+        endDate: '2027-01-10',
+        durationMonths: 36,
+        coverageNotes: 'Full hardware coverage and unlimited accidental damage protection ($99 screen / $299 other).',
+        contactInfo: {
+          phone: '1-800-275-2273',
+          website: 'https://support.apple.com',
+        },
+        status: 'active',
+        isDemo: true,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      },
+      {
+        id: 'demo_war_bosch',
+        userId,
+        assetId: 'demo_ast_dishwasher',
+        propertyId: 'demo_prop_primary',
+        warrantyProvider: 'Bosch Home Protection',
+        policyNumber: 'BSH-RET-10992',
+        startDate: '2023-05-18',
+        endDate: '2025-05-18',
+        durationMonths: 24,
+        coverageNotes: '2-year standard appliance limited warranty. Expired.',
+        contactInfo: {
+          phone: '1-800-944-2904',
+          website: 'https://www.bosch-home.com',
+        },
+        status: 'expired',
+        isDemo: true,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      },
+    ];
+
+    demoWarranties.forEach((w) => {
+      store.warranties.set(w.id, w);
+    });
+
+    // 3e. Maintenance Tasks
+    const demoMaintenances: MaintenanceTask[] = [
+      {
+        id: 'demo_maint_hvac_filter',
+        userId,
+        title: 'HVAC MERV-13 Filter Replacement',
+        assetId: 'demo_ast_hvac',
+        propertyId: 'demo_prop_primary',
+        roomId: 'demo_room_hvac_pad',
+        serviceDate: '2026-06-01',
+        nextServiceDate: '2026-09-01', // Due today / immediate!
+        cost: 45,
+        serviceProvider: 'Self Maintenance / Filtrete',
+        contactPhone: '',
+        notes: 'Replace 20x25x4 filter to maintain airflow and lower compressor strain.',
+        recurringSchedule: 'quarterly',
+        status: 'scheduled',
+        isDemo: true,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      },
+      {
+        id: 'demo_maint_tesla_tire',
+        userId,
+        title: 'Tesla Tire Rotation & Pressure Calibration',
+        assetId: 'demo_ast_car',
+        propertyId: 'demo_prop_primary',
+        roomId: 'demo_room_garage',
+        serviceDate: '2026-04-10',
+        nextServiceDate: '2026-10-10',
+        cost: 120,
+        serviceProvider: 'Tesla Mobile Service',
+        contactPhone: '1-888-518-3752',
+        notes: 'Rotate tires every 6,250 - 10,000 miles to maximize tread life.',
+        recurringSchedule: 'semi_annual',
+        status: 'scheduled',
+        isDemo: true,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      },
+      {
+        id: 'demo_maint_water_flush',
+        userId,
+        title: 'Water Heater Anode Rod Inspection & Tank Flush',
+        assetId: 'demo_ast_water_heater',
+        propertyId: 'demo_prop_primary',
+        roomId: 'demo_room_hvac_pad',
+        serviceDate: '2025-09-15',
+        nextServiceDate: '2026-09-15',
+        cost: 150,
+        serviceProvider: 'Apex Plumbing Pros',
+        contactPhone: '503-555-0199',
+        notes: 'Drain sediment from tank bottom and inspect sacrificial anode rod.',
+        recurringSchedule: 'annual',
+        status: 'scheduled',
+        isDemo: true,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      },
+      {
+        id: 'demo_maint_roof_gutters',
+        userId,
+        title: 'Roof Gutter Clearing & Downspout Flow Test',
+        assetId: 'demo_ast_roof',
+        propertyId: 'demo_prop_primary',
+        serviceDate: '2026-05-20',
+        nextServiceDate: '2026-10-01',
+        cost: 180,
+        serviceProvider: 'ClearView Gutter Masters',
+        contactPhone: '503-555-0144',
+        notes: 'Remove pine needles and check downspout splash blocks before autumn rains.',
+        recurringSchedule: 'semi_annual',
+        status: 'scheduled',
+        isDemo: true,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      },
+    ];
+
+    demoMaintenances.forEach((m) => {
+      store.maintenances.set(m.id, m);
+    });
+
+    // 3f. Utilities
+    const demoUtilities: UtilityAccount[] = [
+      {
+        id: 'demo_util_electric',
+        userId,
+        propertyId: 'demo_prop_primary',
+        name: 'Grid City Power & Cooling',
+        serviceType: 'electricity',
+        provider: 'City Power & Light',
+        accountIdentifier: 'CPL-99218-01',
+        billingCycle: 'monthly',
+        dueDateDay: 15,
+        nextDueDate: '2026-09-15',
+        typicalAmount: 210,
+        latestBillAmount: 210,
+        paymentStatus: 'pending',
+        isAutoPay: true,
+        notes: 'Summer peak rate pricing in effect.',
+        isDemo: true,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      },
+      {
+        id: 'demo_util_water',
+        userId,
+        propertyId: 'demo_prop_primary',
+        name: 'Municipal Water & Sewer Utility',
+        serviceType: 'water',
+        provider: 'Municipal Water Board',
+        accountIdentifier: 'MWB-4819-WTR',
+        billingCycle: 'monthly',
+        dueDateDay: 20,
+        nextDueDate: '2026-09-20',
+        typicalAmount: 68,
+        latestBillAmount: 68,
+        paymentStatus: 'pending',
+        isAutoPay: true,
+        notes: 'Metered residential rate with wastewater fee.',
+        isDemo: true,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      },
+      {
+        id: 'demo_util_internet',
+        userId,
+        propertyId: 'demo_prop_primary',
+        name: 'Gigabit Fiber Internet',
+        serviceType: 'internet',
+        provider: 'FiberLink Telecom',
+        accountIdentifier: 'FL-88190-FBR',
+        billingCycle: 'monthly',
+        dueDateDay: 8,
+        nextDueDate: '2026-09-08',
+        typicalAmount: 80,
+        latestBillAmount: 80,
+        paymentStatus: 'paid',
+        isAutoPay: true,
+        notes: '1 Gbps symmetrical fiber with static IP.',
+        isDemo: true,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      },
+      {
+        id: 'demo_util_trash',
+        userId,
+        propertyId: 'demo_prop_primary',
+        name: 'Municipal Trash & Composting',
+        serviceType: 'trash',
+        provider: 'CleanCity Waste Management',
+        accountIdentifier: 'CCW-2091-TRSH',
+        billingCycle: 'monthly',
+        dueDateDay: 25,
+        nextDueDate: '2026-09-25',
+        typicalAmount: 42,
+        latestBillAmount: 42,
+        paymentStatus: 'pending',
+        isAutoPay: false,
+        notes: 'Weekly trash and bi-weekly green yard waste recycling.',
+        isDemo: true,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      },
+    ];
+
+    demoUtilities.forEach((u) => {
+      store.utilities.set(u.id, u);
+    });
+
+    // 3g. Household Loans
+    const demoLoans: HouseholdLoan[] = [
+      {
+        id: 'demo_loan_mortgage',
+        userId,
+        propertyId: 'demo_prop_primary',
+        loanName: 'Primary Home 30-Year Fixed Mortgage',
+        loanType: 'home_loan',
+        lender: 'First National Mortgage Bank',
+        principalAmount: 388000,
+        interestRate: 5.75,
+        emiAmount: 1850,
+        startDate: '2021-08-01',
+        endDate: '2051-08-01',
+        tenureMonths: 360,
+        paymentDueDay: 1,
+        outstandingAmount: 356400,
+        status: 'active',
+        notes: 'Fixed conventional loan with escrow for property taxes.',
+        isDemo: true,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      },
+      {
+        id: 'demo_loan_auto',
+        userId,
+        assetId: 'demo_ast_car',
+        loanName: 'Tesla Model Y 60-Month Auto Loan',
+        loanType: 'vehicle_loan',
+        lender: 'Chase Auto Finance',
+        principalAmount: 35000,
+        interestRate: 4.99,
+        emiAmount: 660,
+        startDate: '2024-03-01',
+        endDate: '2029-03-01',
+        tenureMonths: 60,
+        paymentDueDay: 12,
+        outstandingAmount: 22400,
+        status: 'active',
+        notes: 'Monthly direct debit scheduled on the 12th.',
+        isDemo: true,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      },
+    ];
+
+    demoLoans.forEach((l) => {
+      store.loans.set(l.id, l);
+    });
+
+    // 3h. Credit Cards
+    const demoCreditCards: CreditCardAccount[] = [
+      {
+        id: 'demo_cc_sapphire',
+        userId,
+        cardNickname: 'Chase Sapphire Preferred',
+        cardIssuer: 'Chase Bank',
+        last4Digits: '4821',
+        creditLimit: 18000,
+        billingCycleDay: 28,
+        statementDate: '2026-08-28',
+        paymentDueDate: '2026-09-23',
+        outstandingAmount: 840,
+        minimumDue: 45,
+        aprRate: 21.49,
+        paymentStatus: 'pending',
+        isAutoPay: false,
+        notes: 'Primary card for travel and dining points.',
+        isDemo: true,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      },
+      {
+        id: 'demo_cc_amex',
+        userId,
+        cardNickname: 'Amex Blue Cash Everyday',
+        cardIssuer: 'American Express',
+        last4Digits: '9104',
+        creditLimit: 12500,
+        billingCycleDay: 15,
+        statementDate: '2026-08-15',
+        paymentDueDate: '2026-09-10',
+        outstandingAmount: 320,
+        minimumDue: 35,
+        aprRate: 19.99,
+        paymentStatus: 'paid',
+        isAutoPay: true,
+        notes: 'Used for 3% cash back on grocery and online retail.',
+        isDemo: true,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      },
+    ];
+
+    demoCreditCards.forEach((c) => {
+      store.creditCards.set(c.id, c);
+    });
 
     demoAssets.forEach((a) => {
       store.assets.set(a.id, {
@@ -1296,6 +2516,13 @@ export class DatabaseService {
       insights: number;
       scenarios: number;
       conversations: number;
+      properties: number;
+      rooms: number;
+      warranties: number;
+      maintenances: number;
+      utilities: number;
+      loans: number;
+      creditCards: number;
     };
     remainingCount: number;
     userRecordsCount: number;
@@ -1309,6 +2536,13 @@ export class DatabaseService {
       insights: 0,
       scenarios: 0,
       conversations: 0,
+      properties: 0,
+      rooms: 0,
+      warranties: 0,
+      maintenances: 0,
+      utilities: 0,
+      loans: 0,
+      creditCards: 0,
     };
 
     const isDemoRecord = (id: string, item?: any): boolean => {
@@ -1321,7 +2555,7 @@ export class DatabaseService {
       ) {
         return true;
       }
-      if (item && (item.isDemo === true || item.source === 'demo_seed')) {
+      if (item && (item.isDemo === true || item.source === 'demo_seed' || item.sourceType === 'demo_seed')) {
         return true;
       }
       return false;
@@ -1383,6 +2617,62 @@ export class DatabaseService {
       }
     }
 
+    // 8. Properties
+    for (const [id, prop] of Array.from(store.properties.entries())) {
+      if (isDemoRecord(id, prop)) {
+        store.properties.delete(id);
+        details.properties++;
+      }
+    }
+
+    // 9. Rooms
+    for (const [id, room] of Array.from(store.rooms.entries())) {
+      if (isDemoRecord(id, room)) {
+        store.rooms.delete(id);
+        details.rooms++;
+      }
+    }
+
+    // 10. Warranties
+    for (const [id, war] of Array.from(store.warranties.entries())) {
+      if (isDemoRecord(id, war)) {
+        store.warranties.delete(id);
+        details.warranties++;
+      }
+    }
+
+    // 11. Maintenances
+    for (const [id, mnt] of Array.from(store.maintenances.entries())) {
+      if (isDemoRecord(id, mnt)) {
+        store.maintenances.delete(id);
+        details.maintenances++;
+      }
+    }
+
+    // 12. Utilities
+    for (const [id, utl] of Array.from(store.utilities.entries())) {
+      if (isDemoRecord(id, utl)) {
+        store.utilities.delete(id);
+        details.utilities++;
+      }
+    }
+
+    // 13. Loans
+    for (const [id, ln] of Array.from(store.loans.entries())) {
+      if (isDemoRecord(id, ln)) {
+        store.loans.delete(id);
+        details.loans++;
+      }
+    }
+
+    // 14. Credit Cards
+    for (const [id, cc] of Array.from(store.creditCards.entries())) {
+      if (isDemoRecord(id, cc)) {
+        store.creditCards.delete(id);
+        details.creditCards++;
+      }
+    }
+
     const deletedCount =
       details.expenses +
       details.assets +
@@ -1390,7 +2680,14 @@ export class DatabaseService {
       details.documents +
       details.insights +
       details.scenarios +
-      details.conversations;
+      details.conversations +
+      details.properties +
+      details.rooms +
+      details.warranties +
+      details.maintenances +
+      details.utilities +
+      details.loans +
+      details.creditCards;
 
     const remainingUserRecords =
       store.expenses.size +
@@ -1399,7 +2696,14 @@ export class DatabaseService {
       store.documents.size +
       store.insights.size +
       store.scenarios.size +
-      store.conversations.size;
+      store.conversations.size +
+      store.properties.size +
+      store.rooms.size +
+      store.warranties.size +
+      store.maintenances.size +
+      store.utilities.size +
+      store.loans.size +
+      store.creditCards.size;
 
     return {
       deletedCount,
@@ -1450,6 +2754,13 @@ export class DatabaseService {
     const docBreakdown = countBreakdown(store.documents);
     const scnBreakdown = countBreakdown(store.scenarios);
     const cnvBreakdown = countBreakdown(store.conversations);
+    const propBreakdown = countBreakdown(store.properties);
+    const roomBreakdown = countBreakdown(store.rooms);
+    const warBreakdown = countBreakdown(store.warranties);
+    const maintBreakdown = countBreakdown(store.maintenances);
+    const utilBreakdown = countBreakdown(store.utilities);
+    const loanBreakdown = countBreakdown(store.loans);
+    const ccBreakdown = countBreakdown(store.creditCards);
 
     const totalRecords =
       txBreakdown.total +
@@ -1457,7 +2768,14 @@ export class DatabaseService {
       astBreakdown.total +
       docBreakdown.total +
       scnBreakdown.total +
-      cnvBreakdown.total;
+      cnvBreakdown.total +
+      propBreakdown.total +
+      roomBreakdown.total +
+      warBreakdown.total +
+      maintBreakdown.total +
+      utilBreakdown.total +
+      loanBreakdown.total +
+      ccBreakdown.total;
 
     const demoRecordsCount =
       txBreakdown.demo +
@@ -1465,7 +2783,14 @@ export class DatabaseService {
       astBreakdown.demo +
       docBreakdown.demo +
       scnBreakdown.demo +
-      cnvBreakdown.demo;
+      cnvBreakdown.demo +
+      propBreakdown.demo +
+      roomBreakdown.demo +
+      warBreakdown.demo +
+      maintBreakdown.demo +
+      utilBreakdown.demo +
+      loanBreakdown.demo +
+      ccBreakdown.demo;
 
     const userRecordsCount = totalRecords - demoRecordsCount;
 
@@ -1486,7 +2811,7 @@ export class DatabaseService {
         id: 'src_manual_entry',
         sourceType: 'manual_entry',
         name: 'Manual Entry & Verification',
-        description: 'Direct user-entered expenses, equipment records, and custom what-if financial variables.',
+        description: 'Direct user-entered expenses, properties, equipment records, and custom what-if financial variables.',
         status: userRecordsCount > 0 ? 'active' : 'ready',
         statusLabel: userRecordsCount > 0 ? `${userRecordsCount} User Record(s)` : 'Ready',
         isConfigured: true,
@@ -1498,7 +2823,7 @@ export class DatabaseService {
         id: 'src_google_drive',
         sourceType: 'google_drive',
         name: 'Google Drive Connector (Architecture Ready)',
-        description: 'Folder-scoped read-only ingestion for monthly PDF bank statements and recurring bills with strict local authorization.',
+        description: 'Folder-scoped read-only ingestion for monthly PDF bank statements, warranties, and recurring bills with strict local authorization.',
         status: 'ready',
         statusLabel: 'Architecture Ready (OAuth Disabled / User Disconnected)',
         isConfigured: false,
@@ -1510,12 +2835,12 @@ export class DatabaseService {
       {
         id: 'src_gmail',
         sourceType: 'gmail',
-        name: 'Gmail Financial Search (Architecture Ready)',
-        description: 'Narrow financial query ingestion for digital utility invoices, receipts, and salary notices.',
+        name: 'Gmail Household Search (Architecture Ready)',
+        description: 'Narrow financial and utility invoice ingestion for digital statements, receipts, and service notices.',
         status: 'ready',
         statusLabel: 'Architecture Ready (OAuth Disabled / User Disconnected)',
         isConfigured: false,
-        scope: 'https://www.googleapis.com/auth/gmail.readonly (financial query restricted)',
+        scope: 'https://www.googleapis.com/auth/gmail.readonly (financial & utility query restricted)',
         recordsCount: 0,
         demoRecordsCount: 0,
         canDisconnect: true,
@@ -1524,7 +2849,7 @@ export class DatabaseService {
         id: 'src_demo_seed',
         sourceType: 'demo_seed',
         name: 'Sample Household Starter Dataset',
-        description: 'Deterministic demo records including sample mortgage, utilities, heat pump warranty, and inverter AC scenario.',
+        description: 'Deterministic demo records including sample properties, mortgage, utilities, warranties, and maintenance tasks.',
         status: demoRecordsCount > 0 ? 'active' : 'disconnected',
         statusLabel: demoRecordsCount > 0 ? `${demoRecordsCount} Demo Record(s) Active` : 'Clean (No Demo Data)',
         isConfigured: demoRecordsCount > 0,
@@ -1549,6 +2874,13 @@ export class DatabaseService {
         documents: docBreakdown,
         scenarios: scnBreakdown,
         conversations: cnvBreakdown,
+        properties: propBreakdown,
+        rooms: roomBreakdown,
+        warranties: warBreakdown,
+        maintenances: maintBreakdown,
+        utilities: utilBreakdown,
+        loans: loanBreakdown,
+        creditCards: ccBreakdown,
       },
       sources,
       aiPrivacyBoundary: {
@@ -1581,7 +2913,14 @@ export class DatabaseService {
       store.documents.size +
       store.insights.size +
       store.scenarios.size +
-      store.conversations.size;
+      store.conversations.size +
+      store.properties.size +
+      store.rooms.size +
+      store.warranties.size +
+      store.maintenances.size +
+      store.utilities.size +
+      store.loans.size +
+      store.creditCards.size;
 
     multiTenantStore.delete(userId);
     return { resetCount: count };
