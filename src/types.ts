@@ -130,6 +130,8 @@ export interface ConversationSummary {
   id: string;
   userId: string;
   title: string;
+  isDemo?: boolean;
+  sourceMetadata?: ImportedSourceMetadata;
   createdAt: string;
   updatedAt: string;
   lastMessage?: string;

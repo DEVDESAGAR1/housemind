@@ -31,9 +31,11 @@ export function buildExpressApp(): Express {
   app.use(express.urlencoded({ extended: true, limit: '10mb' }));
   app.use(requestLogger);
 
-  // 2. API Routes (Mounted BEFORE Vite or Static Handlers)
-  app.use('/api', apiLimiter);
+  // 2. Health check (unauthenticated & exempt from rate-limiting for Cloud Run probes)
   app.use('/api/health', healthRouter);
+
+  // 3. Rate Limiting for all protected API surfaces
+  app.use('/api', apiLimiter);
   app.use('/api/household', householdRouter);
   app.use('/api/copilot', aiLimiter, copilotRouter);
   app.use('/api/intelligence', aiLimiter, intelligenceRouter);
@@ -42,7 +44,7 @@ export function buildExpressApp(): Express {
   app.use('/api/transactions', transactionsRouter);
   app.use('/api/scenarios', scenariosRouter);
 
-  // 3. API Error Handler
+  // 4. API Error Handler
   app.use('/api', errorHandler);
 
   return app;

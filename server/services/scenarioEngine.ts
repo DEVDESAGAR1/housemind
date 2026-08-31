@@ -657,7 +657,10 @@ Return ONLY the raw JSON string without markdown formatting.`;
       generatedAt: new Date().toISOString(),
     };
   } catch (err: any) {
-    console.error(`[SCENARIO ENGINE] Gemini explanation error for ${scenarioId}:`, err);
+    console.error('[SCENARIO ENGINE] Gemini explanation error:', {
+      scenarioId,
+      message: err instanceof Error ? err.message : String(err),
+    });
     explanation = {
       executiveSummary: scenario.affordability.verdictSummary,
       riskAnalysis: scenario.affordability.warnings.length

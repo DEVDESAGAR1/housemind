@@ -62,7 +62,7 @@ HouseMind is an enterprise-grade, privacy-first household operating system and f
 │   ├── config/                  # Global localization and currency registries
 │   ├── lib/                     # Firebase client and API clients
 │   └── types.ts                 # TypeScript domain types and privacy schemas
-├── tests/                       # Comprehensive Vitest/Node backend and integration test suite (78 tests)
+├── tests/                       # Comprehensive Vitest/Node backend and integration test suite (81 tests)
 │   ├── backend/                 # Auth, security, profile, expenses, assets, transactions, documents, copilot, scenarios, privacy
 │   └── integration/             # Financial, document, intelligence, and persistence flows
 ├── firestore.rules              # Firebase security rules enforcing per-user data isolation
@@ -95,7 +95,7 @@ npm run dev
 
 ### Running Tests
 ```bash
-# Run complete test suite (78 tests, 15 suites)
+# Run complete test suite (81 tests, 15 suites)
 npm test
 ```
 

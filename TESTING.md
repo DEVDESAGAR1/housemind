@@ -36,7 +36,7 @@ tests/
 ## 2. Running Test Suites
 
 ```bash
-# Run all tests (78 tests, 15 suites)
+# Run all tests (81 tests, 15 suites)
 npm test
 ```
 
@@ -46,7 +46,9 @@ npm test
 
 1. **Privacy-First Architecture & Data Deletion**: Confirms that `/api/household/privacy-center` accurately tallies user records vs demo records, that `/api/household/demo-remove` deletes only `isDemo: true` records without modifying user-authored items, and that unconfirmed `/api/household/reset-data` calls are rejected with `400 Bad Request`.
 2. **Security & SSRF Verification**: Confirms that URL manipulation attempts against `/v1/projects/.../documents/` are rejected with `Invalid identifier in path segment` or `Untrusted destination URL rejected`.
-3. **Transfer Isolation Verification**: Confirms that transfer transactions (`TRANSFER`) are excluded from net income and net expense totals.
-4. **Multi-Tenant Isolation**: Confirms that User B cannot read or modify User A's expenses, documents, or scenarios even when knowing the exact ID.
-5. **Deterministic Localization**: Confirms that `formatCurrency` correctly formats values for USD, EUR, GBP, JPY, CAD, AUD, INR, and custom overrides without throwing runtime errors.
+3. **CORS & Rate Limiting Defense**: Confirms that trusted origins (`run.app`, `web.app`, `localhost`) receive proper CORS headers while arbitrary attacker origins are rejected, and that `/api/health` probes are exempt from API rate limits.
+4. **Linear-time Parser ReDoS Protection**: Confirms that `parseDelimitedLine` parses deeply quoted and repetitive inputs in linear O(n) time (< 5ms for 100k+ chars).
+5. **Transfer Isolation Verification**: Confirms that transfer transactions (`TRANSFER`) are excluded from net income and net expense totals.
+6. **Multi-Tenant Isolation**: Confirms that User B cannot read or modify User A's expenses, documents, or scenarios even when knowing the exact ID.
+7. **Deterministic Localization**: Confirms that `formatCurrency` correctly formats values for USD, EUR, GBP, JPY, CAD, AUD, INR, and custom overrides without throwing runtime errors.
 

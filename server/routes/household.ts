@@ -119,7 +119,10 @@ router.get('/data-sources', async (req: AuthenticatedRequest, res: Response): Pr
       data: summary,
     });
   } catch (error: unknown) {
-    console.error(`[DATA_SOURCES] Failed to compile data sources summary for user: ${userId}`);
+    console.error('[DATA_SOURCES] Failed to compile data sources summary:', {
+      userId,
+      message: error instanceof Error ? error.message : String(error),
+    });
     res.status(500).json({
       success: false,
       error: {
@@ -148,7 +151,10 @@ router.get('/profile', async (req: AuthenticatedRequest, res: Response): Promise
       data: profile,
     });
   } catch (error: unknown) {
-    console.error(`[PROFILE] Failed to fetch profile for user: ${userId}`);
+    console.error('[PROFILE] Failed to fetch profile:', {
+      userId,
+      message: error instanceof Error ? error.message : String(error),
+    });
     res.status(500).json({
       success: false,
       error: {
@@ -188,7 +194,10 @@ router.put('/profile', async (req: AuthenticatedRequest, res: Response): Promise
       data: updated,
     });
   } catch (error: unknown) {
-    console.error(`[PROFILE] Failed to save profile for user: ${userId}`);
+    console.error('[PROFILE] Failed to save profile:', {
+      userId,
+      message: error instanceof Error ? error.message : String(error),
+    });
     res.status(500).json({
       success: false,
       error: {
@@ -217,7 +226,10 @@ router.get('/expenses', async (req: AuthenticatedRequest, res: Response): Promis
       data: expenses,
     });
   } catch (error: unknown) {
-    console.error(`[EXPENSES] Failed to retrieve expenses for user: ${userId}`);
+    console.error('[EXPENSES] Failed to retrieve expenses:', {
+      userId,
+      message: error instanceof Error ? error.message : String(error),
+    });
     res.status(500).json({
       success: false,
       error: {
@@ -255,7 +267,10 @@ router.post('/expenses', async (req: AuthenticatedRequest, res: Response): Promi
       data: newExpense,
     });
   } catch (error: unknown) {
-    console.error(`[EXPENSES] Failed to create expense for user: ${userId}`);
+    console.error('[EXPENSES] Failed to create expense:', {
+      userId,
+      message: error instanceof Error ? error.message : String(error),
+    });
     res.status(500).json({
       success: false,
       error: {
@@ -349,7 +364,10 @@ router.put('/expenses/:id', async (req: AuthenticatedRequest, res: Response): Pr
       data: updated,
     });
   } catch (error: unknown) {
-    console.error(`[EXPENSES] Failed to update expense for user: ${userId}`);
+    console.error('[EXPENSES] Failed to update expense:', {
+      userId,
+      message: error instanceof Error ? error.message : String(error),
+    });
     res.status(500).json({
       success: false,
       error: {
@@ -399,7 +417,11 @@ router.delete('/expenses/:id', async (req: AuthenticatedRequest, res: Response):
       data: { id, deleted: true },
     });
   } catch (error: unknown) {
-    console.error(`[EXPENSES] Failed to delete expense ${id} for user: ${userId}`);
+    console.error('[EXPENSES] Failed to delete expense:', {
+      id,
+      userId,
+      message: error instanceof Error ? error.message : String(error),
+    });
     res.status(500).json({
       success: false,
       error: {
@@ -428,7 +450,10 @@ router.get('/assets', async (req: AuthenticatedRequest, res: Response): Promise<
       data: assets,
     });
   } catch (error: unknown) {
-    console.error(`[ASSETS] Failed to retrieve assets for user: ${userId}`);
+    console.error('[ASSETS] Failed to retrieve assets:', {
+      userId,
+      message: error instanceof Error ? error.message : String(error),
+    });
     res.status(500).json({
       success: false,
       error: {
@@ -466,7 +491,10 @@ router.post('/assets', async (req: AuthenticatedRequest, res: Response): Promise
       data: newAsset,
     });
   } catch (error: unknown) {
-    console.error(`[ASSETS] Failed to create asset for user: ${userId}`);
+    console.error('[ASSETS] Failed to create asset:', {
+      userId,
+      message: error instanceof Error ? error.message : String(error),
+    });
     res.status(500).json({
       success: false,
       error: {
@@ -560,7 +588,10 @@ router.put('/assets/:id', async (req: AuthenticatedRequest, res: Response): Prom
       data: updated,
     });
   } catch (error: unknown) {
-    console.error(`[ASSETS] Failed to update asset for user: ${userId}`);
+    console.error('[ASSETS] Failed to update asset:', {
+      userId,
+      message: error instanceof Error ? error.message : String(error),
+    });
     res.status(500).json({
       success: false,
       error: {
@@ -610,7 +641,11 @@ router.delete('/assets/:id', async (req: AuthenticatedRequest, res: Response): P
       data: { id, deleted: true },
     });
   } catch (error: unknown) {
-    console.error(`[ASSETS] Failed to delete asset ${id} for user: ${userId}`);
+    console.error('[ASSETS] Failed to delete asset:', {
+      id,
+      userId,
+      message: error instanceof Error ? error.message : String(error),
+    });
     res.status(500).json({
       success: false,
       error: {

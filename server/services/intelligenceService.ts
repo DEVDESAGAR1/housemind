@@ -733,7 +733,10 @@ Do NOT include markdown backticks around the JSON. Return only the raw valid JSO
       generatedAt: new Date().toISOString(),
     };
   } catch (err: any) {
-    console.error(`[INTELLIGENCE] Gemini explanation error for insight ${insightId}:`, err);
+    console.error('[INTELLIGENCE] Gemini explanation error:', {
+      insightId,
+      message: err instanceof Error ? err.message : String(err),
+    });
     // Fallback explanation if API key is not configured or network issue occurs
     explanation = {
       summary: insight.description,

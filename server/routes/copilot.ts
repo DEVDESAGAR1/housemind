@@ -39,7 +39,10 @@ router.post('/chat', async (req: AuthenticatedRequest, res: Response): Promise<v
       data: result,
     });
   } catch (error: any) {
-    console.error(`[COPILOT ROUTE] Error handling chat for user: ${userId}`, error);
+    console.error('[COPILOT ROUTE] Error handling chat:', {
+      userId,
+      message: error?.message || 'Failed to process copilot query',
+    });
     res.status(500).json({
       success: false,
       error: {
@@ -65,7 +68,10 @@ router.get('/conversations', async (req: AuthenticatedRequest, res: Response): P
       data: conversations,
     });
   } catch (error: unknown) {
-    console.error(`[COPILOT] Failed to retrieve conversations for user: ${userId}`);
+    console.error('[COPILOT] Failed to retrieve conversations:', {
+      userId,
+      message: error instanceof Error ? error.message : String(error),
+    });
     res.status(500).json({
       success: false,
       error: {
@@ -121,7 +127,11 @@ router.get('/conversations/:id', async (req: AuthenticatedRequest, res: Response
       },
     });
   } catch (error: unknown) {
-    console.error(`[COPILOT] Failed to fetch conversation ${id} for user: ${userId}`);
+    console.error('[COPILOT] Failed to fetch conversation:', {
+      id,
+      userId,
+      message: error instanceof Error ? error.message : String(error),
+    });
     res.status(500).json({
       success: false,
       error: {

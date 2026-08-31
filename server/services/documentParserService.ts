@@ -39,6 +39,48 @@ export interface ParsedDocumentResult {
 }
 
 /**
+ * Deterministic O(n) parser for CSV/TSV lines without regular expression backtracking.
+ * Accurately parses quoted cells containing commas, tabs, escaped quotes, and trailing delimiters.
+ */
+export function parseDelimitedLine(rawLine: string): string[] {
+  if (!rawLine || rawLine.trim().length === 0) return [];
+
+  const cells: string[] = [];
+  let current = '';
+  let inQuotes = false;
+  let quoteChar = '';
+
+  const len = rawLine.length;
+  for (let i = 0; i < len; i++) {
+    const char = rawLine[i];
+
+    if ((char === '"' || char === "'") && (!inQuotes || quoteChar === char)) {
+      if (inQuotes) {
+        // Check for escaped quote (e.g. "" or '')
+        if (i + 1 < len && rawLine[i + 1] === char) {
+          current += char;
+          i++; // Skip escaped quote
+        } else {
+          inQuotes = false;
+          quoteChar = '';
+        }
+      } else {
+        inQuotes = true;
+        quoteChar = char;
+      }
+    } else if ((char === ',' || char === '\t') && !inQuotes) {
+      cells.push(current.trim());
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+
+  cells.push(current.trim());
+  return cells;
+}
+
+/**
  * Deterministic CSV fallback parser for banking & credit card CSV statements
  */
 export function parseCsvDeterministically(
@@ -64,13 +106,13 @@ export function parseCsvDeterministically(
 
   // Parse header
   const headerLine = lines[0];
-  const headers = headerLine.split(/,|\t/).map((h) => h.trim().toLowerCase().replace(/['"]/g, ''));
+  const headers = parseDelimitedLine(headerLine).map((h) => h.toLowerCase().replace(/['"]/g, ''));
 
   const dateIdx = headers.findIndex((h) => h.includes('date') || h.includes('time'));
   const descIdx = headers.findIndex((h) => h.includes('desc') || h.includes('payee') || h.includes('merchant') || h.includes('particular') || h.includes('detail') || h.includes('narrative'));
   const amountIdx = headers.findIndex((h) => h === 'amount' || h === 'total' || h.includes('trans amount'));
-  const debitIdx = headers.findIndex((h) => h.includes('debit') || h.includes('withdrawal') || h.includes('spent') || h.includes('charge') || h.includes('dr'));
-  const creditIdx = headers.findIndex((h) => h.includes('credit') || h.includes('deposit') || h.includes('income') || h.includes('cr'));
+  const debitIdx = headers.findIndex((h) => h === 'dr' || h === 'debit' || h.includes('debit') || h.includes('withdrawal') || h.includes('spent') || h.includes('charge'));
+  const creditIdx = headers.findIndex((h) => h === 'cr' || h === 'credit' || h.includes('credit') || h.includes('deposit') || h.includes('income'));
   const catIdx = headers.findIndex((h) => h.includes('category') || h.includes('type'));
   const refIdx = headers.findIndex((h) => h.includes('ref') || h.includes('cheque') || h.includes('txn id') || h.includes('utr'));
   const balanceIdx = headers.findIndex((h) => h.includes('balance'));
@@ -84,9 +126,8 @@ export function parseCsvDeterministically(
 
   for (let i = 1; i < lines.length; i++) {
     const rawLine = lines[i];
-    // Split respecting quotes
-    const cells = rawLine.match(/(".*?"|[^",\t]+)(?=\s*,|\s*$|\t)/g) || rawLine.split(/,|\t/);
-    const cleanCells = cells.map((c) => c.trim().replace(/^["']|["']$/g, ''));
+    // Deterministic O(n) cell extraction
+    const cleanCells = parseDelimitedLine(rawLine);
 
     if (cleanCells.length < 2) continue;
 
@@ -483,7 +524,9 @@ Return ONLY a valid JSON object strictly matching this schema:
       rawNotes: parsed.rawNotes || undefined,
     };
   } catch (error: any) {
-    console.error(`[DOCUMENT_PARSER] Gemini extraction failure:`, error);
+    console.error('[DOCUMENT_PARSER] Gemini extraction failure:', {
+      message: error instanceof Error ? error.message : String(error),
+    });
     // Graceful fallback to deterministic parsing
     if (isCsv) {
       return parseCsvDeterministically(userId, fileName, buffer.toString('utf-8'), hintDocType);

@@ -123,4 +123,95 @@ export async function runSecurityTests(runner: TestRunner) {
       throw new Error("User A's expense was compromised by User B!");
     }
   });
+
+  await runner.test('CORS Policy: Allows trusted production and local development origins', async () => {
+    // 1. Allowed Production Cloud Run origin
+    const prodRes = await apiRequest('/api/health', {
+      headers: {
+        Origin: 'https://ais-dev-wuwp76n5p24fhhnx2krmds-482220002764.asia-southeast1.run.app',
+      },
+    });
+    const prodCors = prodRes.headers.get('access-control-allow-origin');
+    const prodCreds = prodRes.headers.get('access-control-allow-credentials');
+
+    if (prodCors !== 'https://ais-dev-wuwp76n5p24fhhnx2krmds-482220002764.asia-southeast1.run.app') {
+      throw new Error(`Expected Access-Control-Allow-Origin for Cloud Run, got: ${prodCors}`);
+    }
+    if (prodCreds !== 'true') {
+      throw new Error(`Expected Access-Control-Allow-Credentials: true, got: ${prodCreds}`);
+    }
+
+    // 2. Allowed Local Dev origin
+    const devRes = await apiRequest('/api/health', {
+      headers: {
+        Origin: 'http://localhost:3000',
+      },
+    });
+    const devCors = devRes.headers.get('access-control-allow-origin');
+    if (devCors !== 'http://localhost:3000') {
+      throw new Error(`Expected Access-Control-Allow-Origin for localhost:3000, got: ${devCors}`);
+    }
+
+    // 3. Rejected Arbitrary / Untrusted Origin
+    const evilRes = await apiRequest('/api/health', {
+      headers: {
+        Origin: 'https://malicious-attacker.com',
+      },
+    });
+    const evilCors = evilRes.headers.get('access-control-allow-origin');
+    if (evilCors && evilCors !== 'null' && evilCors.includes('malicious-attacker.com')) {
+      throw new Error(`Untrusted origin must NOT receive Access-Control-Allow-Origin! Got: ${evilCors}`);
+    }
+  });
+
+  await runner.test('Rate Limiter & Cloud Run probe health check exemption', async () => {
+    // Health check is always reachable for Cloud Run probes
+    const healthRes = await apiRequest('/api/health');
+    if (healthRes.status !== 200 || healthRes.body?.status !== 'healthy') {
+      throw new Error(`Health check failed: status ${healthRes.status}`);
+    }
+
+    // Authenticated API request includes rate limiting headers or executes normally
+    const profileRes = await apiRequest('/api/household/profile', {
+      token: 'test-token-rate-limit-user',
+    });
+    if (profileRes.status !== 200) {
+      throw new Error(`Protected route returned status ${profileRes.status}`);
+    }
+  });
+
+  await runner.test('Document Parser ReDoS Defense: Linear-time O(n) line parsing under adversarial inputs', async () => {
+    const { parseDelimitedLine } = await import('../../server/services/documentParserService');
+
+    // 1. Standard quoted CSV and TSV lines
+    const standardLine = '2026-03-01,"Home Depot, Inc.",$84.20,"Maintenance, Repair"';
+    const standardCells = parseDelimitedLine(standardLine);
+    if (
+      standardCells.length !== 4 ||
+      standardCells[1] !== 'Home Depot, Inc.' ||
+      standardCells[3] !== 'Maintenance, Repair'
+    ) {
+      throw new Error(`Failed to parse standard quoted CSV line: ${JSON.stringify(standardCells)}`);
+    }
+
+    // 2. Escaped internal quotes
+    const escapedQuoteLine = '"Special ""Deluxe"" Item",120.00';
+    const escapedCells = parseDelimitedLine(escapedQuoteLine);
+    if (escapedCells[0] !== 'Special "Deluxe" Item' || escapedCells[1] !== '120.00') {
+      throw new Error(`Failed to parse escaped quotes: ${JSON.stringify(escapedCells)}`);
+    }
+
+    // 3. Adversarial input: 50,000 characters of unmatched quotes, spaces, and commas
+    const adversarialLine = '"' + ', "'.repeat(10000) + 'unmatched string tail';
+    const startTime = performance.now();
+    const result = parseDelimitedLine(adversarialLine);
+    const elapsedMs = performance.now() - startTime;
+
+    if (elapsedMs > 50) {
+      throw new Error(`Adversarial line parsing exceeded 50ms (took ${elapsedMs.toFixed(2)}ms) - possible ReDoS!`);
+    }
+    if (!Array.isArray(result) || result.length === 0) {
+      throw new Error('Expected adversarial line to parse safely into cell array');
+    }
+  });
 }

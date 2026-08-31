@@ -80,7 +80,7 @@ HouseMind is an intelligent household financial and property management platform
 
 ## 4. Testing & Verification Architecture
 
-The backend test suite (`tests/index.ts`) exercises 71 automated tests across all domain areas:
+The backend test suite (`tests/index.ts`) exercises 81 automated tests across all domain areas:
 - Authentication, Token Invalidation, and IDOR Isolation.
 - Ledger deduplication and mathematical consistency.
 - Document upload, candidate staging, and confirmation.

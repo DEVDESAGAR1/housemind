@@ -45,7 +45,10 @@ router.get('/summary', async (req: AuthenticatedRequest, res: Response): Promise
       },
     });
   } catch (error: unknown) {
-    console.error(`[INTELLIGENCE] Error computing summary for user ${userId}:`, error);
+    console.error('[INTELLIGENCE] Error computing summary:', {
+      userId,
+      message: error instanceof Error ? error.message : String(error),
+    });
     res.status(500).json({
       success: false,
       error: {

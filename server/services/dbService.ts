@@ -1297,6 +1297,8 @@ export class DatabaseService {
       scenarios: number;
       conversations: number;
     };
+    remainingCount: number;
+    userRecordsCount: number;
   } {
     const store = getOrCreateUserStore(userId);
     const details = {

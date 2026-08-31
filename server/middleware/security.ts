@@ -42,12 +42,48 @@ export const helmetMiddleware = helmet({
   xssFilter: true,
 });
 
-// Configure CORS
+// Trusted Origin regex patterns for production & local development
+const TRUSTED_ORIGIN_PATTERNS = [
+  /^https:\/\/(?:[a-zA-Z0-9-]+\.)*ai\.studio$/,
+  /^https:\/\/(?:[a-zA-Z0-9-]+\.)*run\.app$/,
+  /^https:\/\/(?:[a-zA-Z0-9-]+\.)*web\.app$/,
+  /^https:\/\/(?:[a-zA-Z0-9-]+\.)*firebaseapp\.com$/,
+  /^https?:\/\/localhost(?::\d+)?$/,
+  /^https?:\/\/127\.0\.0\.1(?::\d+)?$/,
+];
+
+/**
+ * Validates request origin against trusted domain patterns and optional environment allowlist.
+ * Returns true for allowed origins or empty origins (same-origin, curl, server-to-server).
+ */
+export function isAllowedOrigin(origin?: string): boolean {
+  if (!origin) return true; // Same-origin, direct server-to-server, mobile or CLI requests
+
+  const envAllowed = process.env.ALLOWED_ORIGINS
+    ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim().toLowerCase())
+    : [];
+
+  const normalized = origin.trim().toLowerCase();
+  if (envAllowed.includes(normalized)) {
+    return true;
+  }
+
+  return TRUSTED_ORIGIN_PATTERNS.some((pattern) => pattern.test(normalized));
+}
+
+// Explicit allowlist CORS configuration
 export const corsMiddleware = cors({
-  origin: true, // Reflect request origin for local preview/development
+  origin: (origin, callback) => {
+    if (isAllowedOrigin(origin)) {
+      callback(null, true);
+    } else {
+      callback(null, false);
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  maxAge: 86400,
 });
 
 // Safe IP extractor to prevent ERR_ERL_UNEXPECTED_X_FORWARDED_FOR
