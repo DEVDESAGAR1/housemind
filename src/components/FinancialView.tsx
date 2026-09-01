@@ -246,6 +246,10 @@ export const FinancialView: React.FC<FinancialViewProps> = ({
 
   const handleDeleteTransaction = async (id: string) => {
     try {
+      // Optimistic instant UI update
+      setTransactions((prev) => prev.filter((t) => t.id !== id));
+      setDeleteConfirmId(null);
+
       const res = await fetch(`/api/transactions/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
@@ -256,11 +260,11 @@ export const FinancialView: React.FC<FinancialViewProps> = ({
       }
 
       onShowToast('Transaction deleted', 'info');
-      setDeleteConfirmId(null);
       await loadFinancialData();
     } catch (err: any) {
       console.error('Error deleting transaction:', err);
       onShowToast(err.message || 'Failed to delete', 'error');
+      await loadFinancialData();
     }
   };
 

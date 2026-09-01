@@ -40,6 +40,7 @@ export async function extractEntityFromDocument(
   userId: string,
   documentIdOrOptions: string | {
     documentId?: string;
+    fileBase64?: string;
     documentText?: string;
     fileName?: string;
     fileType?: string;
@@ -63,12 +64,12 @@ export async function extractEntityFromDocument(
 
   if (typeof documentIdOrOptions === 'string') {
     docId = documentIdOrOptions;
-    const doc = DatabaseService.getDocument(userId, docId);
+    const doc = await DatabaseService.getDocument(userId, docId);
     if (doc) {
       fileName = doc.fileName || '';
       docType = doc.documentType || 'other';
       summaryNotes = doc.extractedSummary?.notes || '';
-      candidateTransactions = doc.candidateTransactions || [];
+      candidateTransactions = (doc as any).candidateTransactions || (doc as any).transactionCandidates || [];
     } else {
       fileName = `Document_${docId}`;
     }
@@ -81,12 +82,12 @@ export async function extractEntityFromDocument(
     requestedType = requestedType || documentIdOrOptions.targetEntityType || documentIdOrOptions.targetEntityHint || documentIdOrOptions.suggestedType;
 
     if (docId) {
-      const doc = DatabaseService.getDocument(userId, docId);
+      const doc = await DatabaseService.getDocument(userId, docId);
       if (doc) {
         fileName = fileName || doc.fileName || '';
         docType = docType !== 'other' ? docType : (doc.documentType || 'other');
         summaryNotes = doc.extractedSummary?.notes || '';
-        candidateTransactions = doc.candidateTransactions || [];
+        candidateTransactions = (doc as any).candidateTransactions || (doc as any).transactionCandidates || [];
       }
     }
   }
@@ -202,6 +203,9 @@ Return ONLY a valid JSON object with the following structure:
 
   return {
     extractionId: `ext_${crypto.randomUUID().slice(0, 8)}`,
+    documentType: (docType as any) || 'other',
+    suggestedEntity: (detectedType as any) || 'asset',
+    confidence: confidenceScore,
     sourceDocumentId: docId || '',
     sourceFileName: fileName,
     detectedEntityType: detectedType,

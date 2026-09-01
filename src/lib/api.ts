@@ -484,6 +484,10 @@ export const api = {
     return handleResponse<HomeCommandCenterSummary>(res);
   },
 
+  async getHomeCommandCenterSummary(): Promise<HomeCommandCenterSummary> {
+    return this.getCommandCenterSummary();
+  },
+
   // Properties
   async getProperties(): Promise<Property[]> {
     const headers = await getAuthHeader();
@@ -614,6 +618,10 @@ export const api = {
     const url = `/api/household/maintenances${params.toString() ? `?${params.toString()}` : ''}`;
     const res = await fetch(url, { method: 'GET', headers });
     return handleResponse<MaintenanceTask[]>(res);
+  },
+
+  async getMaintenanceTasks(assetId?: string, propertyId?: string): Promise<MaintenanceTask[]> {
+    return this.getMaintenances(assetId, propertyId);
   },
 
   async createMaintenance(data: Partial<MaintenanceTask>): Promise<MaintenanceTask> {

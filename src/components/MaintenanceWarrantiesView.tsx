@@ -138,7 +138,7 @@ export function MaintenanceWarrantiesView({
         addToast('success', 'Task Scheduled', `Created task "${taskForm.title}".`);
       }
       setIsTaskModalOpen(false);
-      onRefresh();
+      await onRefresh();
     } catch (err: any) {
       addToast('error', 'Error Saving Task', err.message);
     }
@@ -156,7 +156,7 @@ export function MaintenanceWarrantiesView({
         nextStatus === 'completed' ? 'Task Completed' : 'Task Reopened',
         `Marked "${task.title}" as ${nextStatus}.`
       );
-      onRefresh();
+      await onRefresh();
     } catch (err: any) {
       addToast('error', 'Update Failed', err.message);
     }
@@ -167,7 +167,7 @@ export function MaintenanceWarrantiesView({
     try {
       await api.deleteMaintenance(taskId);
       addToast('info', 'Task Deleted', 'Maintenance task removed.');
-      onRefresh();
+      await onRefresh();
     } catch (err: any) {
       addToast('error', 'Delete Failed', err.message);
     }
@@ -225,7 +225,7 @@ export function MaintenanceWarrantiesView({
         addToast('success', 'Warranty Saved', `Registered warranty "${warrantyForm.title}".`);
       }
       setIsWarrantyModalOpen(false);
-      onRefresh();
+      await onRefresh();
     } catch (err: any) {
       addToast('error', 'Error Saving Warranty', err.message);
     }
@@ -236,7 +236,7 @@ export function MaintenanceWarrantiesView({
     try {
       await api.deleteWarranty(warrantyId);
       addToast('info', 'Warranty Removed', 'Warranty policy deleted.');
-      onRefresh();
+      await onRefresh();
     } catch (err: any) {
       addToast('error', 'Delete Failed', err.message);
     }
@@ -287,7 +287,7 @@ export function MaintenanceWarrantiesView({
 
         <div className="flex flex-wrap items-center gap-2">
           <button
-            onClick={() => onOpenEntityExtractor(activeSubTab)}
+            onClick={() => onOpenEntityExtractor(activeSubTab === 'warranties' ? 'warranty' : 'maintenance')}
             className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-xl transition cursor-pointer"
           >
             <Sparkles className="w-3.5 h-3.5 text-indigo-600" />

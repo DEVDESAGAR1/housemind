@@ -16,10 +16,12 @@ import { runIntelligenceFlowIntegrationTests } from './integration/intelligence-
 import { runPersistenceIntegrationTests } from './integration/persistence.test';
 import { runPrivacyTests } from './backend/privacy.test';
 import { runPhase10HomeSystemsTests } from './backend/phase10_home_systems.test';
+import { runRegressionPhase1Tests } from './backend/regression_phase1.test';
+import { runE2EJourneysTests } from './integration/e2e-journeys.test';
 
 async function main() {
   console.log('\n===============================================================');
-  console.log('  HOUSEMIND PHASE 10 RELEASE CANDIDATE TEST SUITE EXECUTION');
+  console.log('  HOUSEMIND PHASE 1 PRODUCTION RELIABILITY & E2E REGRESSION SUITE');
   console.log('===============================================================\n');
 
   process.env.NODE_ENV = 'test';
@@ -64,21 +66,27 @@ async function main() {
     console.log('\n--- 12. Phase 10: Run the Home Systems & AI Entity Extraction ---');
     await runPhase10HomeSystemsTests(runner);
 
+    console.log('\n--- 13. Phase 1: Permanent Regression Protections & Resilience ---');
+    await runRegressionPhase1Tests(runner);
+
     // Integration Suites
-    console.log('\n--- 11. Integration: End-to-End Financial Intelligence Flow ---');
+    console.log('\n--- 14. Integration: End-to-End Financial Intelligence Flow ---');
     await runFinancialFlowIntegrationTests(runner);
 
-    console.log('\n--- 12. Integration: Document Processing & Import Flow ---');
+    console.log('\n--- 15. Integration: Document Processing & Import Flow ---');
     await runDocumentFlowIntegrationTests(runner);
 
-    console.log('\n--- 13. Integration: Intelligence & AI Copilot Synergy ---');
+    console.log('\n--- 16. Integration: Intelligence & AI Copilot Synergy ---');
     await runIntelligenceFlowIntegrationTests(runner);
 
-    console.log('\n--- 14. Integration: Database Service & State Persistence ---');
+    console.log('\n--- 17. Integration: Database Service & State Persistence ---');
     await runPersistenceIntegrationTests(runner);
 
-    console.log('\n--- 15. Privacy-First Architecture & Demo Data Deletion ---');
+    console.log('\n--- 18. Privacy-First Architecture & Demo Data Deletion ---');
     await runPrivacyTests(runner);
+
+    console.log('\n--- 19. Production E2E Household User Journeys (E2E-01 to E2E-08) ---');
+    await runE2EJourneysTests(runner);
   } finally {
     await stopTestServer();
   }

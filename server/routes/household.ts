@@ -1613,10 +1613,12 @@ router.post('/extract-entity-from-doc', async (req: AuthenticatedRequest, res: R
     return;
   }
 
-  const { documentId, targetEntityType, notes } = parseResult.data;
+  const { documentId, targetEntityType, targetEntityHint, notes } = parseResult.data;
 
   try {
-    const reviewData = await extractEntityFromDocument(userId, documentId, targetEntityType, notes);
+    const docParam = documentId || (parseResult.data as any);
+    const targetType = (targetEntityType || targetEntityHint) as any;
+    const reviewData = await extractEntityFromDocument(userId, docParam, targetType, notes || undefined);
     res.status(200).json({
       success: true,
       data: reviewData,

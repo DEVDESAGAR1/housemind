@@ -537,10 +537,14 @@ export class DatabaseService {
     const store = getOrCreateUserStore(userId);
     const id = customId || `maint_${crypto.randomUUID()}`;
     const timestamp = new Date().toISOString();
-    const task: MaintenanceTask = {
+    const task: any = {
       id,
       userId,
       ...data,
+      dueDate: data.serviceDate || data.dueDate,
+      estimatedCost: data.cost ?? data.estimatedCost,
+      actualCost: data.cost ?? data.actualCost,
+      status: data.status || 'scheduled',
       createdAt: timestamp,
       updatedAt: timestamp,
     };
@@ -552,9 +556,13 @@ export class DatabaseService {
     const store = getOrCreateUserStore(userId);
     const existing = store.maintenances.get(id);
     if (!existing) return null;
-    const updated: MaintenanceTask = {
+    const updated: any = {
       ...existing,
       ...data,
+      dueDate: data.serviceDate ?? data.dueDate ?? (existing as any).dueDate ?? existing.serviceDate,
+      estimatedCost: data.cost ?? data.estimatedCost ?? (existing as any).estimatedCost ?? existing.cost,
+      actualCost: data.actualCost ?? data.cost ?? (existing as any).actualCost,
+      status: data.status ?? existing.status,
       id,
       userId,
       updatedAt: new Date().toISOString(),
@@ -587,10 +595,16 @@ export class DatabaseService {
     const store = getOrCreateUserStore(userId);
     const id = customId || `util_${crypto.randomUUID()}`;
     const timestamp = new Date().toISOString();
-    const utility: UtilityAccount = {
+    const utility: any = {
       id,
       userId,
       ...data,
+      utilityType: data.serviceType || data.utilityType,
+      providerName: data.provider || data.providerName,
+      accountNumber: data.accountIdentifier || data.accountNumber,
+      typicalMonthlyCost: data.typicalAmount ?? data.typicalMonthlyCost,
+      autoPayEnabled: data.isAutoPay ?? data.autoPayEnabled,
+      paymentDueDay: data.dueDateDay ?? data.paymentDueDay,
       createdAt: timestamp,
       updatedAt: timestamp,
     };
@@ -602,9 +616,15 @@ export class DatabaseService {
     const store = getOrCreateUserStore(userId);
     const existing = store.utilities.get(id);
     if (!existing) return null;
-    const updated: UtilityAccount = {
+    const updated: any = {
       ...existing,
       ...data,
+      utilityType: data.serviceType || data.utilityType || (existing as any).utilityType || existing.serviceType,
+      providerName: data.provider || data.providerName || (existing as any).providerName || existing.provider,
+      accountNumber: data.accountIdentifier || data.accountNumber || (existing as any).accountNumber || existing.accountIdentifier,
+      typicalMonthlyCost: data.typicalAmount ?? data.typicalMonthlyCost ?? (existing as any).typicalMonthlyCost ?? existing.typicalAmount,
+      autoPayEnabled: data.isAutoPay ?? data.autoPayEnabled ?? (existing as any).autoPayEnabled ?? existing.isAutoPay,
+      paymentDueDay: data.dueDateDay ?? data.paymentDueDay ?? (existing as any).paymentDueDay ?? existing.dueDateDay,
       id,
       userId,
       updatedAt: new Date().toISOString(),
@@ -619,9 +639,13 @@ export class DatabaseService {
   }
 
   // --- LOANS & EMI ---
-  static async listLoans(userId: string): Promise<HouseholdLoan[]> {
+  static async listLoans(userId: string, propertyId?: string): Promise<HouseholdLoan[]> {
     const store = getOrCreateUserStore(userId);
-    return Array.from(store.loans.values()).sort(
+    let list = Array.from(store.loans.values());
+    if (propertyId) {
+      list = list.filter((l) => l.propertyId === propertyId);
+    }
+    return list.sort(
       (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
     );
   }
@@ -635,10 +659,16 @@ export class DatabaseService {
     const store = getOrCreateUserStore(userId);
     const id = customId || `loan_${crypto.randomUUID()}`;
     const timestamp = new Date().toISOString();
-    const loan: HouseholdLoan = {
+    const loan: any = {
       id,
       userId,
       ...data,
+      name: data.loanName || data.name,
+      lenderName: data.lender || data.lenderName,
+      originalPrincipal: data.principalAmount ?? data.originalPrincipal,
+      currentBalance: data.outstandingAmount ?? data.currentBalance,
+      interestRatePercent: data.interestRate ?? data.interestRatePercent,
+      monthlyPayment: data.emiAmount ?? data.monthlyPayment,
       createdAt: timestamp,
       updatedAt: timestamp,
     };
@@ -650,9 +680,15 @@ export class DatabaseService {
     const store = getOrCreateUserStore(userId);
     const existing = store.loans.get(id);
     if (!existing) return null;
-    const updated: HouseholdLoan = {
+    const updated: any = {
       ...existing,
       ...data,
+      name: data.loanName || data.name || (existing as any).name || existing.loanName,
+      lenderName: data.lender || data.lenderName || (existing as any).lenderName || existing.lender,
+      originalPrincipal: data.principalAmount ?? data.originalPrincipal ?? (existing as any).originalPrincipal ?? existing.principalAmount,
+      currentBalance: data.outstandingAmount ?? data.currentBalance ?? (existing as any).currentBalance ?? existing.outstandingAmount,
+      interestRatePercent: data.interestRate ?? data.interestRatePercent ?? (existing as any).interestRatePercent ?? existing.interestRate,
+      monthlyPayment: data.emiAmount ?? data.monthlyPayment ?? (existing as any).monthlyPayment ?? existing.emiAmount,
       id,
       userId,
       updatedAt: new Date().toISOString(),
@@ -683,10 +719,16 @@ export class DatabaseService {
     const store = getOrCreateUserStore(userId);
     const id = customId || `cc_${crypto.randomUUID()}`;
     const timestamp = new Date().toISOString();
-    const cc: CreditCardAccount = {
+    const cc: any = {
       id,
       userId,
       ...data,
+      cardName: data.cardNickname || data.cardName,
+      issuer: data.cardIssuer || data.issuer,
+      lastFourDigits: data.last4Digits || data.lastFourDigits,
+      currentBalance: data.outstandingAmount ?? data.currentBalance,
+      aprPercent: data.interestRateAPR ?? data.aprPercent,
+      autoPayEnabled: data.isAutoPay ?? data.autoPayEnabled,
       createdAt: timestamp,
       updatedAt: timestamp,
     };
@@ -698,9 +740,15 @@ export class DatabaseService {
     const store = getOrCreateUserStore(userId);
     const existing = store.creditCards.get(id);
     if (!existing) return null;
-    const updated: CreditCardAccount = {
+    const updated: any = {
       ...existing,
       ...data,
+      cardName: data.cardNickname || data.cardName || (existing as any).cardName || existing.cardNickname,
+      issuer: data.cardIssuer || data.issuer || (existing as any).issuer || existing.cardIssuer,
+      lastFourDigits: data.last4Digits || data.lastFourDigits || (existing as any).lastFourDigits || existing.last4Digits,
+      currentBalance: data.outstandingAmount ?? data.currentBalance ?? (existing as any).currentBalance ?? existing.outstandingAmount,
+      aprPercent: data.interestRateAPR ?? data.aprPercent ?? (existing as any).aprPercent ?? existing.interestRateAPR,
+      autoPayEnabled: data.isAutoPay ?? data.autoPayEnabled ?? (existing as any).autoPayEnabled ?? existing.isAutoPay,
       id,
       userId,
       updatedAt: new Date().toISOString(),
@@ -953,7 +1001,20 @@ export class DatabaseService {
       .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
       .slice(0, 5);
 
+    const totalOutstandingLoanDebt = loans.reduce((sum, l) => sum + (l.outstandingAmount ?? (l as any).currentBalance ?? 0), 0);
+    const totalCreditCardDebt = creditCards.reduce((sum, cc) => sum + (cc.outstandingAmount ?? (cc as any).currentBalance ?? 0), 0);
+    const totalCreditLimit = creditCards.reduce((sum, cc) => sum + (cc.creditLimit || 0), 0);
+    const overallCreditUtilizationPercent = totalCreditLimit > 0 ? Math.round((totalCreditCardDebt / totalCreditLimit) * 100) : 0;
+
     return {
+      totalProperties: properties.length,
+      totalRooms: rooms.length,
+      totalAssetsCount: assets.length,
+      totalLoansCount: loans.length,
+      totalOutstandingLoanDebt,
+      totalCreditCardDebt,
+      totalCreditLimit,
+      overallCreditUtilizationPercent,
       today: {
         urgentTasks,
         overdueCount,

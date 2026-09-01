@@ -147,18 +147,23 @@ export interface Property {
 export type RoomType =
   | 'living_room'
   | 'bedroom'
+  | 'master_bedroom'
   | 'kitchen'
   | 'bathroom'
   | 'balcony'
   | 'garage'
   | 'office'
+  | 'home_office'
   | 'storage'
   | 'garden'
+  | 'outdoor'
   | 'dining_room'
   | 'basement'
   | 'attic'
   | 'hallway'
   | 'utility_area'
+  | 'utility_room'
+  | 'laundry'
   | 'other';
 
 export interface Room {
@@ -167,7 +172,10 @@ export interface Room {
   propertyId: string;
   name: string;
   type: RoomType;
+  roomType?: RoomType;
   floor?: string;
+  floorLevel?: string;
+  squareFootage?: number;
   notes?: string;
   documentIds?: string[];
   isDemo?: boolean;
@@ -212,17 +220,25 @@ export interface Warranty {
   userId: string;
   assetId?: string;
   propertyId?: string;
+  title?: string;
   warrantyProvider: string;
+  providerName?: string;
   policyNumber?: string;
+  coverageType?: string;
+  coverageDetails?: string;
   startDate: string;
   endDate: string;
+  expiryDate?: string;
   durationMonths?: number;
   coverageNotes?: string;
+  notes?: string;
   contactInfo?: {
     phone?: string;
     email?: string;
     website?: string;
   };
+  contactPhone?: string;
+  contactEmail?: string;
   documentId?: string;
   status: WarrantyStatus;
   isDemo?: boolean;
@@ -237,26 +253,36 @@ export type MaintenanceSchedule =
   | 'quarterly'
   | 'semi_annual'
   | 'annual'
-  | 'custom';
+  | 'custom'
+  | string;
 
-export type MaintenanceStatus = 'scheduled' | 'completed' | 'overdue';
+export type MaintenanceStatus = 'scheduled' | 'pending' | 'completed' | 'overdue';
 
 export interface MaintenanceTask {
   id: string;
   userId: string;
   title: string;
+  description?: string;
+  category?: string;
   assetId?: string;
   propertyId?: string;
   roomId?: string;
   serviceDate: string;
+  dueDate?: string;
   cost: number;
+  estimatedCost?: number;
+  actualCost?: number;
   serviceProvider?: string;
+  serviceProviderName?: string;
+  serviceProviderContact?: string;
   contactPhone?: string;
   notes?: string;
   receiptDocumentId?: string;
   nextServiceDate?: string;
   recurringSchedule: MaintenanceSchedule;
+  frequency?: MaintenanceSchedule;
   status: MaintenanceStatus;
+  lastCompletedDate?: string;
   isDemo?: boolean;
   sourceMetadata?: ImportedSourceMetadata;
   createdAt: string;
@@ -275,7 +301,9 @@ export type UtilityServiceType =
   | 'solar'
   | 'other';
 
-export type UtilityBillingCycle = 'monthly' | 'bi_monthly' | 'quarterly' | 'annual';
+export type UtilityType = UtilityServiceType;
+
+export type UtilityBillingCycle = 'monthly' | 'bi_monthly' | 'quarterly' | 'annual' | string;
 
 export interface UtilityAccount {
   id: string;
@@ -283,15 +311,22 @@ export interface UtilityAccount {
   propertyId?: string;
   name: string;
   serviceType: UtilityServiceType;
+  utilityType?: UtilityType;
   provider: string;
+  providerName?: string;
   accountIdentifier?: string;
+  accountNumber?: string;
   billingCycle: UtilityBillingCycle;
   dueDateDay?: number;
+  paymentDueDay?: number;
   nextDueDate?: string;
   typicalAmount: number;
+  typicalMonthlyCost?: number;
   latestBillAmount?: number;
   paymentStatus: 'paid' | 'pending' | 'overdue';
   isAutoPay: boolean;
+  autoPayEnabled?: boolean;
+  isPaidThisMonth?: boolean;
   documentIds?: string[];
   notes?: string;
   isDemo?: boolean;
@@ -302,7 +337,9 @@ export interface UtilityAccount {
 
 export type LoanType =
   | 'home_loan'
+  | 'mortgage'
   | 'vehicle_loan'
+  | 'auto'
   | 'personal_loan'
   | 'appliance_loan'
   | 'education_loan'
@@ -315,16 +352,24 @@ export interface HouseholdLoan {
   propertyId?: string;
   assetId?: string;
   loanName: string;
+  name?: string;
   loanType: LoanType;
   lender: string;
+  lenderName?: string;
+  accountNumber?: string;
   principalAmount: number;
+  originalPrincipal?: number;
   interestRate: number; // e.g. 6.5 for 6.5%
+  interestRatePercent?: number;
   emiAmount: number;
+  monthlyPayment?: number;
+  maturityYear?: number;
   startDate: string;
   endDate: string;
   tenureMonths: number;
   paymentDueDay: number;
   outstandingAmount: number;
+  currentBalance?: number;
   documentIds?: string[];
   status: 'active' | 'closed';
   notes?: string;
@@ -338,17 +383,24 @@ export interface CreditCardAccount {
   id: string;
   userId: string;
   cardNickname: string;
+  cardName?: string;
   cardIssuer: string;
+  issuer?: string;
   last4Digits: string; // strictly 4 digits, NO full PAN
+  lastFourDigits?: string;
   creditLimit: number;
   billingCycleDay?: number;
   statementDate?: string;
   paymentDueDate: string;
   outstandingAmount: number;
+  currentBalance?: number;
   minimumDue: number;
+  minimumPaymentDue?: number;
   aprRate?: number;
+  aprPercent?: number;
   paymentStatus: 'paid' | 'pending' | 'overdue';
   isAutoPay: boolean;
+  autoPayEnabled?: boolean;
   documentIds?: string[];
   notes?: string;
   isDemo?: boolean;
@@ -357,7 +409,31 @@ export interface CreditCardAccount {
   updatedAt: string;
 }
 
+export type HouseholdEntityType =
+  | 'property'
+  | 'room'
+  | 'asset'
+  | 'warranty'
+  | 'maintenance'
+  | 'utility'
+  | 'loan'
+  | 'credit_card'
+  | 'document'
+  | 'expense'
+  | 'transaction';
+
+export type WarrantyPolicy = Warranty;
+export type RecurrenceFrequency = MaintenanceSchedule;
+
 export interface HomeCommandCenterSummary {
+  totalProperties?: number;
+  totalRooms?: number;
+  totalAssetsCount?: number;
+  totalLoansCount?: number;
+  totalOutstandingLoanDebt?: number;
+  totalCreditCardDebt?: number;
+  totalCreditLimit?: number;
+  overallCreditUtilizationPercent?: number;
   today: {
     urgentTasks: Array<{
       id: string;
@@ -444,9 +520,18 @@ export type ExtractedTargetEntityType =
   | 'document';
 
 export interface ExtractedEntityReviewData {
+  extractionId?: string;
   documentType: DocumentType;
   suggestedEntity: ExtractedTargetEntityType;
+  detectedEntityType?: HouseholdEntityType | ExtractedTargetEntityType;
+  sourceDocumentId?: string;
   confidence: number;
+  confidenceScore?: number;
+  sourceFileName?: string;
+  warnings?: string[];
+  sourceReferences?: string[];
+  extractedAt?: string;
+  status?: string;
   rawTextPreview?: string;
   extractedFields: {
     // General
@@ -837,6 +922,7 @@ export interface HouseholdDocument {
   transactionCandidates: TransactionCandidate[];
   confirmedTransactionIds?: string[];
   notes?: string;
+  uploadedAt?: string;
   isDemo?: boolean;
   sourceMetadata?: ImportedSourceMetadata;
   createdAt: string;

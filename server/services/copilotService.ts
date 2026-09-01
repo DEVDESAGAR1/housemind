@@ -92,6 +92,239 @@ export async function fetchHouseholdContext(userId: string): Promise<GroundedCon
 }
 
 /**
+ * Intelligent, multi-domain grounded query resolver.
+ * Accurately differentiates user intent across Maintenance, Warranties, Utilities, Loans,
+ * Credit Cards, Properties, Rooms, Appliances, Expenses, and Cash Flow Ledger.
+ */
+export function generateDomainGroundedReply(context: GroundedContext, userMessage: string): string {
+  const lower = userMessage.toLowerCase();
+  const currency = context.profile?.currency || 'USD';
+
+  // 1. Maintenance Intent
+  if (
+    lower.includes('maintenance') ||
+    lower.includes('service') ||
+    lower.includes('filter') ||
+    lower.includes('tune-up') ||
+    lower.includes('repair') ||
+    lower.includes('contractor') ||
+    lower.includes('inspection')
+  ) {
+    if (context.maintenances.length === 0) {
+      return `You currently do not have any preventative maintenance tasks recorded in your schedule.\n\nWould you like to schedule routine maintenance for your HVAC filters, water heater flush, or roof inspection?\n\nSUGGESTIONS:\n- What seasonal maintenance should I perform?\n- Which home assets need upcoming service?`;
+    }
+
+    const scheduled = context.maintenances.filter((m) => m.status === 'scheduled' || m.status === 'in_progress');
+    const completed = context.maintenances.filter((m) => m.status === 'completed');
+    const totalEstCost = context.maintenances.reduce((acc, m) => acc + (Number(m.cost) || 0), 0);
+
+    const taskList = context.maintenances
+      .slice(0, 5)
+      .map(
+        (m) =>
+          `• **${m.title}**: Status is *${m.status}* | Due: ${m.nextServiceDate || m.serviceDate || 'Scheduled'} | Est Cost: ${currency} ${m.cost || 0} | Provider: ${m.serviceProvider || 'Self/DIY'}`
+      )
+      .join('\n');
+
+    return `Here is your current preventative maintenance overview:\n\n${taskList}\n\n**Summary:** You have ${scheduled.length} upcoming task${scheduled.length !== 1 ? 's' : ''} and ${completed.length} completed task${completed.length !== 1 ? 's' : ''}, with a total estimated budget of ${currency} ${totalEstCost.toFixed(2)}.\n\nSUGGESTIONS:\n- How often should HVAC filters be replaced?\n- What are my upcoming maintenance due dates?`;
+  }
+
+  // 2. Warranty Intent
+  if (
+    lower.includes('warranty') ||
+    lower.includes('warranties') ||
+    lower.includes('guarantee') ||
+    lower.includes('policy') ||
+    lower.includes('coverage') ||
+    lower.includes('applecare') ||
+    lower.includes('claim')
+  ) {
+    if (context.warranties.length === 0) {
+      return `You currently have no active warranty policies logged in HouseMind.\n\nYou can attach warranties to major appliances or link manufacturer protection plans under the Maintenance & Warranties section.\n\nSUGGESTIONS:\n- How do I register a new appliance warranty?\n- Which home equipment items are still within warranty?`;
+    }
+
+    const activeWarranties = context.warranties.filter((w) => w.status === 'active');
+    const warrantyList = context.warranties
+      .slice(0, 5)
+      .map(
+        (w) =>
+          `• **${w.warrantyProvider}** (Policy #${w.policyNumber || 'N/A'}): Status is *${w.status}* | Coverage Ends: ${w.endDate || 'N/A'}${w.contactInfo?.phone ? ` | Support: ${w.contactInfo.phone}` : ''}`
+      )
+      .join('\n');
+
+    return `Here are your tracked warranty policies:\n\n${warrantyList}\n\n**Policy Status:** You have ${activeWarranties.length} active polic${activeWarranties.length !== 1 ? 'ies' : 'y'} protecting your registered home equipment.\n\nSUGGESTIONS:\n- When does my next warranty expire?\n- How do I file a warranty claim?`;
+  }
+
+  // 3. Utility Bills Intent
+  if (
+    lower.includes('utility') ||
+    lower.includes('utilities') ||
+    lower.includes('electric') ||
+    lower.includes('power') ||
+    lower.includes('water') ||
+    lower.includes('gas') ||
+    lower.includes('internet') ||
+    lower.includes('broadband') ||
+    lower.includes('trash') ||
+    lower.includes('sewer') ||
+    lower.includes('solar') ||
+    lower.includes('hoa')
+  ) {
+    if (context.utilities.length === 0) {
+      return `You have no utility accounts currently configured.\n\nAdding your electricity, water, gas, and internet accounts will help track bill cycles and calculate total monthly household operating costs.\n\nSUGGESTIONS:\n- What is the typical cost for household electricity?\n- How do I set up utility bill alerts?`;
+    }
+
+    const totalTypical = context.utilities.reduce((acc, u) => acc + (Number(u.typicalAmount) || 0), 0);
+    const utilityList = context.utilities
+      .map(
+        (u) =>
+          `• **${u.name}** (${u.serviceType}): Provider: ${u.provider || 'N/A'} | Typical: ${currency} ${u.typicalAmount || 0}/mo | Due Day: ${u.dueDateDay || 'N/A'}th | Status: *${u.paymentStatus || 'pending'}*`
+      )
+      .join('\n');
+
+    return `Here is the breakdown of your household utility accounts:\n\n${utilityList}\n\n**Total Estimated Utilities:** ${currency} ${totalTypical.toFixed(2)} per month across ${context.utilities.length} account${context.utilities.length !== 1 ? 's' : ''}.\n\nSUGGESTIONS:\n- Which utility bills are due next?\n- How can I reduce monthly power and water expenses?`;
+  }
+
+  // 4. Loan & Mortgage Intent
+  if (
+    lower.includes('loan') ||
+    lower.includes('mortgage') ||
+    lower.includes('emi') ||
+    lower.includes('lender') ||
+    lower.includes('interest rate') ||
+    lower.includes('principal') ||
+    lower.includes('amortization') ||
+    lower.includes('debt')
+  ) {
+    if (context.loans.length === 0) {
+      return `No active mortgages or loans are currently recorded in your household profile.\n\nYou can track fixed-rate mortgages, home equity lines of credit (HELOC), and personal loans in the Utilities & Debts view.\n\nSUGGESTIONS:\n- What are current mortgage interest rate benchmarks?\n- How does extra principal payment shorten loan tenure?`;
+    }
+
+    const totalEmi = context.loans.reduce((acc, l) => acc + (Number(l.emiAmount) || 0), 0);
+    const totalPrincipal = context.loans.reduce((acc, l) => acc + (Number(l.outstandingAmount ?? l.principalAmount) || 0), 0);
+
+    const loanList = context.loans
+      .map(
+        (l) =>
+          `• **${l.loanName}** (${l.loanType.replace('_', ' ')}): Lender: ${l.lender || 'N/A'} | Balance: ${currency} ${(l.outstandingAmount ?? l.principalAmount).toLocaleString()} | EMI: ${currency} ${l.emiAmount || 0}/mo | Rate: ${l.interestRate}% | Due Day: ${l.paymentDueDay || 'N/A'}th`
+      )
+      .join('\n');
+
+    return `Here are your recorded loan and mortgage accounts:\n\n${loanList}\n\n**Summary:** Total outstanding principal balance is **${currency} ${totalPrincipal.toLocaleString()}**, with combined monthly debt obligations of **${currency} ${totalEmi.toFixed(2)}/mo**.\n\nSUGGESTIONS:\n- How much interest do I save with a 10% principal prepayment?\n- What is the payoff timeline for my primary loan?`;
+  }
+
+  // 5. Credit Card Intent
+  if (
+    lower.includes('credit card') ||
+    lower.includes('cards') ||
+    lower.includes('card balance') ||
+    lower.includes('apr') ||
+    lower.includes('credit limit') ||
+    lower.includes('minimum due')
+  ) {
+    if (context.creditCards.length === 0) {
+      return `No credit card accounts are currently registered.\n\nTracking your credit cards allows HouseMind to reconcile statement uploads, monitor revolving balances, and safeguard due dates.\n\nSUGGESTIONS:\n- How do I import a credit card statement?\n- What is a recommended credit utilization threshold?`;
+    }
+
+    const totalOutstanding = context.creditCards.reduce((acc, c) => acc + (Number(c.outstandingAmount) || 0), 0);
+    const totalLimit = context.creditCards.reduce((acc, c) => acc + (Number(c.creditLimit) || 0), 0);
+    const utilization = totalLimit > 0 ? ((totalOutstanding / totalLimit) * 100).toFixed(1) : '0.0';
+
+    const cardList = context.creditCards
+      .map(
+        (c) =>
+          `• **${c.cardNickname}** (${c.cardIssuer || 'Bank'} *${c.last4Digits || '****'}): Outstanding: ${currency} ${c.outstandingAmount || 0} | Limit: ${currency} ${c.creditLimit || 0} | Due: ${c.paymentDueDate || 'Cycle Day ' + (c.billingCycleDay || 'N/A')} | Status: *${c.paymentStatus || 'pending'}*`
+      )
+      .join('\n');
+
+    return `Here is your revolving credit card portfolio:\n\n${cardList}\n\n**Credit Health:** Total outstanding balance is **${currency} ${totalOutstanding.toFixed(2)}** against a combined credit limit of **${currency} ${totalLimit.toLocaleString()}** (Overall Utilization: **${utilization}%**).\n\nSUGGESTIONS:\n- Which card payments are due this week?\n- How can I lower credit utilization?`;
+  }
+
+  // 6. Property & Room Intent
+  if (
+    lower.includes('property') ||
+    lower.includes('properties') ||
+    lower.includes('room') ||
+    lower.includes('rooms') ||
+    lower.includes('square footage') ||
+    lower.includes('address') ||
+    lower.includes('home layout')
+  ) {
+    const propCount = context.properties.length;
+    const roomCount = context.rooms.length;
+
+    if (propCount === 0) {
+      const homeName = context.profile?.homeName || 'Primary Home';
+      return `You have **${homeName}** configured as your baseline profile (${context.profile?.squareFootage ? `${context.profile.squareFootage} sq ft` : 'General Specification'}).\n\nYou can create specific property deeds and define custom room layouts in the Properties tab.\n\nSUGGESTIONS:\n- How do I organize appliances by room?\n- What are best practices for home property records?`;
+    }
+
+    const propList = context.properties
+      .map(
+        (p) =>
+          `• **${p.name}** (${p.propertyType.replace('_', ' ')}): Address: ${p.address?.street || ''}, ${p.address?.city || ''} | SqFt: ${p.squareFootage || 'N/A'} | Est Value: ${currency} ${(p.currentEstimatedValue || p.purchaseValue || 0).toLocaleString()}`
+      )
+      .join('\n');
+
+    return `Here are your registered properties (${propCount}) and room partitions (${roomCount}):\n\n${propList}\n\nSUGGESTIONS:\n- Which appliances are located in each room?\n- How do I add a new room layout?`;
+  }
+
+  // 7. Assets & Equipment Intent
+  if (
+    lower.includes('asset') ||
+    lower.includes('appliance') ||
+    lower.includes('equipment') ||
+    lower.includes('hvac') ||
+    lower.includes('furnace') ||
+    lower.includes('refrigerator') ||
+    lower.includes('washer') ||
+    lower.includes('dryer') ||
+    lower.includes('dishwasher') ||
+    lower.includes('heat pump') ||
+    lower.includes('lifespan') ||
+    lower.includes('serial')
+  ) {
+    if (context.assets.length === 0) {
+      return `No major home appliances or equipment are currently recorded.\n\nRegistering assets (like your HVAC, water heater, refrigerator, and roof) enables automated lifespan tracking, maintenance alerts, and replacement budgeting.\n\nSUGGESTIONS:\n- What are the key appliances every homeowner should track?\n- How do I scan an appliance receipt to register an asset?`;
+    }
+
+    const assetList = context.assets
+      .slice(0, 6)
+      .map(
+        (a) =>
+          `• **${a.name}** (${a.category}): Brand: ${a.brand || 'N/A'} | Status: *${a.currentStatus}* | Installed: ${a.installDate || 'N/A'} | Expected Lifespan: ${a.expectedLifespanYears || 10} yrs | Location: ${a.roomLocation || 'General'}`
+      )
+      .join('\n');
+
+    return `Here is your tracked home equipment inventory (${context.assets.length} items):\n\n${assetList}\n\nSUGGESTIONS:\n- Which appliances are nearing the end of their lifespan?\n- Are there active warranties on these appliances?`;
+  }
+
+  // 8. General Financial / Burn Rate / Expenses Intent
+  const expTotal = context.expenses.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+  const expCount = context.expenses.length;
+  const astCount = context.assets.length;
+  const txCount = context.transactions.length;
+
+  const matchingExpenses = context.expenses.filter(
+    (e) => lower.includes(e.title.toLowerCase()) || lower.includes(e.category.toLowerCase())
+  );
+
+  let details = '';
+  if (matchingExpenses.length > 0) {
+    details += `\n**Matching Expenses:**\n` + matchingExpenses.map((e) => `• ${e.title} (${e.category}): ${currency} ${e.amount}/${e.frequency}`).join('\n') + '\n\n';
+  }
+
+  return `${details}Based on your verified household records:
+• **Monthly Recurring Expenses:** ${expCount} active items totaling **${currency} ${expTotal.toFixed(2)}/mo**
+• **Home Equipment & Assets:** ${astCount} tracked appliances
+• **Ledger Activity:** ${txCount} verified transactions logged
+• **Home Systems:** ${context.properties.length} properties, ${context.maintenances.length} maintenance schedules, and ${context.utilities.length} utility accounts.
+
+SUGGESTIONS:
+- What is my complete monthly household burn rate?
+- Which maintenance tasks or utility bills are due next?`;
+}
+
+/**
  * Constructs the robust, prompt-injection resistant system prompt grounded in user household data
  */
 function buildSystemInstruction(context: GroundedContext): string {
@@ -338,38 +571,8 @@ export async function executeCopilotChat(
       message: geminiError?.message || String(geminiError),
     });
 
-    // Graceful, resilient fallback grounded strictly in real user household data
-    const currency = context.profile?.currency || 'USD';
-    const expTotal = context.expenses.reduce((s, e) => s + (Number(e.amount) || 0), 0);
-    const expCount = context.expenses.length;
-    const astCount = context.assets.length;
-    const txCount = context.transactions.length;
-
-    // Search context for matching user query keywords (e.g. solar, inverter, mortgage, heating)
-    const lowerQuery = userMessage.toLowerCase();
-    const matchingExpenses = context.expenses.filter(
-      (e) => lowerQuery.includes(e.title.toLowerCase()) || lowerQuery.includes(e.category.toLowerCase())
-    );
-    const matchingAssets = context.assets.filter(
-      (a) =>
-        lowerQuery.includes(a.name.toLowerCase()) ||
-        lowerQuery.includes(a.category.toLowerCase()) ||
-        (a.brand && lowerQuery.includes(a.brand.toLowerCase()))
-    );
-
-    let contextDetails = '';
-    if (matchingExpenses.length > 0) {
-      contextDetails += `\nRelevant Expenses:\n` + matchingExpenses.map((e) => `• ${e.title} (${e.category}): ${currency} ${e.amount}/${e.frequency}`).join('\n');
-    }
-    if (matchingAssets.length > 0) {
-      contextDetails += `\nRelevant Equipment & Assets:\n` + matchingAssets.map((a) => `• ${a.name} (${a.brand || 'Standard'}): Installed ${a.installDate || 'N/A'}, status is "${a.currentStatus}", expected lifespan ${a.expectedLifespanYears || 'N/A'} years`).join('\n');
-    }
-
-    if (contextDetails) {
-      generatedText = `Based on your household records:${contextDetails}\n\nOverall, you currently have ${expCount} active expenses totaling ${currency} ${expTotal.toFixed(2)}/mo, ${astCount} recorded home appliances, and ${txCount} transactions logged.\n\nSUGGESTIONS:\n- What is my monthly burn rate?\n- Which appliances require preventative maintenance checks?`;
-    } else {
-      generatedText = `Based on your household profile and records: you have ${expCount} active recurring expenses (totaling ${currency} ${expTotal.toFixed(2)}/mo), ${astCount} tracked appliances, and ${txCount} financial transactions.\n\nSUGGESTIONS:\n- Summarize my household monthly burn rate\n- What are my upcoming due dates?`;
-    }
+    // Graceful, resilient fallback grounded strictly in real user household data with intelligent domain routing
+    generatedText = generateDomainGroundedReply(context, userMessage);
   }
 
   // 5. Extract suggested follow-up questions

@@ -24,6 +24,7 @@ import {
   AffordabilityIndicator,
   CustomAdjustment,
   HomeAsset,
+  AssetCategory,
 } from '../../types';
 import { api } from '../../lib/api';
 import { AffordabilityBadge } from './AffordabilityBadge';
@@ -73,7 +74,7 @@ export function ScenarioBuilderModal({
   const [loanType, setLoanType] = useState<string>('home_renovation');
 
   const [applianceName, setApplianceName] = useState('5-Star Inverter AC');
-  const [applianceCategory, setApplianceCategory] = useState<'hvac' | 'plumbing' | 'kitchen' | 'laundry' | 'roofing_exterior' | 'electrical' | 'other'>('hvac');
+  const [applianceCategory, setApplianceCategory] = useState<AssetCategory>('hvac');
   const [applianceCost, setApplianceCost] = useState<number>(1500);
   const [applianceDownPayment, setApplianceDownPayment] = useState<number>(300);
   const [applianceFinanced, setApplianceFinanced] = useState<boolean>(true);

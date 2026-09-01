@@ -9,6 +9,14 @@ export const idParamSchema = z.object({
     .regex(/^[a-zA-Z0-9_-]+$/, 'ID contains invalid characters'),
 });
 
+export const propertyIdParamSchema = idParamSchema;
+export const roomIdParamSchema = idParamSchema;
+export const warrantyIdParamSchema = idParamSchema;
+export const maintenanceIdParamSchema = idParamSchema;
+export const utilityIdParamSchema = idParamSchema;
+export const loanIdParamSchema = idParamSchema;
+export const creditCardIdParamSchema = idParamSchema;
+
 // Household Profile Schema
 export const householdProfileSchema = z.object({
   homeName: z.string().trim().min(1, 'Home name is required').max(100, 'Home name is too long'),
@@ -316,7 +324,7 @@ export const maintenanceScheduleEnum = z.enum([
   'custom',
 ]);
 
-export const maintenanceStatusEnum = z.enum(['scheduled', 'completed', 'overdue']);
+export const maintenanceStatusEnum = z.enum(['scheduled', 'completed', 'overdue', 'pending']);
 
 function preprocessMaintenance(val: any) {
   if (val && typeof val === 'object') {
@@ -330,9 +338,6 @@ function preprocessMaintenance(val: any) {
       raw.cost = raw.estimatedCost;
     } else if (raw.cost === undefined && raw.actualCost !== undefined) {
       raw.cost = raw.actualCost;
-    }
-    if (raw.status === 'pending') {
-      raw.status = 'scheduled';
     }
     if (!raw.recurringSchedule && raw.recurrenceIntervalMonths) {
       if (raw.recurrenceIntervalMonths === 1) raw.recurringSchedule = 'monthly';
@@ -587,29 +592,41 @@ export const documentTypeEnum = z.enum([
 // ==========================================
 
 export const extractEntityFromDocSchema = z.object({
-  fileBase64: z.string().min(1, 'File data is required'),
-  fileName: z.string().min(1, 'File name is required').max(255),
-  fileType: z.string().min(1, 'File type is required').max(100),
+  documentId: z.string().max(128).optional(),
+  fileBase64: z.string().optional(),
+  fileName: z.string().max(255).optional(),
+  fileType: z.string().max(100).optional(),
   documentType: documentTypeEnum.optional(),
-  targetEntityHint: z
-    .enum(['asset', 'warranty', 'maintenance', 'utility', 'loan', 'credit_card', 'expense', 'document'])
+  targetEntityType: z
+    .enum(['asset', 'warranty', 'maintenance', 'utility', 'loan', 'credit_card', 'expense', 'document', 'property', 'room', 'transaction'])
     .optional(),
+  targetEntityHint: z
+    .enum(['asset', 'warranty', 'maintenance', 'utility', 'loan', 'credit_card', 'expense', 'document', 'property', 'room', 'transaction'])
+    .optional(),
+  notes: z.string().max(2000).optional().nullable(),
 });
 
-export const saveExtractedEntitySchema = z.object({
-  targetEntity: z.enum([
-    'asset',
-    'warranty',
-    'maintenance',
-    'utility',
-    'loan',
-    'credit_card',
-    'expense',
-    'document',
-  ]),
+const baseSaveExtractedEntitySchema = z.object({
+  entityType: z
+    .enum(['asset', 'warranty', 'maintenance', 'utility', 'loan', 'credit_card', 'expense', 'document', 'property', 'room', 'transaction'])
+    .optional(),
+  targetEntity: z
+    .enum(['asset', 'warranty', 'maintenance', 'utility', 'loan', 'credit_card', 'expense', 'document', 'property', 'room', 'transaction'])
+    .optional(),
+  entityData: z.record(z.string(), z.any()).optional(),
+  payload: z.record(z.string(), z.any()).optional(),
+  sourceDocumentId: z.string().max(128).optional().nullable(),
   documentId: z.string().max(128).optional().nullable(),
-  payload: z.record(z.any()),
 });
+
+export const saveExtractedEntitySchema = baseSaveExtractedEntitySchema.transform((data) => ({
+  entityType: (data.entityType || data.targetEntity || 'asset') as any,
+  targetEntity: (data.targetEntity || data.entityType || 'asset') as any,
+  entityData: data.entityData || data.payload || {},
+  payload: data.payload || data.entityData || {},
+  sourceDocumentId: data.sourceDocumentId || data.documentId || undefined,
+  documentId: data.documentId || data.sourceDocumentId || undefined,
+}));
 
 // Copilot Chat Schema
 export const chatMessageSchema = z.object({

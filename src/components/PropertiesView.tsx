@@ -17,13 +17,14 @@ import {
   X,
 } from 'lucide-react';
 import { api } from '../lib/api';
-import { Property, Room, PropertyType, RoomType } from '../types';
+import { Property, Room, HomeAsset, PropertyType, RoomType } from '../types';
 
 interface PropertiesViewProps {
   properties: Property[];
   rooms: Room[];
+  assets?: HomeAsset[];
   onRefresh: () => void;
-  onOpenEntityExtractor: (entityType: 'property' | 'room') => void;
+  onOpenEntityExtractor: (entityType?: any) => void;
   addToast: (type: 'success' | 'error' | 'info', title: string, message?: string) => void;
   currency?: string;
 }
@@ -31,6 +32,7 @@ interface PropertiesViewProps {
 export function PropertiesView({
   properties,
   rooms,
+  assets,
   onRefresh,
   onOpenEntityExtractor,
   addToast,
@@ -150,8 +152,12 @@ export function PropertiesView({
     if (!confirm('Are you sure you want to delete this property and its associated layout data?')) return;
     try {
       await api.deleteProperty(propId);
+      if (selectedPropertyId === propId) {
+        const remaining = properties.filter((p) => p.id !== propId);
+        setSelectedPropertyId(remaining.length > 0 ? remaining[0].id : '');
+      }
       addToast('info', 'Property Removed', 'Property deleted.');
-      onRefresh();
+      await onRefresh();
     } catch (err: any) {
       addToast('error', 'Delete Failed', err.message);
     }
@@ -215,7 +221,7 @@ export function PropertiesView({
     try {
       await api.deleteRoom(roomId);
       addToast('info', 'Room Removed', 'Room deleted.');
-      onRefresh();
+      await onRefresh();
     } catch (err: any) {
       addToast('error', 'Delete Failed', err.message);
     }
@@ -227,13 +233,19 @@ export function PropertiesView({
     master_bedroom: 'Master Suite',
     bedroom: 'Bedroom',
     bathroom: 'Bathroom',
+    balcony: 'Balcony / Terrace',
     basement: 'Basement',
     attic: 'Attic',
     garage: 'Garage',
     laundry: 'Laundry Room',
+    office: 'Office',
     home_office: 'Home Office',
-    dining_room: 'Dining Room',
+    storage: 'Storage',
+    garden: 'Garden',
     outdoor: 'Outdoor / Yard',
+    dining_room: 'Dining Room',
+    hallway: 'Hallway / Corridor',
+    utility_area: 'Utility Area',
     utility_room: 'Mechanical / Utility',
     other: 'General Area',
   };

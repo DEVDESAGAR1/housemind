@@ -116,6 +116,9 @@ export function DocumentEntityExtractionModal({
     utility: <Zap className="w-4 h-4 text-amber-500" />,
     loan: <Landmark className="w-4 h-4 text-rose-600" />,
     credit_card: <CreditCard className="w-4 h-4 text-violet-600" />,
+    expense: <FileText className="w-4 h-4 text-cyan-600" />,
+    transaction: <FileText className="w-4 h-4 text-emerald-600" />,
+    document: <FileText className="w-4 h-4 text-slate-600" />,
   };
 
   return (

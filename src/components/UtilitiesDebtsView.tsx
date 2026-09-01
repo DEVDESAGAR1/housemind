@@ -165,7 +165,7 @@ export function UtilitiesDebtsView({
         addToast('success', 'Utility Added', `Added utility "${utilityForm.name}".`);
       }
       setIsUtilityModalOpen(false);
-      onRefresh();
+      await onRefresh();
     } catch (err: any) {
       addToast('error', 'Error Saving Utility', err.message);
     }
@@ -176,7 +176,7 @@ export function UtilitiesDebtsView({
     try {
       await api.deleteUtility(id);
       addToast('info', 'Utility Removed', 'Utility account deleted.');
-      onRefresh();
+      await onRefresh();
     } catch (err: any) {
       addToast('error', 'Delete Failed', err.message);
     }
@@ -192,7 +192,7 @@ export function UtilitiesDebtsView({
         u.isPaidThisMonth ? 'Marked Unpaid' : 'Bill Marked Paid',
         `Updated ${u.name} status.`
       );
-      onRefresh();
+      await onRefresh();
     } catch (err: any) {
       addToast('error', 'Update Failed', err.message);
     }
@@ -248,7 +248,7 @@ export function UtilitiesDebtsView({
         addToast('success', 'Loan Added', `Registered loan "${loanForm.name}".`);
       }
       setIsLoanModalOpen(false);
-      onRefresh();
+      await onRefresh();
     } catch (err: any) {
       addToast('error', 'Error Saving Loan', err.message);
     }
@@ -259,7 +259,7 @@ export function UtilitiesDebtsView({
     try {
       await api.deleteLoan(id);
       addToast('info', 'Loan Removed', 'Loan record deleted.');
-      onRefresh();
+      await onRefresh();
     } catch (err: any) {
       addToast('error', 'Delete Failed', err.message);
     }
@@ -311,7 +311,7 @@ export function UtilitiesDebtsView({
         addToast('success', 'Card Registered', `Added card "${cardForm.cardName}".`);
       }
       setIsCardModalOpen(false);
-      onRefresh();
+      await onRefresh();
     } catch (err: any) {
       addToast('error', 'Error Saving Card', err.message);
     }
@@ -322,7 +322,7 @@ export function UtilitiesDebtsView({
     try {
       await api.deleteCreditCard(id);
       addToast('info', 'Card Removed', 'Credit card account deleted.');
-      onRefresh();
+      await onRefresh();
     } catch (err: any) {
       addToast('error', 'Delete Failed', err.message);
     }
@@ -333,6 +333,8 @@ export function UtilitiesDebtsView({
     water: '💧 Water / Sewer',
     gas: '🔥 Natural Gas',
     internet: '🌐 Internet / Fiber',
+    mobile: '📱 Mobile / Cellular',
+    heating_oil: '🛢️ Heating Oil',
     trash: '♻️ Trash / Recycling',
     solar: '☀️ Solar',
     hoa: '🏘️ HOA Dues',
