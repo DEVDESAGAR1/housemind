@@ -472,6 +472,14 @@ export interface HomeCommandCenterSummary {
       dueDate: string;
       isAutoPay: boolean;
     }>;
+    billsAndExpenses?: Array<{
+      id: string;
+      title: string;
+      amount: number;
+      dueDate: string;
+      category: string;
+      isAutoPay?: boolean;
+    }>;
     warrantiesExpiring: Array<{
       id: string;
       provider: string;

@@ -431,8 +431,16 @@ export default function App() {
                   setIsLoadingHealth(false);
                 }
               }}
+              properties={properties}
+              rooms={rooms}
+              warranties={warranties}
+              tasks={tasks}
+              utilities={utilities}
+              loans={loans}
+              creditCards={creditCards}
+              documents={documents}
+              commandCenterSummary={commandCenterSummary}
             />
-
           )}
 
           {activeTab === 'properties' && (

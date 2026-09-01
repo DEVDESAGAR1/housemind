@@ -953,10 +953,22 @@ export class DatabaseService {
         };
       });
 
+    const upcomingBillsAndExpenses = expenses
+      .filter((e) => e.dueDate && e.dueDate >= todayStr && e.dueDate <= in30Days)
+      .map((e) => ({
+        id: e.id,
+        title: e.title,
+        amount: e.amount,
+        dueDate: e.dueDate,
+        category: e.category,
+        isAutoPay: e.isAutoPay,
+      }));
+
     const totalUpcomingObligations =
       upcomingEmis.reduce((sum, e) => sum + e.amount, 0) +
       upcomingCreditCards.reduce((sum, c) => sum + c.amount, 0) +
-      upcomingUtilities.reduce((sum, u) => sum + u.amount, 0);
+      upcomingUtilities.reduce((sum, u) => sum + u.amount, 0) +
+      upcomingBillsAndExpenses.reduce((sum, b) => sum + b.amount, 0);
 
     // 3. Home Spaces
     const totalAssetValuation = assets.reduce(
@@ -1025,6 +1037,7 @@ export class DatabaseService {
         emis: upcomingEmis,
         creditCards: upcomingCreditCards,
         utilities: upcomingUtilities,
+        billsAndExpenses: upcomingBillsAndExpenses,
         warrantiesExpiring: upcomingWarranties,
         maintenanceTasks: upcomingMaintenance,
       },
