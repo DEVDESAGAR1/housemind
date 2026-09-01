@@ -155,4 +155,45 @@ export async function runDocumentsTests(runner: TestRunner) {
       throw new Error('Rejected document created unwanted transactions in ledger!');
     }
   });
+
+  await runner.test('Phase 2 Global Upload: Pre-upload duplicate check endpoint', async () => {
+    const checkRes = await apiRequest('/api/documents/check-duplicate', {
+      method: 'POST',
+      token,
+      body: {
+        fileName: 'bank-statement-aug2026.csv',
+      },
+    });
+
+    if (checkRes.status !== 200) {
+      throw new Error(`Expected 200 OK for check-duplicate, got ${checkRes.status}`);
+    }
+
+    if (!checkRes.body.isDuplicate) {
+      throw new Error('Expected isDuplicate to be true for previously uploaded file name');
+    }
+  });
+
+  await runner.test('Phase 2 Global Upload: Save document record only without child entities', async () => {
+    const res = await apiRequest('/api/documents/save-document-only', {
+      method: 'POST',
+      token,
+      body: {
+        fileName: 'homeowner-manual.pdf',
+        fileType: 'application/pdf',
+        fileSize: 1048576,
+        documentType: 'other',
+        notes: 'Home appliances user guide archive',
+      },
+    });
+
+    if (res.status !== 201) {
+      throw new Error(`Expected 201 Created for save-document-only, got ${res.status}`);
+    }
+
+    const doc = res.body.document;
+    if (!doc || !doc.id || doc.status !== 'confirmed') {
+      throw new Error('Document was not saved with status confirmed');
+    }
+  });
 }

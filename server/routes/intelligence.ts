@@ -7,12 +7,74 @@ import {
   explainInsight,
   normalizeToMonthly,
 } from '../services/intelligenceService';
+import { HouseholdHealthService } from '../services/householdHealthService';
 import { HouseholdInsight } from '../../src/types';
 
 const router = Router();
 
 // Enforce authentication on all intelligence/investigator endpoints
 router.use(requireAuth);
+
+/**
+ * GET /api/intelligence/health
+ * Calculates deterministic composite Household Health Intelligence Report (Home, Assets, Finances, Documents)
+ */
+router.get('/health', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const includeAiExplanation = req.query.includeAiExplanation === 'true';
+
+  try {
+    const report = await HouseholdHealthService.getHouseholdHealth(userId, {
+      includeAiExplanation,
+    });
+
+    res.status(200).json({
+      success: true,
+      data: report,
+    });
+  } catch (error: any) {
+    console.error('[INTELLIGENCE] Error computing health report:', {
+      userId,
+      message: error instanceof Error ? error.message : String(error),
+    });
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'Failed to calculate household health intelligence.',
+      },
+    });
+  }
+});
+
+/**
+ * POST /api/intelligence/health/explain
+ * Generates an on-demand AI explanation and prioritized roadmap for household health
+ */
+router.post('/health/explain', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+
+  try {
+    const explanation = await HouseholdHealthService.explainHouseholdHealth(userId);
+
+    res.status(200).json({
+      success: true,
+      data: explanation,
+    });
+  } catch (error: any) {
+    console.error('[INTELLIGENCE] Error generating health AI explanation:', {
+      userId,
+      message: error instanceof Error ? error.message : String(error),
+    });
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'Failed to generate health explanation.',
+      },
+    });
+  }
+});
 
 /**
  * GET /api/intelligence/summary

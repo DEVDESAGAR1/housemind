@@ -25,8 +25,12 @@ import {
   HomeAsset,
   HouseholdInsight,
   InsightStatus,
+  HouseholdHealthReport,
 } from '../types';
 import { formatCurrency, getCurrencySymbol } from '../config/locationCurrencyConfig';
+import { HouseholdHealthWidget } from './HouseholdHealthWidget';
+import { HouseholdHealthDetailModal } from './HouseholdHealthDetailModal';
+import { api } from '../lib/api';
 
 interface DashboardProps {
   profile: HouseholdProfile | null;
@@ -43,6 +47,10 @@ interface DashboardProps {
   onInvestigateInsight: (insight: HouseholdInsight) => void;
   onUpdateInsightStatus: (id: string, status: InsightStatus) => Promise<void>;
   isSeeding: boolean;
+  onOpenGlobalUpload?: () => void;
+  healthReport?: HouseholdHealthReport | null;
+  isLoadingHealth?: boolean;
+  onRefreshHealth?: () => Promise<void>;
 }
 
 
@@ -61,12 +69,40 @@ export function Dashboard({
   onInvestigateInsight,
   onUpdateInsightStatus,
   isSeeding,
+  onOpenGlobalUpload,
+  healthReport: propHealthReport,
+  isLoadingHealth: propIsLoadingHealth,
+  onRefreshHealth: propOnRefreshHealth,
 }: DashboardProps) {
   const [insightFilter, setInsightFilter] = useState<'active' | 'critical' | 'resolved' | 'all'>('active');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isHealthDetailModalOpen, setIsHealthDetailModalOpen] = useState(false);
+  const [localHealthReport, setLocalHealthReport] = useState<HouseholdHealthReport | null>(null);
+  const [localIsLoadingHealth, setLocalIsLoadingHealth] = useState(false);
+
   const currencyCode = profile?.currency || 'USD';
   const locale = profile?.locale || undefined;
   const currencySymbol = getCurrencySymbol(currencyCode);
+
+  const healthReport = propHealthReport !== undefined ? propHealthReport : localHealthReport;
+  const isLoadingHealth = propIsLoadingHealth !== undefined ? propIsLoadingHealth : localIsLoadingHealth;
+
+  const handleRefreshHealth = async () => {
+    if (propOnRefreshHealth) {
+      await propOnRefreshHealth();
+    } else {
+      try {
+        setLocalIsLoadingHealth(true);
+        const report = await api.getHouseholdHealth();
+        setLocalHealthReport(report);
+      } catch (err) {
+        console.error('Failed to refresh health report:', err);
+      } finally {
+        setLocalIsLoadingHealth(false);
+      }
+    }
+  };
+
 
   const handleRefresh = async () => {
     try {
@@ -154,11 +190,11 @@ export function Dashboard({
 
             <button
               id="dash-import-doc-btn"
-              onClick={() => onNavigate('documents')}
+              onClick={onOpenGlobalUpload ? onOpenGlobalUpload : () => onNavigate('documents')}
               className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs sm:text-sm font-semibold rounded-xl transition shadow-sm cursor-pointer"
             >
               <Upload className="w-4 h-4" />
-              <span>Import Statement</span>
+              <span>AI Document Intake</span>
             </button>
 
             <button
@@ -185,6 +221,15 @@ export function Dashboard({
           </div>
         </div>
       </div>
+
+      {/* Household Health Intelligence Engine (Phase 3) */}
+      <HouseholdHealthWidget
+        healthReport={healthReport}
+        isLoading={isLoadingHealth}
+        onRefresh={handleRefreshHealth}
+        onOpenDetailModal={() => setIsHealthDetailModalOpen(true)}
+        onNavigate={onNavigate}
+      />
 
       {/* Gemini AI Copilot Spotlight */}
       <div className="bg-linear-to-r from-indigo-900 via-indigo-800 to-slate-900 text-white rounded-3xl p-6 sm:p-7 shadow-xs border border-indigo-700/50 flex flex-col md:flex-row md:items-center justify-between gap-5">
@@ -576,6 +621,16 @@ export function Dashboard({
           )}
         </div>
       </div>
+
+      {/* Household Health Detail Deep-Dive Modal */}
+      <HouseholdHealthDetailModal
+        isOpen={isHealthDetailModalOpen}
+        onClose={() => setIsHealthDetailModalOpen(false)}
+        healthReport={healthReport}
+        onRefresh={handleRefreshHealth}
+        onNavigate={onNavigate}
+      />
     </div>
   );
 }
+

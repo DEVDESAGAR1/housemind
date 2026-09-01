@@ -30,6 +30,9 @@ import {
   HomeCommandCenterSummary,
   ExtractedEntityReviewData,
   HouseholdEntityType,
+  TransactionCandidate,
+  HouseholdHealthReport,
+  HouseholdHealthAiExplanation,
 } from '../types';
 
 
@@ -768,6 +771,99 @@ export const api = {
   },
 
   // AI Document-First Entity Extraction & Review
+  async uploadDocument(
+    file: File,
+    documentType?: string
+  ): Promise<{
+    success: boolean;
+    document: HouseholdDocument;
+    candidatesCount: number;
+    duplicatesCount: number;
+    isDuplicateDocument?: boolean;
+    existingDocument?: HouseholdDocument | null;
+    message: string;
+  }> {
+    const headers = await getAuthHeader();
+    // Remove Content-Type header so browser sets multipart/form-data boundary properly
+    delete (headers as Record<string, string>)['Content-Type'];
+
+    const formData = new FormData();
+    formData.append('file', file);
+    if (documentType) {
+      formData.append('documentType', documentType);
+    }
+
+    const res = await fetch('/api/documents/upload', {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+    return handleResponse<{
+      success: boolean;
+      document: HouseholdDocument;
+      candidatesCount: number;
+      duplicatesCount: number;
+      isDuplicateDocument?: boolean;
+      existingDocument?: HouseholdDocument | null;
+      message: string;
+    }>(res);
+  },
+
+  async checkDuplicateDocument(
+    fileName: string,
+    fileSize?: number
+  ): Promise<{
+    success: boolean;
+    isDuplicate: boolean;
+    existingDocument?: HouseholdDocument | null;
+    message: string;
+  }> {
+    const headers = await getAuthHeader();
+    const res = await fetch('/api/documents/check-duplicate', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ fileName, fileSize }),
+    });
+    return handleResponse<{
+      success: boolean;
+      isDuplicate: boolean;
+      existingDocument?: HouseholdDocument | null;
+      message: string;
+    }>(res);
+  },
+
+  async saveDocumentOnly(payload: {
+    documentId?: string;
+    fileName?: string;
+    fileType?: string;
+    fileSize?: number;
+    documentType?: string;
+    notes?: string;
+  }): Promise<{ success: boolean; document: HouseholdDocument; message: string }> {
+    const headers = await getAuthHeader();
+    const res = await fetch('/api/documents/save-document-only', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload),
+    });
+    return handleResponse<{ success: boolean; document: HouseholdDocument; message: string }>(res);
+  },
+
+  async confirmImport(
+    documentId: string,
+    candidates: TransactionCandidate[],
+    accountOverride?: string,
+    notes?: string
+  ): Promise<{ success: boolean; message: string; confirmedCount: number }> {
+    const headers = await getAuthHeader();
+    const res = await fetch(`/api/imports/${encodeURIComponent(documentId)}/confirm`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ candidates, accountOverride, notes }),
+    });
+    return handleResponse<{ success: boolean; message: string; confirmedCount: number }>(res);
+  },
+
   async extractEntityFromDoc(
     documentId: string,
     targetEntityType?: HouseholdEntityType,
@@ -795,6 +891,30 @@ export const api = {
     });
     return handleResponse<{ success: boolean; entityId: string; entityType: HouseholdEntityType; entity: any }>(res);
   },
+
+  // ==========================================
+  // Phase 3: Household Health Intelligence API
+  // ==========================================
+
+  async getHouseholdHealth(includeAiExplanation = false): Promise<HouseholdHealthReport> {
+    const headers = await getAuthHeader();
+    const query = includeAiExplanation ? '?includeAiExplanation=true' : '';
+    const res = await fetch(`/api/intelligence/health${query}`, {
+      method: 'GET',
+      headers,
+    });
+    return handleResponse<HouseholdHealthReport>(res);
+  },
+
+  async explainHouseholdHealth(): Promise<HouseholdHealthAiExplanation> {
+    const headers = await getAuthHeader();
+    const res = await fetch('/api/intelligence/health/explain', {
+      method: 'POST',
+      headers,
+    });
+    return handleResponse<HouseholdHealthAiExplanation>(res);
+  },
 };
+
 
 

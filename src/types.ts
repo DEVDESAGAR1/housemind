@@ -1092,5 +1092,98 @@ export interface ScenarioComparison {
   recommendationReason?: string;
 }
 
+// ==========================================
+// Phase 3: Household Health Intelligence Types
+// ==========================================
+
+export type HouseholdHealthCategory = 'home' | 'assets' | 'finances' | 'documents';
+export type HealthStatusLevel = 'excellent' | 'good' | 'fair' | 'at_risk' | 'insufficient_data';
+export type HealthSignalStatus = 'healthy' | 'warning' | 'critical' | 'info';
+
+export interface HouseholdHealthSignal {
+  id: string;
+  category: HouseholdHealthCategory;
+  name: string;
+  status: HealthSignalStatus;
+  scoreImpact: number; // e.g. +10 or -20
+  weight: number; // 0.1 to 1.0
+  title: string;
+  description: string;
+  evidence: string;
+  recommendation?: string;
+  actionTab?: string;
+  actionLabel?: string;
+  relatedEntityIds?: string[];
+}
+
+export interface CategoryHealthBreakdown {
+  category: HouseholdHealthCategory;
+  name: string;
+  score: number; // 0 to 100
+  status: HealthStatusLevel;
+  statusLabel: string;
+  weight: number; // e.g. 0.25
+  completenessScore: number; // 0 to 100
+  signals: HouseholdHealthSignal[];
+  summary: string;
+  positiveFactors: string[];
+  riskFactors: string[];
+}
+
+export interface HouseholdHealthAiExplanation {
+  executiveSummary: string;
+  strengths: string[];
+  topRisks: string[];
+  prioritizedActionPlan: Array<{
+    priority: 'high' | 'medium' | 'low';
+    action: string;
+    category: HouseholdHealthCategory;
+    estimatedImpact: string;
+  }>;
+  generatedAt: string;
+}
+
+export interface HouseholdHealthRecommendation {
+  id: string;
+  priority: 'high' | 'medium' | 'low';
+  title: string;
+  category: HouseholdHealthCategory;
+  description: string;
+  actionTab?: string;
+  actionLabel?: string;
+}
+
+export interface HouseholdHealthReport {
+  userId: string;
+  calculatedAt: string;
+  overallScore: number; // 0 to 100
+  status: HealthStatusLevel;
+  statusLabel: string;
+  completenessScore: number; // 0 to 100
+  isProvisional: boolean;
+  categories: {
+    home: CategoryHealthBreakdown;
+    assets: CategoryHealthBreakdown;
+    finances: CategoryHealthBreakdown;
+    documents: CategoryHealthBreakdown;
+  };
+  topSignals: HouseholdHealthSignal[];
+  recommendations: HouseholdHealthRecommendation[];
+  aiExplanation?: HouseholdHealthAiExplanation | null;
+  dataCompletenessDetails: {
+    propertiesCount: number;
+    roomsCount: number;
+    assetsCount: number;
+    warrantiesCount: number;
+    maintenanceTasksCount: number;
+    expensesCount: number;
+    utilitiesCount: number;
+    loansCount: number;
+    creditCardsCount: number;
+    documentsCount: number;
+    transactionsCount: number;
+  };
+}
+
 
 

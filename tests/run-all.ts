@@ -17,6 +17,7 @@ import { runPersistenceIntegrationTests } from './integration/persistence.test';
 import { runPrivacyTests } from './backend/privacy.test';
 import { runPhase10HomeSystemsTests } from './backend/phase10_home_systems.test';
 import { runRegressionPhase1Tests } from './backend/regression_phase1.test';
+import { runHealthIntelligenceTests } from './backend/health_intelligence.test';
 import { runE2EJourneysTests } from './integration/e2e-journeys.test';
 
 async function main() {
@@ -87,7 +88,11 @@ async function main() {
 
     console.log('\n--- 19. Production E2E Household User Journeys (E2E-01 to E2E-08) ---');
     await runE2EJourneysTests(runner);
+
+    console.log('\n--- 20. Phase 3: Household Health Intelligence Engine ---');
+    await runHealthIntelligenceTests(runner);
   } finally {
+
     await stopTestServer();
   }
 

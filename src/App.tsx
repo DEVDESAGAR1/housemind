@@ -19,6 +19,7 @@ import {
   HomeCommandCenterSummary,
   HouseholdDocument,
   HouseholdEntityType,
+  HouseholdHealthReport,
 } from './types';
 import { Navbar, NavigationTab } from './components/Navbar';
 import { Dashboard } from './components/Dashboard';
@@ -30,6 +31,7 @@ import { UtilitiesDebtsView } from './components/UtilitiesDebtsView';
 import { FinancialView } from './components/FinancialView';
 import { DocumentManagerView } from './components/DocumentManagerView';
 import { DocumentEntityExtractionModal } from './components/DocumentEntityExtractionModal';
+import { GlobalUploadModal } from './components/GlobalUploadModal';
 import { ScenarioSimulatorView } from './components/scenarios/ScenarioSimulatorView';
 import { CopilotView } from './components/CopilotView';
 import { InvestigationModal } from './components/InvestigationModal';
@@ -64,6 +66,8 @@ export default function App() {
   const [loans, setLoans] = useState<HouseholdLoan[]>([]);
   const [creditCards, setCreditCards] = useState<CreditCardAccount[]>([]);
   const [commandCenterSummary, setCommandCenterSummary] = useState<HomeCommandCenterSummary | null>(null);
+  const [healthReport, setHealthReport] = useState<HouseholdHealthReport | null>(null);
+  const [isLoadingHealth, setIsLoadingHealth] = useState(false);
 
   // UI Modals & Loading State
   const [isLoadingData, setIsLoadingData] = useState(false);
@@ -72,9 +76,11 @@ export default function App() {
   const [isSeeding, setIsSeeding] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
-  // Global Entity Extractor Modal
+  // Global Entity Extractor & Global Document Intake Modals
   const [isEntityExtractorOpen, setIsEntityExtractorOpen] = useState(false);
   const [extractorTargetType, setExtractorTargetType] = useState<HouseholdEntityType | undefined>(undefined);
+  const [isGlobalUploadOpen, setIsGlobalUploadOpen] = useState(false);
+  const [globalUploadHint, setGlobalUploadHint] = useState<HouseholdEntityType | undefined>(undefined);
 
   // Toasts
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -111,6 +117,7 @@ export default function App() {
         cardsData,
         summaryData,
         docsData,
+        healthData,
       ] = await Promise.all([
         api.getProfile().catch(() => null),
         api.getExpenses().catch(() => []),
@@ -125,6 +132,7 @@ export default function App() {
         api.getCreditCards().catch(() => []),
         api.getHomeCommandCenterSummary().catch(() => null),
         api.getDocuments().catch(() => []),
+        api.getHouseholdHealth().catch(() => null),
       ]);
 
       if (profileData) setProfile(profileData);
@@ -140,6 +148,8 @@ export default function App() {
       if (cardsData) setCreditCards(cardsData);
       if (summaryData) setCommandCenterSummary(summaryData);
       if (docsData) setDocuments(docsData);
+      if (healthData) setHealthReport(healthData);
+
     } catch (err: any) {
       console.error('Failed to load complete household data:', err);
       addToast('error', 'Sync Warning', 'Could not load all household systems from cloud.');
@@ -342,6 +352,11 @@ export default function App() {
     setIsEntityExtractorOpen(true);
   };
 
+  const handleOpenGlobalUpload = (hint?: HouseholdEntityType) => {
+    setGlobalUploadHint(hint);
+    setIsGlobalUploadOpen(true);
+  };
+
   // Loading Screen during initial session check
   if (isAuthChecking) {
     return (
@@ -380,6 +395,7 @@ export default function App() {
         onSeedDemo={handleSeedDemo}
         onSignOut={handleSignOut}
         isSeeding={isSeeding}
+        onOpenGlobalUpload={() => handleOpenGlobalUpload()}
       />
 
       {/* Main App Container */}
@@ -401,7 +417,22 @@ export default function App() {
               onInvestigateInsight={handleInvestigateInsight}
               onUpdateInsightStatus={handleUpdateInsightStatus}
               isSeeding={isSeeding}
+              onOpenGlobalUpload={() => handleOpenGlobalUpload()}
+              healthReport={healthReport}
+              isLoadingHealth={isLoadingHealth}
+              onRefreshHealth={async () => {
+                try {
+                  setIsLoadingHealth(true);
+                  const report = await api.getHouseholdHealth();
+                  setHealthReport(report);
+                } catch (err) {
+                  console.error('Failed to refresh health:', err);
+                } finally {
+                  setIsLoadingHealth(false);
+                }
+              }}
             />
+
           )}
 
           {activeTab === 'properties' && (
@@ -501,6 +532,27 @@ export default function App() {
           )}
         </ErrorBoundary>
       </main>
+
+      {/* Phase 2: Global Upload & AI Document Intake Modal */}
+      {isGlobalUploadOpen && (
+        <GlobalUploadModal
+          isOpen={isGlobalUploadOpen}
+          onClose={() => setIsGlobalUploadOpen(false)}
+          documents={documents}
+          assets={assets}
+          properties={properties}
+          currency={profile?.currency || 'USD'}
+          initialDomainHint={globalUploadHint}
+          onDocumentProcessed={(res) => {
+            loadHouseholdData();
+            if (res.destinationTab) {
+              setActiveTab(res.destinationTab as NavigationTab);
+            }
+          }}
+          onNavigateToTab={(tab) => setActiveTab(tab as NavigationTab)}
+          addToast={addToast}
+        />
+      )}
 
       {/* Global Document Entity Extraction Modal */}
       {isEntityExtractorOpen && (

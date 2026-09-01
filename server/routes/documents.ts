@@ -230,6 +230,15 @@ documentsRouter.post(
 
       await DatabaseService.saveDocument(userId, documentRecord as any);
 
+      // Check for existing identical document
+      const existingDocs = await DatabaseService.listDocuments(userId);
+      const matchingDoc = existingDocs.find(
+        (d) =>
+          d.fileName?.toLowerCase() === file.originalname.toLowerCase() &&
+          d.fileSize &&
+          Math.abs(d.fileSize - file.size) < 10
+      );
+
       const duplicatesCount = candidatesWithDupCheck.filter((c) => c.isDuplicate).length;
 
       res.status(201).json({
@@ -237,7 +246,11 @@ documentsRouter.post(
         document: documentRecord,
         candidatesCount: candidatesWithDupCheck.length,
         duplicatesCount,
-        message: 'Document analyzed successfully. Please review and confirm the transactions.',
+        isDuplicateDocument: Boolean(matchingDoc),
+        existingDocument: matchingDoc || null,
+        message: matchingDoc
+          ? 'This document may already exist in your vault. Please review candidate information.'
+          : 'Document analyzed successfully. Please review and confirm the transactions.',
       });
     } catch (err: any) {
       console.error('Error during document upload/parse:', err);
@@ -249,6 +262,98 @@ documentsRouter.post(
             err.message ||
             "We couldn't read this statement. Please check that the file is not corrupted and try again.",
         },
+      });
+    }
+  }
+);
+
+/**
+ * POST /api/documents/check-duplicate
+ * Pre-checks if a document with the same filename or size was already uploaded.
+ */
+documentsRouter.post(
+  '/check-duplicate',
+  requireAuth as any,
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      const userId = req.userId!;
+      const { fileName, fileSize } = req.body;
+      const existingDocs = await DatabaseService.listDocuments(userId);
+      const match = existingDocs.find(
+        (d) =>
+          d.fileName?.toLowerCase() === (fileName || '').toLowerCase() &&
+          (!fileSize || !d.fileSize || Math.abs((d.fileSize || 0) - fileSize) < 10)
+      );
+
+      res.json({
+        success: true,
+        isDuplicate: Boolean(match),
+        existingDocument: match || null,
+        message: match
+          ? `A document with this name (${match.fileName}) was already uploaded on ${new Date(
+              match.createdAt || (match as any).uploadedAt || Date.now()
+            ).toLocaleDateString()}.`
+          : 'No duplicate document found.',
+      });
+    } catch (err: any) {
+      console.error('[DOCUMENTS_ROUTER] Duplicate check failed:', err);
+      res.status(500).json({
+        success: false,
+        error: { code: 'CHECK_FAILED', message: err.message },
+      });
+    }
+  }
+);
+
+/**
+ * POST /api/documents/save-document-only
+ * Saves a document record to the vault without extracting or persisting child entities.
+ */
+documentsRouter.post(
+  '/save-document-only',
+  requireAuth as any,
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      const userId = req.userId!;
+      const { documentId, fileName, fileType, fileSize, documentType, notes } = req.body;
+      let doc = documentId ? await DatabaseService.getDocument(userId, documentId) : null;
+      const nowIso = new Date().toISOString();
+
+      if (doc) {
+        doc.status = 'confirmed';
+        doc.updatedAt = nowIso;
+        if (notes) {
+          doc.extractedSummary = { ...(doc.extractedSummary || {}), notes };
+        }
+        await DatabaseService.saveDocument(userId, doc);
+      } else {
+        const id = `doc_${crypto.randomUUID()}`;
+        doc = {
+          id,
+          userId,
+          fileName: fileName || 'Uploaded Document',
+          fileType: fileType || 'application/pdf',
+          fileSize: fileSize || 0,
+          documentType: documentType || 'other',
+          status: 'confirmed',
+          extractedSummary: { notes },
+          transactionCandidates: [],
+          createdAt: nowIso,
+          updatedAt: nowIso,
+        };
+        await DatabaseService.saveDocument(userId, doc);
+      }
+
+      res.status(201).json({
+        success: true,
+        document: doc,
+        message: 'Document saved to vault successfully.',
+      });
+    } catch (err: any) {
+      console.error('[DOCUMENTS_ROUTER] Save document only failed:', err);
+      res.status(500).json({
+        success: false,
+        error: { code: 'SAVE_FAILED', message: err.message },
       });
     }
   }

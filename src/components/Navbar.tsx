@@ -14,6 +14,7 @@ import {
   LogOut,
   Settings,
   ReceiptText,
+  Upload,
 } from 'lucide-react';
 import { User } from 'firebase/auth';
 import { HouseholdProfile } from '../types';
@@ -39,6 +40,7 @@ interface NavbarProps {
   onSeedDemo: () => void;
   onSignOut: () => void;
   isSeeding: boolean;
+  onOpenGlobalUpload?: () => void;
 }
 
 export function Navbar({
@@ -50,6 +52,7 @@ export function Navbar({
   onSeedDemo,
   onSignOut,
   isSeeding,
+  onOpenGlobalUpload,
 }: NavbarProps) {
   const homeDisplayName = profile?.homeName || 'My Household';
 
@@ -194,6 +197,19 @@ export function Navbar({
 
           {/* Right Actions */}
           <div className="flex items-center gap-2 sm:gap-3">
+            {/* Global Document Intake Upload Button */}
+            {onOpenGlobalUpload && (
+              <button
+                id="global-upload-btn"
+                onClick={onOpenGlobalUpload}
+                title="Global Upload: Upload and extract documents, receipts, and warranties"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-xs shadow-indigo-600/20 transition cursor-pointer"
+              >
+                <Upload className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Upload</span>
+              </button>
+            )}
+
             {/* Demo Data Button */}
             <button
               id="seed-demo-data-btn"
