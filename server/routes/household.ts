@@ -43,6 +43,9 @@ import {
   extractEntityFromDocument,
   saveExtractedEntity,
 } from '../services/entityExtractionService';
+import { searchHousehold } from '../services/searchService';
+import { CalendarService } from '../services/calendarService';
+import { NotificationService } from '../services/notificationService';
 
 const router = Router();
 
@@ -712,6 +715,263 @@ router.get(['/command-center', '/home-command-center', '/command-center-summary'
         code: 'INTERNAL_SERVER_ERROR',
         message: 'Failed to retrieve household command center summary.',
       },
+    });
+  }
+});
+
+/**
+ * GET /api/household/search
+ * Fast, deterministic, tenant-isolated global search across all household domains
+ */
+router.get('/search', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const q = typeof req.query.q === 'string' ? req.query.q : '';
+  const category = typeof req.query.category === 'string' ? req.query.category : 'all';
+  const limit = req.query.limit ? Math.min(Math.max(parseInt(req.query.limit as string, 10) || 40, 1), 100) : 40;
+
+  try {
+    const searchResponse = await searchHousehold(userId, q, category, limit);
+
+    res.status(200).json({
+      success: true,
+      data: searchResponse,
+      ...searchResponse,
+    });
+  } catch (error: unknown) {
+    console.error('[SEARCH ROUTE] Failed to execute household search:', {
+      userId,
+      queryLength: q.length,
+      category,
+      message: error instanceof Error ? error.message : String(error),
+    });
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'SEARCH_ERROR',
+        message: 'Failed to execute household search. Please try again.',
+      },
+    });
+  }
+});
+
+// ==========================================
+// 4B. HOUSEHOLD CALENDAR & NOTIFICATIONS
+// ==========================================
+
+/**
+ * GET /api/household/calendar/events (or /api/calendar/events)
+ * Derives dynamic calendar events from all household records
+ */
+router.get(['/calendar/events', '/calendar'], async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const startDate = typeof req.query.startDate === 'string' ? req.query.startDate : undefined;
+  const endDate = typeof req.query.endDate === 'string' ? req.query.endDate : undefined;
+  const category = typeof req.query.category === 'string' ? req.query.category : undefined;
+  const q = typeof req.query.q === 'string' ? req.query.q : undefined;
+
+  try {
+    const calendarData = await CalendarService.getCalendarEvents(userId, {
+      startDate,
+      endDate,
+      category,
+      searchQuery: q,
+    });
+
+    res.status(200).json({
+      success: true,
+      data: calendarData,
+      ...calendarData,
+    });
+  } catch (error: unknown) {
+    console.error('[CALENDAR] Failed to retrieve household calendar events:', {
+      userId,
+      message: error instanceof Error ? error.message : String(error),
+    });
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'CALENDAR_ERROR',
+        message: 'Failed to load household calendar events.',
+      },
+    });
+  }
+});
+
+/**
+ * GET /api/household/notifications (or /api/notifications)
+ * Retrieves active household notifications, unread counts, and user preferences
+ */
+router.get('/notifications', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+
+  try {
+    const notificationsData = await NotificationService.getNotifications(userId);
+
+    res.status(200).json({
+      success: true,
+      data: notificationsData,
+      ...notificationsData,
+    });
+  } catch (error: unknown) {
+    console.error('[NOTIFICATIONS] Failed to retrieve notifications:', {
+      userId,
+      message: error instanceof Error ? error.message : String(error),
+    });
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'NOTIFICATIONS_ERROR',
+        message: 'Failed to load household notifications.',
+      },
+    });
+  }
+});
+
+/**
+ * PUT /api/household/notifications/read-all
+ */
+router.put('/notifications/read-all', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+
+  try {
+    const count = await NotificationService.markAllRead(userId);
+    res.status(200).json({
+      success: true,
+      data: { markedCount: count },
+      markedCount: count,
+    });
+  } catch (error: unknown) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'INTERNAL_ERROR', message: 'Failed to mark all notifications as read.' },
+    });
+  }
+});
+
+/**
+ * PUT /api/household/notifications/:id/read
+ */
+router.put('/notifications/:id/read', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const { id } = req.params;
+
+  try {
+    NotificationService.markRead(userId, id);
+    res.status(200).json({
+      success: true,
+      data: { id, isRead: true },
+    });
+  } catch (error: unknown) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'INTERNAL_ERROR', message: 'Failed to mark notification as read.' },
+    });
+  }
+});
+
+/**
+ * PUT /api/household/notifications/:id/unread
+ */
+router.put('/notifications/:id/unread', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const { id } = req.params;
+
+  try {
+    NotificationService.markUnread(userId, id);
+    res.status(200).json({
+      success: true,
+      data: { id, isRead: false },
+    });
+  } catch (error: unknown) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'INTERNAL_ERROR', message: 'Failed to mark notification as unread.' },
+    });
+  }
+});
+
+/**
+ * DELETE /api/household/notifications/:id
+ */
+router.delete('/notifications/:id', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const { id } = req.params;
+
+  try {
+    NotificationService.dismiss(userId, id);
+    res.status(200).json({
+      success: true,
+      data: { id, dismissed: true },
+    });
+  } catch (error: unknown) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'INTERNAL_ERROR', message: 'Failed to dismiss notification.' },
+    });
+  }
+});
+
+/**
+ * GET /api/household/notifications/preferences
+ */
+router.get('/notifications/preferences', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+
+  try {
+    const preferences = NotificationService.getPreferences(userId);
+    res.status(200).json({
+      success: true,
+      data: preferences,
+      preferences,
+    });
+  } catch (error: unknown) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'INTERNAL_ERROR', message: 'Failed to load notification preferences.' },
+    });
+  }
+});
+
+/**
+ * PUT /api/household/notifications/preferences
+ */
+router.put('/notifications/preferences', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const body = req.body || {};
+
+  try {
+    const updated = NotificationService.updatePreferences(userId, body);
+    res.status(200).json({
+      success: true,
+      data: updated,
+      preferences: updated,
+    });
+  } catch (error: unknown) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'INTERNAL_ERROR', message: 'Failed to update notification preferences.' },
+    });
+  }
+});
+
+/**
+ * POST /api/household/notifications/email-digest-test
+ * Tests email delivery readiness architecture
+ */
+router.post('/notifications/email-digest-test', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+
+  try {
+    const result = await NotificationService.simulateEmailDigest(userId);
+    res.status(200).json({
+      success: true,
+      data: result,
+      ...result,
+    });
+  } catch (error: unknown) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'EMAIL_ERROR', message: 'Failed to test email notification service.' },
     });
   }
 });

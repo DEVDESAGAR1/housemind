@@ -28,6 +28,7 @@ import {
   MaintenanceStatus,
   RecurrenceFrequency,
 } from '../types';
+import { DeleteConfirmModal } from './DeleteConfirmModal';
 
 interface MaintenanceWarrantiesViewProps {
   tasks: MaintenanceTask[];
@@ -53,6 +54,12 @@ export function MaintenanceWarrantiesView({
   const [activeSubTab, setActiveSubTab] = useState<'maintenance' | 'warranties'>('maintenance');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterAssetId, setFilterAssetId] = useState<string>('');
+
+  // Deletion Confirmation States
+  const [deletingTask, setDeletingTask] = useState<MaintenanceTask | null>(null);
+  const [isDeletingTask, setIsDeletingTask] = useState(false);
+  const [deletingWarranty, setDeletingWarranty] = useState<Warranty | null>(null);
+  const [isDeletingWarranty, setIsDeletingWarranty] = useState(false);
 
   // Maintenance Task Modal
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
@@ -162,14 +169,22 @@ export function MaintenanceWarrantiesView({
     }
   };
 
-  const handleDeleteTask = async (taskId: string) => {
-    if (!confirm('Are you sure you want to delete this maintenance task?')) return;
+  const handlePromptDeleteTask = (task: MaintenanceTask) => {
+    setDeletingTask(task);
+  };
+
+  const handleConfirmDeleteTask = async () => {
+    if (!deletingTask) return;
     try {
-      await api.deleteMaintenance(taskId);
-      addToast('info', 'Task Deleted', 'Maintenance task removed.');
+      setIsDeletingTask(true);
+      await api.deleteMaintenance(deletingTask.id);
+      addToast('info', 'Task Deleted', `Removed "${deletingTask.title}".`);
+      setDeletingTask(null);
       await onRefresh();
     } catch (err: any) {
       addToast('error', 'Delete Failed', err.message);
+    } finally {
+      setIsDeletingTask(false);
     }
   };
 
@@ -231,14 +246,22 @@ export function MaintenanceWarrantiesView({
     }
   };
 
-  const handleDeleteWarranty = async (warrantyId: string) => {
-    if (!confirm('Are you sure you want to delete this warranty policy?')) return;
+  const handlePromptDeleteWarranty = (warranty: Warranty) => {
+    setDeletingWarranty(warranty);
+  };
+
+  const handleConfirmDeleteWarranty = async () => {
+    if (!deletingWarranty) return;
     try {
-      await api.deleteWarranty(warrantyId);
-      addToast('info', 'Warranty Removed', 'Warranty policy deleted.');
+      setIsDeletingWarranty(true);
+      await api.deleteWarranty(deletingWarranty.id);
+      addToast('info', 'Warranty Removed', `Removed warranty policy "${deletingWarranty.title || deletingWarranty.providerName}".`);
+      setDeletingWarranty(null);
       await onRefresh();
     } catch (err: any) {
       addToast('error', 'Delete Failed', err.message);
+    } finally {
+      setIsDeletingWarranty(false);
     }
   };
 
@@ -486,8 +509,9 @@ export function MaintenanceWarrantiesView({
                             <Edit2 className="w-3.5 h-3.5" />
                           </button>
                           <button
-                            onClick={() => handleDeleteTask(task.id)}
+                            onClick={() => handlePromptDeleteTask(task)}
                             className="p-1 text-slate-400 hover:text-rose-600 rounded-md transition cursor-pointer"
+                            title="Delete Task"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -613,8 +637,9 @@ export function MaintenanceWarrantiesView({
                             <Edit2 className="w-3.5 h-3.5" />
                           </button>
                           <button
-                            onClick={() => handleDeleteWarranty(warranty.id)}
+                            onClick={() => handlePromptDeleteWarranty(warranty)}
                             className="p-1 text-slate-400 hover:text-rose-600 rounded-md transition cursor-pointer"
+                            title="Delete Warranty"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -940,6 +965,33 @@ export function MaintenanceWarrantiesView({
           </div>
         </div>
       )}
+      {/* Delete Maintenance Task Confirmation Modal */}
+      <DeleteConfirmModal
+        isOpen={Boolean(deletingTask)}
+        title="Delete Maintenance Task"
+        itemName={deletingTask?.title || 'Task'}
+        itemType="maintenance task"
+        description="Are you sure you want to permanently delete this maintenance task?"
+        warningNote="Scheduled recurrence history and reminders for this task will be removed."
+        confirmLabel="Delete Task"
+        isDeleting={isDeletingTask}
+        onConfirm={handleConfirmDeleteTask}
+        onCancel={() => setDeletingTask(null)}
+      />
+
+      {/* Delete Warranty Confirmation Modal */}
+      <DeleteConfirmModal
+        isOpen={Boolean(deletingWarranty)}
+        title="Delete Warranty Policy"
+        itemName={deletingWarranty?.title || deletingWarranty?.providerName || 'Warranty'}
+        itemType="warranty policy"
+        description="Are you sure you want to permanently delete this warranty policy?"
+        warningNote="Coverage tracking and claim contact information will be removed."
+        confirmLabel="Delete Warranty"
+        isDeleting={isDeletingWarranty}
+        onConfirm={handleConfirmDeleteWarranty}
+        onCancel={() => setDeletingWarranty(null)}
+      />
     </div>
   );
 }

@@ -1190,6 +1190,11 @@ export class DatabaseService {
     return conv;
   }
 
+  static async deleteConversation(userId: string, id: string): Promise<boolean> {
+    const store = getOrCreateUserStore(userId);
+    return store.conversations.delete(id);
+  }
+
   // --- SCENARIOS (WHAT-IF SIMULATOR) ---
   static async listScenarios(userId: string, userToken?: string): Promise<Scenario[]> {
     const store = getOrCreateUserStore(userId);

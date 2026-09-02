@@ -58,6 +58,9 @@ export function buildExpressApp(): Express {
   app.use('/api/loans', forwardToHousehold('/loans'));
   app.use(['/api/credit-cards', '/api/cards'], forwardToHousehold('/credit-cards'));
   app.use(['/api/home/command-center-summary', '/api/home/command-center'], forwardToHousehold('/command-center'));
+  app.use('/api/search', forwardToHousehold('/search'));
+  app.use(['/api/calendar', '/api/household/calendar'], forwardToHousehold('/calendar'));
+  app.use(['/api/notifications', '/api/household/notifications'], forwardToHousehold('/notifications'));
 
   app.use('/api/copilot', aiLimiter, copilotRouter);
   app.use('/api/intelligence', aiLimiter, intelligenceRouter);

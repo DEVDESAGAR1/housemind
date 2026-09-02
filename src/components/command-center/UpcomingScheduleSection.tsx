@@ -276,14 +276,26 @@ export function UpcomingScheduleSection({
           </p>
         </div>
 
-        {totalUpcomingFinancial > 0 && (
-          <div className="bg-slate-50 border border-slate-200 px-3.5 py-2 rounded-xl flex items-center gap-2 self-start sm:self-auto">
-            <span className="text-[11px] text-slate-500 font-medium">30d Total Obligations:</span>
-            <span className="text-xs sm:text-sm font-bold text-slate-900">
-              {formatCurrency(totalUpcomingFinancial, currencyCode, locale)}
-            </span>
-          </div>
-        )}
+        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+          {totalUpcomingFinancial > 0 && (
+            <div className="bg-slate-50 border border-slate-200 px-3.5 py-2 rounded-xl flex items-center gap-2">
+              <span className="text-[11px] text-slate-500 font-medium">30d Total Obligations:</span>
+              <span className="text-xs sm:text-sm font-bold text-slate-900">
+                {formatCurrency(totalUpcomingFinancial, currencyCode, locale)}
+              </span>
+            </div>
+          )}
+
+          <button
+            id="upcoming-schedule-open-calendar-btn"
+            onClick={() => onNavigate('calendar')}
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200/80 rounded-xl transition cursor-pointer"
+          >
+            <Calendar className="w-3.5 h-3.5 text-indigo-600" />
+            <span>Full Calendar</span>
+            <ArrowUpRight className="w-3.5 h-3.5 text-indigo-500" />
+          </button>
+        </div>
       </div>
 
       {/* Tabs */}

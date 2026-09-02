@@ -1,6 +1,6 @@
 {
   "name": "HouseMind",
-  "description": "AI-powered household intelligence platform combining finances, home assets, recurring expenses, and documents.",
+  "description": "AI-powered household intelligence platform combining properties, assets, finances, maintenance, calendar events, and proactive notifications.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

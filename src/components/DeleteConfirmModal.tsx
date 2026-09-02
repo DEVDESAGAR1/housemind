@@ -1,10 +1,13 @@
 import { AlertTriangle, X } from 'lucide-react';
 
-interface DeleteConfirmModalProps {
+export interface DeleteConfirmModalProps {
   isOpen: boolean;
-  title: string;
+  title?: string;
   itemName: string;
-  itemType: 'expense' | 'asset';
+  itemType?: string;
+  description?: string;
+  warningNote?: string;
+  confirmLabel?: string;
   isDeleting: boolean;
   onConfirm: () => void;
   onCancel: () => void;
@@ -12,9 +15,12 @@ interface DeleteConfirmModalProps {
 
 export function DeleteConfirmModal({
   isOpen,
-  title,
+  title = 'Confirm Deletion',
   itemName,
-  itemType,
+  itemType = 'item',
+  description,
+  warningNote = 'This action cannot be undone. All associated history will be removed.',
+  confirmLabel = 'Delete Permanently',
   isDeleting,
   onConfirm,
   onCancel,
@@ -22,8 +28,14 @@ export function DeleteConfirmModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in"
+      onClick={onCancel}
+    >
+      <div
+        className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden animate-in zoom-in-95"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
           <div className="flex items-center gap-2.5 text-rose-600 font-semibold text-base">
             <AlertTriangle className="w-5 h-5" />
@@ -41,14 +53,18 @@ export function DeleteConfirmModal({
 
         <div className="p-6 space-y-3">
           <p className="text-sm text-slate-600">
-            Are you sure you want to permanently delete this {itemType}?
+            {description || `Are you sure you want to permanently delete this ${itemType}?`}
           </p>
-          <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl">
-            <span className="font-semibold text-slate-900 text-sm">{itemName}</span>
-          </div>
-          <p className="text-xs text-slate-400">
-            This action cannot be undone. All associated history will be removed.
-          </p>
+          {itemName && (
+            <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl">
+              <span className="font-semibold text-slate-900 text-sm break-words">{itemName}</span>
+            </div>
+          )}
+          {warningNote && (
+            <p className="text-xs text-slate-400">
+              {warningNote}
+            </p>
+          )}
         </div>
 
         <div className="flex items-center justify-end gap-3 px-6 py-4 bg-slate-50 border-t border-slate-100">
@@ -68,7 +84,7 @@ export function DeleteConfirmModal({
             disabled={isDeleting}
             className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-rose-600 hover:bg-rose-700 rounded-xl transition shadow-xs cursor-pointer disabled:opacity-50"
           >
-            {isDeleting ? 'Deleting...' : 'Delete Permanently'}
+            {isDeleting ? 'Deleting...' : confirmLabel}
           </button>
         </div>
       </div>

@@ -33,6 +33,11 @@ import {
   TransactionCandidate,
   HouseholdHealthReport,
   HouseholdHealthAiExplanation,
+  GlobalSearchResponse,
+  HouseholdCalendarResponse,
+  HouseholdNotificationsResponse,
+  NotificationPreferences,
+  HouseholdNotification,
 } from '../types';
 
 
@@ -267,6 +272,22 @@ export const api = {
       headers,
     });
     return handleResponse<{ id: string; deleted: boolean }>(res);
+  },
+
+  // Global Household Discovery & Search
+  async searchHousehold(query: string, category = 'all', limit = 40): Promise<GlobalSearchResponse> {
+    const headers = await getAuthHeader();
+    const params = new URLSearchParams();
+    if (query) params.append('q', query);
+    if (category && category !== 'all') params.append('category', category);
+    if (limit) params.append('limit', String(limit));
+
+    const qs = params.toString() ? `?${params.toString()}` : '';
+    const res = await fetch(`/api/household/search${qs}`, {
+      method: 'GET',
+      headers,
+    });
+    return handleResponse<GlobalSearchResponse>(res);
   },
 
   // Household Intelligence & Investigator Endpoints
@@ -913,6 +934,106 @@ export const api = {
       headers,
     });
     return handleResponse<HouseholdHealthAiExplanation>(res);
+  },
+
+  // ==========================================
+  // Phase 6: Household Calendar & Notifications API
+  // ==========================================
+
+  async getCalendarEvents(params?: {
+    startDate?: string;
+    endDate?: string;
+    category?: string;
+    q?: string;
+  }): Promise<HouseholdCalendarResponse> {
+    const headers = await getAuthHeader();
+    const searchParams = new URLSearchParams();
+    if (params?.startDate) searchParams.append('startDate', params.startDate);
+    if (params?.endDate) searchParams.append('endDate', params.endDate);
+    if (params?.category) searchParams.append('category', params.category);
+    if (params?.q) searchParams.append('q', params.q);
+
+    const query = searchParams.toString() ? `?${searchParams.toString()}` : '';
+    const res = await fetch(`/api/household/calendar/events${query}`, {
+      method: 'GET',
+      headers,
+    });
+    return handleResponse<HouseholdCalendarResponse>(res);
+  },
+
+  async getNotifications(): Promise<HouseholdNotificationsResponse> {
+    const headers = await getAuthHeader();
+    const res = await fetch('/api/household/notifications', {
+      method: 'GET',
+      headers,
+    });
+    return handleResponse<HouseholdNotificationsResponse>(res);
+  },
+
+  async markNotificationRead(id: string): Promise<{ id: string; isRead: boolean }> {
+    const headers = await getAuthHeader();
+    const res = await fetch(`/api/household/notifications/${encodeURIComponent(id)}/read`, {
+      method: 'PUT',
+      headers,
+    });
+    return handleResponse<{ id: string; isRead: boolean }>(res);
+  },
+
+  async markNotificationUnread(id: string): Promise<{ id: string; isRead: boolean }> {
+    const headers = await getAuthHeader();
+    const res = await fetch(`/api/household/notifications/${encodeURIComponent(id)}/unread`, {
+      method: 'PUT',
+      headers,
+    });
+    return handleResponse<{ id: string; isRead: boolean }>(res);
+  },
+
+  async markAllNotificationsRead(): Promise<{ markedCount: number }> {
+    const headers = await getAuthHeader();
+    const res = await fetch('/api/household/notifications/read-all', {
+      method: 'PUT',
+      headers,
+    });
+    return handleResponse<{ markedCount: number }>(res);
+  },
+
+  async dismissNotification(id: string): Promise<{ id: string; dismissed: boolean }> {
+    const headers = await getAuthHeader();
+    const res = await fetch(`/api/household/notifications/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      headers,
+    });
+    return handleResponse<{ id: string; dismissed: boolean }>(res);
+  },
+
+  async getNotificationPreferences(): Promise<NotificationPreferences> {
+    const headers = await getAuthHeader();
+    const res = await fetch('/api/household/notifications/preferences', {
+      method: 'GET',
+      headers,
+    });
+    return handleResponse<NotificationPreferences>(res);
+  },
+
+  async updateNotificationPreferences(
+    prefs: Partial<NotificationPreferences>
+  ): Promise<NotificationPreferences> {
+    const headers = await getAuthHeader();
+    const res = await fetch('/api/household/notifications/preferences', {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify(prefs),
+    });
+    return handleResponse<NotificationPreferences>(res);
+  },
+
+  async testEmailDigest(): Promise<{ delivered: boolean; queuedCount: number; message: string }> {
+    const headers = await getAuthHeader();
+    const res = await fetch('/api/household/notifications/email-digest-test', {
+      method: 'POST',
+      headers,
+    });
+    return handleResponse<{ delivered: boolean; queuedCount: number; message: string }>(res);
   },
 };
 

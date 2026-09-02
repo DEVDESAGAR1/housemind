@@ -20,9 +20,11 @@ import {
   HouseholdDocument,
   HouseholdEntityType,
   HouseholdHealthReport,
+  HouseholdNotification,
 } from './types';
 import { Navbar, NavigationTab } from './components/Navbar';
 import { Dashboard } from './components/Dashboard';
+import { CalendarView } from './components/calendar/CalendarView';
 import { ExpensesView } from './components/ExpensesView';
 import { AssetsView } from './components/AssetsView';
 import { PropertiesView } from './components/PropertiesView';
@@ -36,6 +38,9 @@ import { ScenarioSimulatorView } from './components/scenarios/ScenarioSimulatorV
 import { CopilotView } from './components/CopilotView';
 import { InvestigationModal } from './components/InvestigationModal';
 import { ProfileModal } from './components/ProfileModal';
+import { SearchModal } from './components/SearchModal';
+import { NotificationCenterModal } from './components/notifications/NotificationCenterModal';
+import { NotificationPreferencesModal } from './components/notifications/NotificationPreferencesModal';
 import { LandingPage } from './components/LandingPage';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ToastContainer, ToastMessage } from './components/Toast';
@@ -81,6 +86,93 @@ export default function App() {
   const [extractorTargetType, setExtractorTargetType] = useState<HouseholdEntityType | undefined>(undefined);
   const [isGlobalUploadOpen, setIsGlobalUploadOpen] = useState(false);
   const [globalUploadHint, setGlobalUploadHint] = useState<HouseholdEntityType | undefined>(undefined);
+
+  // Global Search Modal
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+
+  // Phase 6: Notifications & Preferences State
+  const [notifications, setNotifications] = useState<HouseholdNotification[]>([]);
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState<number>(0);
+  const [isLoadingNotifications, setIsLoadingNotifications] = useState<boolean>(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState<boolean>(false);
+  const [isNotificationPreferencesOpen, setIsNotificationPreferencesOpen] = useState<boolean>(false);
+
+  const loadNotifications = useCallback(async () => {
+    if (!auth.currentUser) return;
+    setIsLoadingNotifications(true);
+    try {
+      const data = await api.getNotifications();
+      setNotifications(data.notifications || []);
+      setUnreadNotificationCount(data.unreadCount || 0);
+    } catch (err) {
+      console.error('Failed to load notifications:', err);
+    } finally {
+      setIsLoadingNotifications(false);
+    }
+  }, []);
+
+  const handleMarkNotificationRead = async (id: string) => {
+    try {
+      await api.markNotificationRead(id);
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, isRead: true, readAt: new Date().toISOString() } : n))
+      );
+      setUnreadNotificationCount((prev) => Math.max(0, prev - 1));
+    } catch (err) {
+      console.error('Failed to mark notification read:', err);
+    }
+  };
+
+  const handleMarkNotificationUnread = async (id: string) => {
+    try {
+      await api.markNotificationUnread(id);
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, isRead: false, readAt: undefined } : n))
+      );
+      setUnreadNotificationCount((prev) => prev + 1);
+    } catch (err) {
+      console.error('Failed to mark notification unread:', err);
+    }
+  };
+
+  const handleMarkAllNotificationsRead = async () => {
+    try {
+      await api.markAllNotificationsRead();
+      setNotifications((prev) =>
+        prev.map((n) => ({ ...n, isRead: true, readAt: new Date().toISOString() }))
+      );
+      setUnreadNotificationCount(0);
+      addToast('success', 'Notifications Updated', 'All active alerts marked as read.');
+    } catch (err) {
+      console.error('Failed to mark all notifications read:', err);
+    }
+  };
+
+  const handleDismissNotification = async (id: string) => {
+    try {
+      await api.dismissNotification(id);
+      const target = notifications.find((n) => n.id === id);
+      setNotifications((prev) => prev.filter((n) => n.id !== id));
+      if (target && !target.isRead) {
+        setUnreadNotificationCount((prev) => Math.max(0, prev - 1));
+      }
+      addToast('info', 'Notification Dismissed');
+    } catch (err) {
+      console.error('Failed to dismiss notification:', err);
+    }
+  };
+
+  // Global Keyboard Shortcut: Cmd+K / Ctrl+K
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsSearchOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Toasts
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -150,6 +242,7 @@ export default function App() {
       if (docsData) setDocuments(docsData);
       if (healthData) setHealthReport(healthData);
 
+      loadNotifications();
     } catch (err: any) {
       console.error('Failed to load complete household data:', err);
       addToast('error', 'Sync Warning', 'Could not load all household systems from cloud.');
@@ -396,6 +489,9 @@ export default function App() {
         onSignOut={handleSignOut}
         isSeeding={isSeeding}
         onOpenGlobalUpload={() => handleOpenGlobalUpload()}
+        onOpenSearch={() => setIsSearchOpen(true)}
+        unreadNotificationCount={unreadNotificationCount}
+        onOpenNotifications={() => setIsNotificationsOpen(true)}
       />
 
       {/* Main App Container */}
@@ -440,6 +536,17 @@ export default function App() {
               creditCards={creditCards}
               documents={documents}
               commandCenterSummary={commandCenterSummary}
+            />
+          )}
+
+          {activeTab === 'calendar' && (
+            <CalendarView
+              onNavigateTab={(tab, subTab, entityId) => {
+                setActiveTab(tab as NavigationTab);
+              }}
+              onOpenNotifications={() => setIsNotificationsOpen(true)}
+              onOpenNotificationPreferences={() => setIsNotificationPreferencesOpen(true)}
+              addToast={addToast}
             />
           )}
 
@@ -603,6 +710,48 @@ export default function App() {
         profile={profile}
         onClose={() => setIsProfileModalOpen(false)}
         onSave={handleSaveProfile}
+      />
+
+      {/* Global Search Modal */}
+      <SearchModal
+        isOpen={isSearchOpen}
+        onClose={() => setIsSearchOpen(false)}
+        onNavigate={(tab, targetId, targetSubTab) => {
+          setIsSearchOpen(false);
+          setActiveTab(tab);
+        }}
+      />
+
+      {/* Notification Center Modal */}
+      <NotificationCenterModal
+        isOpen={isNotificationsOpen}
+        onClose={() => setIsNotificationsOpen(false)}
+        notifications={notifications}
+        unreadCount={unreadNotificationCount}
+        isLoading={isLoadingNotifications}
+        onMarkRead={handleMarkNotificationRead}
+        onMarkUnread={handleMarkNotificationUnread}
+        onMarkAllRead={handleMarkAllNotificationsRead}
+        onDismiss={handleDismissNotification}
+        onRefresh={loadNotifications}
+        onOpenPreferences={() => {
+          setIsNotificationsOpen(false);
+          setIsNotificationPreferencesOpen(true);
+        }}
+        onNavigateToSource={(tab, subTab, sourceId) => {
+          setIsNotificationsOpen(false);
+          setActiveTab(tab as NavigationTab);
+        }}
+      />
+
+      {/* Notification Preferences Modal */}
+      <NotificationPreferencesModal
+        isOpen={isNotificationPreferencesOpen}
+        onClose={() => setIsNotificationPreferencesOpen(false)}
+        onSaved={() => {
+          loadNotifications();
+        }}
+        addToast={addToast}
       />
 
       {/* Toast Notifications */}

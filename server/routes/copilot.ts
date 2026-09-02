@@ -142,4 +142,61 @@ router.get('/conversations/:id', async (req: AuthenticatedRequest, res: Response
   }
 });
 
+/**
+ * DELETE /api/copilot/conversations/:id
+ * Deletes a conversation for the authenticated user
+ */
+router.delete('/conversations/:id', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+
+  const paramResult = idParamSchema.safeParse(req.params);
+  if (!paramResult.success) {
+    res.status(400).json({
+      success: false,
+      error: {
+        code: 'INVALID_ID',
+        message: 'Invalid conversation ID parameter.',
+      },
+    });
+    return;
+  }
+
+  const { id } = paramResult.data;
+
+  try {
+    const deleted = await DatabaseService.deleteConversation(userId, id);
+    if (!deleted) {
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Conversation not found or already removed.',
+        },
+      });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        id,
+        deleted: true,
+      },
+    });
+  } catch (error: unknown) {
+    console.error('[COPILOT] Failed to delete conversation:', {
+      id,
+      userId,
+      message: error instanceof Error ? error.message : String(error),
+    });
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'Failed to delete conversation.',
+      },
+    });
+  }
+});
+
 export default router;

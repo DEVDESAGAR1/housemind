@@ -27,6 +27,7 @@ import {
   UtilityType,
   LoanType,
 } from '../types';
+import { DeleteConfirmModal } from './DeleteConfirmModal';
 
 interface UtilitiesDebtsViewProps {
   utilities: UtilityAccount[];
@@ -50,6 +51,14 @@ export function UtilitiesDebtsView({
   currency = 'USD',
 }: UtilitiesDebtsViewProps) {
   const [activeTab, setActiveTab] = useState<'utilities' | 'loans' | 'cards'>('utilities');
+
+  // Deletion Confirmation States
+  const [deletingUtility, setDeletingUtility] = useState<UtilityAccount | null>(null);
+  const [isDeletingUtility, setIsDeletingUtility] = useState(false);
+  const [deletingLoan, setDeletingLoan] = useState<HouseholdLoan | null>(null);
+  const [isDeletingLoan, setIsDeletingLoan] = useState(false);
+  const [deletingCard, setDeletingCard] = useState<CreditCardAccount | null>(null);
+  const [isDeletingCard, setIsDeletingCard] = useState(false);
 
   // Utility Account Modal
   const [isUtilityModalOpen, setIsUtilityModalOpen] = useState(false);
@@ -171,14 +180,22 @@ export function UtilitiesDebtsView({
     }
   };
 
-  const handleDeleteUtility = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this utility account?')) return;
+  const handlePromptDeleteUtility = (u: UtilityAccount) => {
+    setDeletingUtility(u);
+  };
+
+  const handleConfirmDeleteUtility = async () => {
+    if (!deletingUtility) return;
     try {
-      await api.deleteUtility(id);
-      addToast('info', 'Utility Removed', 'Utility account deleted.');
+      setIsDeletingUtility(true);
+      await api.deleteUtility(deletingUtility.id);
+      addToast('info', 'Utility Removed', `Deleted utility "${deletingUtility.name}".`);
+      setDeletingUtility(null);
       await onRefresh();
     } catch (err: any) {
       addToast('error', 'Delete Failed', err.message);
+    } finally {
+      setIsDeletingUtility(false);
     }
   };
 
@@ -254,14 +271,22 @@ export function UtilitiesDebtsView({
     }
   };
 
-  const handleDeleteLoan = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this loan record?')) return;
+  const handlePromptDeleteLoan = (l: HouseholdLoan) => {
+    setDeletingLoan(l);
+  };
+
+  const handleConfirmDeleteLoan = async () => {
+    if (!deletingLoan) return;
     try {
-      await api.deleteLoan(id);
-      addToast('info', 'Loan Removed', 'Loan record deleted.');
+      setIsDeletingLoan(true);
+      await api.deleteLoan(deletingLoan.id);
+      addToast('info', 'Loan Removed', `Deleted loan record "${deletingLoan.name}".`);
+      setDeletingLoan(null);
       await onRefresh();
     } catch (err: any) {
       addToast('error', 'Delete Failed', err.message);
+    } finally {
+      setIsDeletingLoan(false);
     }
   };
 
@@ -317,14 +342,22 @@ export function UtilitiesDebtsView({
     }
   };
 
-  const handleDeleteCard = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this credit card account?')) return;
+  const handlePromptDeleteCard = (c: CreditCardAccount) => {
+    setDeletingCard(c);
+  };
+
+  const handleConfirmDeleteCard = async () => {
+    if (!deletingCard) return;
     try {
-      await api.deleteCreditCard(id);
-      addToast('info', 'Card Removed', 'Credit card account deleted.');
+      setIsDeletingCard(true);
+      await api.deleteCreditCard(deletingCard.id);
+      addToast('info', 'Card Removed', `Deleted credit card "${deletingCard.cardName}".`);
+      setDeletingCard(null);
       await onRefresh();
     } catch (err: any) {
       addToast('error', 'Delete Failed', err.message);
+    } finally {
+      setIsDeletingCard(false);
     }
   };
 
@@ -543,8 +576,9 @@ export function UtilitiesDebtsView({
                           <Edit2 className="w-3.5 h-3.5" />
                         </button>
                         <button
-                          onClick={() => handleDeleteUtility(util.id)}
+                          onClick={() => handlePromptDeleteUtility(util)}
                           className="p-1 text-slate-400 hover:text-rose-600 rounded-md transition cursor-pointer"
+                          title="Delete Utility"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -644,8 +678,9 @@ export function UtilitiesDebtsView({
                             <Edit2 className="w-3.5 h-3.5" />
                           </button>
                           <button
-                            onClick={() => handleDeleteLoan(loan.id)}
+                            onClick={() => handlePromptDeleteLoan(loan)}
                             className="p-1 text-slate-400 hover:text-rose-600 rounded-md transition cursor-pointer"
+                            title="Delete Loan"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -746,8 +781,9 @@ export function UtilitiesDebtsView({
                             <Edit2 className="w-3.5 h-3.5" />
                           </button>
                           <button
-                            onClick={() => handleDeleteCard(card.id)}
+                            onClick={() => handlePromptDeleteCard(card)}
                             className="p-1 text-slate-400 hover:text-rose-600 rounded-md transition cursor-pointer"
+                            title="Delete Credit Card"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -1208,6 +1244,47 @@ export function UtilitiesDebtsView({
           </div>
         </div>
       )}
+      {/* Delete Utility Confirmation Modal */}
+      <DeleteConfirmModal
+        isOpen={Boolean(deletingUtility)}
+        title="Delete Utility Account"
+        itemName={deletingUtility?.name || 'Utility'}
+        itemType="utility account"
+        description="Are you sure you want to permanently delete this utility account?"
+        warningNote="Historical bill records and provider information will be removed."
+        confirmLabel="Delete Utility"
+        isDeleting={isDeletingUtility}
+        onConfirm={handleConfirmDeleteUtility}
+        onCancel={() => setDeletingUtility(null)}
+      />
+
+      {/* Delete Loan Confirmation Modal */}
+      <DeleteConfirmModal
+        isOpen={Boolean(deletingLoan)}
+        title="Delete Loan Account"
+        itemName={deletingLoan?.name || 'Loan'}
+        itemType="loan record"
+        description="Are you sure you want to permanently delete this loan liability?"
+        warningNote="Principal balance tracking and interest rate calculations will be removed from your debt dashboard."
+        confirmLabel="Delete Loan"
+        isDeleting={isDeletingLoan}
+        onConfirm={handleConfirmDeleteLoan}
+        onCancel={() => setDeletingLoan(null)}
+      />
+
+      {/* Delete Credit Card Confirmation Modal */}
+      <DeleteConfirmModal
+        isOpen={Boolean(deletingCard)}
+        title="Delete Credit Card"
+        itemName={deletingCard?.cardName || 'Credit Card'}
+        itemType="credit card"
+        description="Are you sure you want to permanently delete this credit card account?"
+        warningNote="Revolving balance tracking and minimum due alerts for this card will be removed."
+        confirmLabel="Delete Card"
+        isDeleting={isDeletingCard}
+        onConfirm={handleConfirmDeleteCard}
+        onCancel={() => setDeletingCard(null)}
+      />
     </div>
   );
 }

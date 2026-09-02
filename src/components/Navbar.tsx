@@ -2,6 +2,7 @@ import React from 'react';
 import {
   Building2,
   LayoutDashboard,
+  Calendar,
   Home,
   Wrench,
   ShieldCheck,
@@ -15,12 +16,15 @@ import {
   Settings,
   ReceiptText,
   Upload,
+  Search,
 } from 'lucide-react';
 import { User } from 'firebase/auth';
 import { HouseholdProfile } from '../types';
+import { NotificationBell } from './notifications/NotificationBell';
 
 export type NavigationTab =
   | 'dashboard'
+  | 'calendar'
   | 'properties'
   | 'assets'
   | 'maintenance'
@@ -41,6 +45,9 @@ interface NavbarProps {
   onSignOut: () => void;
   isSeeding: boolean;
   onOpenGlobalUpload?: () => void;
+  onOpenSearch?: () => void;
+  unreadNotificationCount?: number;
+  onOpenNotifications?: () => void;
 }
 
 export function Navbar({
@@ -53,6 +60,9 @@ export function Navbar({
   onSignOut,
   isSeeding,
   onOpenGlobalUpload,
+  onOpenSearch,
+  unreadNotificationCount,
+  onOpenNotifications,
 }: NavbarProps) {
   const homeDisplayName = profile?.homeName || 'My Household';
 
@@ -87,6 +97,19 @@ export function Navbar({
               >
                 <LayoutDashboard className="w-4 h-4" />
                 <span>Command Center</span>
+              </button>
+
+              <button
+                id="nav-calendar-tab"
+                onClick={() => setActiveTab('calendar')}
+                className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition cursor-pointer ${
+                  activeTab === 'calendar'
+                    ? 'bg-indigo-50 text-indigo-700'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                }`}
+              >
+                <Calendar className="w-4 h-4 text-indigo-600" />
+                <span>Calendar</span>
               </button>
 
               <button
@@ -197,6 +220,30 @@ export function Navbar({
 
           {/* Right Actions */}
           <div className="flex items-center gap-2 sm:gap-3">
+            {/* Global Search Button */}
+            {onOpenSearch && (
+              <button
+                id="global-search-btn"
+                onClick={onOpenSearch}
+                title="Global Search: Search all household properties, assets, tasks, finances, and docs (⌘K / Ctrl+K)"
+                className="inline-flex items-center gap-2 px-2.5 sm:px-3 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200/80 border border-slate-200/80 rounded-xl transition cursor-pointer"
+              >
+                <Search className="w-3.5 h-3.5 text-slate-500" />
+                <span className="hidden md:inline text-slate-600">Search household...</span>
+                <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.5 text-[10px] font-mono text-slate-500 bg-white border border-slate-200 rounded shadow-2xs">
+                  ⌘K
+                </kbd>
+              </button>
+            )}
+
+            {/* Notification Bell */}
+            {onOpenNotifications && (
+              <NotificationBell
+                unreadCount={unreadNotificationCount || 0}
+                onClick={onOpenNotifications}
+              />
+            )}
+
             {/* Global Document Intake Upload Button */}
             {onOpenGlobalUpload && (
               <button
@@ -271,6 +318,15 @@ export function Navbar({
           >
             <LayoutDashboard className="w-3.5 h-3.5" />
             <span>Command Center</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('calendar')}
+            className={`inline-flex items-center gap-1 py-1.5 px-3 rounded-xl text-xs font-medium whitespace-nowrap ${
+              activeTab === 'calendar' ? 'bg-indigo-50 text-indigo-700 font-bold' : 'text-slate-600'
+            }`}
+          >
+            <Calendar className="w-3.5 h-3.5 text-indigo-600" />
+            <span>Calendar</span>
           </button>
           <button
             onClick={() => setActiveTab('properties')}

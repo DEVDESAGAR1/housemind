@@ -1193,5 +1193,164 @@ export interface HouseholdHealthReport {
   };
 }
 
+export interface GlobalSearchResultItem {
+  id: string;
+  entityType:
+    | 'property'
+    | 'room'
+    | 'asset'
+    | 'maintenance'
+    | 'warranty'
+    | 'utility'
+    | 'expense'
+    | 'transaction'
+    | 'loan'
+    | 'credit_card'
+    | 'document';
+  category: 'properties' | 'assets' | 'maintenance' | 'warranties' | 'utilities' | 'finances' | 'documents';
+  title: string;
+  subtitle: string;
+  badge: string;
+  targetTab: string;
+  targetSubTab?: string;
+  targetId: string;
+  score: number;
+  metadata?: Record<string, string | number | boolean | undefined>;
+}
 
+export interface GlobalSearchCategory {
+  key: string;
+  label: string;
+  count: number;
+}
 
+export interface GlobalSearchResponse {
+  query: string;
+  totalMatches: number;
+  categoryFilter?: string;
+  categories: GlobalSearchCategory[];
+  groupedResults: Record<string, GlobalSearchResultItem[]>;
+  results: GlobalSearchResultItem[];
+}
+
+// ==========================================
+// Phase 6: Household Calendar & Notifications
+// ==========================================
+
+export type HouseholdCalendarEventType =
+  | 'utility'
+  | 'expense'
+  | 'loan'
+  | 'credit_card'
+  | 'maintenance'
+  | 'warranty'
+  | 'document';
+
+export type HouseholdCalendarEventStatus =
+  | 'overdue'
+  | 'due_today'
+  | 'due_soon'
+  | 'upcoming'
+  | 'completed'
+  | 'paid'
+  | 'normal';
+
+export type HouseholdCalendarEventPriority = 'critical' | 'important' | 'upcoming' | 'normal';
+
+export interface HouseholdCalendarEvent {
+  id: string;
+  eventType: HouseholdCalendarEventType;
+  title: string;
+  subtitle: string;
+  date: string; // YYYY-MM-DD
+  endDate?: string;
+  amount?: number;
+  currency?: string;
+  status: HouseholdCalendarEventStatus;
+  priority: HouseholdCalendarEventPriority;
+  sourceEntityType: string;
+  sourceId: string;
+  targetTab: string;
+  targetSubTab?: string;
+  isCompleted: boolean;
+  isPaid: boolean;
+  isAutoPay?: boolean;
+  daysDiff: number;
+  formattedDate: string;
+  metadata?: Record<string, any>;
+}
+
+export interface HouseholdCalendarResponse {
+  startDate: string;
+  endDate: string;
+  totalCount: number;
+  events: HouseholdCalendarEvent[];
+  countsByCategory: Record<string, number>;
+  countsByStatus: {
+    overdue: number;
+    due_today: number;
+    due_soon: number;
+    upcoming: number;
+    completed: number;
+  };
+}
+
+export type HouseholdNotificationCategory =
+  | 'bills_payments'
+  | 'maintenance'
+  | 'warranties'
+  | 'documents'
+  | 'alerts';
+
+export type HouseholdNotificationPriority = 'critical' | 'important' | 'upcoming';
+
+export interface HouseholdNotification {
+  id: string;
+  userId: string;
+  category: HouseholdNotificationCategory;
+  priority: HouseholdNotificationPriority;
+  title: string;
+  message: string;
+  dueDate?: string;
+  sourceEntityType: string;
+  sourceId: string;
+  targetTab: string;
+  targetSubTab?: string;
+  actionLabel?: string;
+  isRead: boolean;
+  readAt?: string;
+  isDismissed?: boolean;
+  createdAt: string;
+  metadata?: Record<string, any>;
+}
+
+export interface NotificationPreferences {
+  userId: string;
+  categories: {
+    billsPayments: boolean;
+    maintenance: boolean;
+    warranties: boolean;
+    documents: boolean;
+    householdAlerts: boolean;
+  };
+  advanceNoticeDays: {
+    bills: number;
+    maintenance: number;
+    warranties: number;
+    documents: number;
+  };
+  channels: {
+    inApp: boolean;
+    email: boolean;
+  };
+  emailAddress?: string;
+  updatedAt: string;
+}
+
+export interface HouseholdNotificationsResponse {
+  totalCount: number;
+  unreadCount: number;
+  notifications: HouseholdNotification[];
+  categoriesCount: Record<string, number>;
+  preferences: NotificationPreferences;
+}

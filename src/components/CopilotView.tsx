@@ -27,6 +27,7 @@ import {
   ChatMessage,
   ConversationSummary,
 } from '../types';
+import { DeleteConfirmModal } from './DeleteConfirmModal';
 
 interface CopilotViewProps {
   profile: HouseholdProfile | null;
@@ -81,6 +82,8 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
   const [isLoadingConvs, setIsLoadingConvs] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [chatError, setChatError] = useState<string | null>(null);
+  const [deletingConv, setDeletingConv] = useState<ConversationSummary | null>(null);
+  const [isDeletingConv, setIsDeletingConv] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -138,19 +141,27 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
     }
   };
 
-  // Delete a conversation
-  const handleDeleteConversation = async (e: React.MouseEvent, convId: string) => {
+  // Prompt delete confirmation modal
+  const handleDeleteConversation = (e: React.MouseEvent, conv: ConversationSummary) => {
     e.stopPropagation();
-    if (!window.confirm('Delete this conversation history?')) return;
+    setDeletingConv(conv);
+  };
 
+  const handleConfirmDeleteConversation = async () => {
+    if (!deletingConv) return;
     try {
-      await api.deleteCopilotConversation(convId);
-      setConversations((prev) => prev.filter((c) => c.id !== convId));
-      if (activeConversationId === convId) {
+      setIsDeletingConv(true);
+      await api.deleteCopilotConversation(deletingConv.id);
+      setConversations((prev) => prev.filter((c) => c.id !== deletingConv.id));
+      if (activeConversationId === deletingConv.id) {
         handleNewConversation();
       }
+      setDeletingConv(null);
     } catch (err: any) {
       console.error('Failed to delete conversation:', err);
+      setChatError('Failed to delete conversation.');
+    } finally {
+      setIsDeletingConv(false);
     }
   };
 
@@ -348,7 +359,7 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
                         </p>
                       </div>
                       <button
-                        onClick={(e) => handleDeleteConversation(e, conv.id)}
+                        onClick={(e) => handleDeleteConversation(e, conv)}
                         className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-rose-600 rounded transition"
                         title="Delete conversation"
                       >
@@ -585,6 +596,20 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Confirmation Modal for Chat Deletion */}
+      <DeleteConfirmModal
+        isOpen={Boolean(deletingConv)}
+        title="Delete Conversation"
+        itemName={deletingConv?.title || 'Conversation'}
+        itemType="conversation"
+        description="Are you sure you want to permanently delete this chat history?"
+        warningNote="This conversation will be permanently removed from your household history."
+        confirmLabel="Delete Conversation"
+        isDeleting={isDeletingConv}
+        onConfirm={handleConfirmDeleteConversation}
+        onCancel={() => setDeletingConv(null)}
+      />
     </div>
   );
 };

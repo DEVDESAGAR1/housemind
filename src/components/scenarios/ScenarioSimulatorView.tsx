@@ -28,6 +28,7 @@ import { ScenarioCard } from './ScenarioCard';
 import { ScenarioBuilderModal } from './ScenarioBuilderModal';
 import { ScenarioDetailModal } from './ScenarioDetailModal';
 import { ScenarioComparisonModal } from './ScenarioComparisonModal';
+import { DeleteConfirmModal } from '../DeleteConfirmModal';
 
 interface ScenarioSimulatorViewProps {
   currency: string;
@@ -50,6 +51,10 @@ export function ScenarioSimulatorView({ currency, assets = [] }: ScenarioSimulat
   const [editingScenario, setEditingScenario] = useState<Scenario | null>(null);
   const [selectedScenarioForDetail, setSelectedScenarioForDetail] = useState<Scenario | null>(null);
   const [isComparisonOpen, setIsComparisonOpen] = useState(false);
+
+  // Deletion Confirmation State
+  const [deletingScenario, setDeletingScenario] = useState<Scenario | null>(null);
+  const [isDeletingScenario, setIsDeletingScenario] = useState(false);
 
   // Multi-select for side-by-side compare
   const [compareIds, setCompareIds] = useState<Set<string>>(new Set());
@@ -110,24 +115,31 @@ export function ScenarioSimulatorView({ currency, assets = [] }: ScenarioSimulat
     }
   };
 
-  // Delete scenario
-  const handleDelete = async (scenario: Scenario) => {
-    if (!window.confirm(`Are you sure you want to delete "${scenario.title}"?`)) {
-      return;
-    }
+  // Delete scenario prompt
+  const handleDelete = (scenario: Scenario) => {
+    setDeletingScenario(scenario);
+  };
+
+  const handleConfirmDeleteScenario = async () => {
+    if (!deletingScenario) return;
     try {
-      await api.deleteScenario(scenario.id);
-      setScenarios((prev) => prev.filter((s) => s.id !== scenario.id));
+      setIsDeletingScenario(true);
+      await api.deleteScenario(deletingScenario.id);
+      setScenarios((prev) => prev.filter((s) => s.id !== deletingScenario.id));
       setCompareIds((prev) => {
         const next = new Set(prev);
-        next.delete(scenario.id);
+        next.delete(deletingScenario.id);
         return next;
       });
-      if (selectedScenarioForDetail?.id === scenario.id) {
+      if (selectedScenarioForDetail?.id === deletingScenario.id) {
         setSelectedScenarioForDetail(null);
       }
+      setDeletingScenario(null);
     } catch (err: any) {
-      alert(`Deletion failed: ${err.message}`);
+      console.error('[SIMULATOR] Deletion failed:', err);
+      setErrorMsg(err.message || 'Failed to delete scenario');
+    } finally {
+      setIsDeletingScenario(false);
     }
   };
 
@@ -441,6 +453,20 @@ export function ScenarioSimulatorView({ currency, assets = [] }: ScenarioSimulat
           }}
         />
       )}
+
+      {/* Delete Scenario Confirmation Modal */}
+      <DeleteConfirmModal
+        isOpen={Boolean(deletingScenario)}
+        title="Delete Scenario"
+        itemName={deletingScenario?.title || 'What-If Scenario'}
+        itemType="what-if simulation"
+        description="Are you sure you want to permanently delete this financial simulation scenario?"
+        warningNote="All customized parameters, milestone calculations, and projections for this scenario will be discarded."
+        confirmLabel="Delete Scenario"
+        isDeleting={isDeletingScenario}
+        onConfirm={handleConfirmDeleteScenario}
+        onCancel={() => setDeletingScenario(null)}
+      />
     </div>
   );
 }

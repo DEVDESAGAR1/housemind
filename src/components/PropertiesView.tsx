@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { api } from '../lib/api';
 import { Property, Room, HomeAsset, PropertyType, RoomType } from '../types';
+import { DeleteConfirmModal } from './DeleteConfirmModal';
 
 interface PropertiesViewProps {
   properties: Property[];
@@ -49,6 +50,12 @@ export function PropertiesView({
 
   const [isRoomModalOpen, setIsRoomModalOpen] = useState(false);
   const [editingRoom, setEditingRoom] = useState<Room | null>(null);
+
+  // Deletion confirmation states
+  const [deletingProperty, setDeletingProperty] = useState<Property | null>(null);
+  const [isDeletingProperty, setIsDeletingProperty] = useState(false);
+  const [deletingRoom, setDeletingRoom] = useState<Room | null>(null);
+  const [isDeletingRoom, setIsDeletingRoom] = useState(false);
 
   // Form states
   const [propertyForm, setPropertyForm] = useState({
@@ -148,18 +155,26 @@ export function PropertiesView({
     }
   };
 
-  const handleDeleteProperty = async (propId: string) => {
-    if (!confirm('Are you sure you want to delete this property and its associated layout data?')) return;
+  const handlePromptDeleteProperty = (prop: Property) => {
+    setDeletingProperty(prop);
+  };
+
+  const handleConfirmDeleteProperty = async () => {
+    if (!deletingProperty) return;
     try {
-      await api.deleteProperty(propId);
-      if (selectedPropertyId === propId) {
-        const remaining = properties.filter((p) => p.id !== propId);
+      setIsDeletingProperty(true);
+      await api.deleteProperty(deletingProperty.id);
+      if (selectedPropertyId === deletingProperty.id) {
+        const remaining = properties.filter((p) => p.id !== deletingProperty.id);
         setSelectedPropertyId(remaining.length > 0 ? remaining[0].id : '');
       }
-      addToast('info', 'Property Removed', 'Property deleted.');
+      addToast('info', 'Property Removed', `Deleted "${deletingProperty.name}".`);
+      setDeletingProperty(null);
       await onRefresh();
     } catch (err: any) {
       addToast('error', 'Delete Failed', err.message);
+    } finally {
+      setIsDeletingProperty(false);
     }
   };
 
@@ -216,14 +231,22 @@ export function PropertiesView({
     }
   };
 
-  const handleDeleteRoom = async (roomId: string) => {
-    if (!confirm('Are you sure you want to delete this room?')) return;
+  const handlePromptDeleteRoom = (room: Room) => {
+    setDeletingRoom(room);
+  };
+
+  const handleConfirmDeleteRoom = async () => {
+    if (!deletingRoom) return;
     try {
-      await api.deleteRoom(roomId);
-      addToast('info', 'Room Removed', 'Room deleted.');
+      setIsDeletingRoom(true);
+      await api.deleteRoom(deletingRoom.id);
+      addToast('info', 'Room Removed', `Deleted "${deletingRoom.name}".`);
+      setDeletingRoom(null);
       await onRefresh();
     } catch (err: any) {
       addToast('error', 'Delete Failed', err.message);
+    } finally {
+      setIsDeletingRoom(false);
     }
   };
 
@@ -343,7 +366,7 @@ export function PropertiesView({
                   <span>Edit Property</span>
                 </button>
                 <button
-                  onClick={() => handleDeleteProperty(selectedProperty.id)}
+                  onClick={() => handlePromptDeleteProperty(selectedProperty)}
                   className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
                   title="Delete Property"
                 >
@@ -450,7 +473,7 @@ export function PropertiesView({
                             <Edit2 className="w-3.5 h-3.5" />
                           </button>
                           <button
-                            onClick={() => handleDeleteRoom(room.id)}
+                            onClick={() => handlePromptDeleteRoom(room)}
                             className="p-1 text-slate-400 hover:text-rose-600 rounded-md transition cursor-pointer"
                             title="Delete Room"
                           >
@@ -748,6 +771,33 @@ export function PropertiesView({
           </div>
         </div>
       )}
+      {/* Delete Property Confirmation Modal */}
+      <DeleteConfirmModal
+        isOpen={Boolean(deletingProperty)}
+        title="Delete Property"
+        itemName={deletingProperty?.name || 'Property'}
+        itemType="property"
+        description="Are you sure you want to permanently delete this property and its associated layout data?"
+        warningNote="All assigned rooms and layout mapping for this property will be removed."
+        confirmLabel="Delete Property"
+        isDeleting={isDeletingProperty}
+        onConfirm={handleConfirmDeleteProperty}
+        onCancel={() => setDeletingProperty(null)}
+      />
+
+      {/* Delete Room Confirmation Modal */}
+      <DeleteConfirmModal
+        isOpen={Boolean(deletingRoom)}
+        title="Delete Room"
+        itemName={deletingRoom?.name || 'Room'}
+        itemType="room"
+        description="Are you sure you want to permanently delete this room?"
+        warningNote="Any assets assigned to this room will have their room assignment cleared."
+        confirmLabel="Delete Room"
+        isDeleting={isDeletingRoom}
+        onConfirm={handleConfirmDeleteRoom}
+        onCancel={() => setDeletingRoom(null)}
+      />
     </div>
   );
 }

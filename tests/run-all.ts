@@ -19,6 +19,7 @@ import { runPhase10HomeSystemsTests } from './backend/phase10_home_systems.test'
 import { runRegressionPhase1Tests } from './backend/regression_phase1.test';
 import { runHealthIntelligenceTests } from './backend/health_intelligence.test';
 import { runCommandCenterTests } from './backend/command_center.test';
+import { runGlobalSearchTests } from './backend/global_search.test';
 import { runE2EJourneysTests } from './integration/e2e-journeys.test';
 
 async function main() {
@@ -95,6 +96,9 @@ async function main() {
 
     console.log('\n--- 21. Phase 4: Household Command Center Intelligence ---');
     await runCommandCenterTests(runner);
+
+    console.log('\n--- 22. Phase 5: Global Search & Household-Wide Discovery ---');
+    await runGlobalSearchTests(runner);
   } finally {
 
     await stopTestServer();
