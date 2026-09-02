@@ -1035,6 +1035,15 @@ export const api = {
     });
     return handleResponse<{ delivered: boolean; queuedCount: number; message: string }>(res);
   },
+
+  async exportHouseholdData(): Promise<any> {
+    const headers = await getAuthHeader();
+    const res = await fetch('/api/household/export', {
+      method: 'GET',
+      headers,
+    });
+    return handleResponse<any>(res);
+  },
 };
 
 

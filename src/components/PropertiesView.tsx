@@ -19,6 +19,7 @@ import {
 import { api } from '../lib/api';
 import { Property, Room, HomeAsset, PropertyType, RoomType } from '../types';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
+import { ContextualHelp } from './help/ContextualHelp';
 
 interface PropertiesViewProps {
   properties: Property[];
@@ -281,6 +282,16 @@ export function PropertiesView({
           <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
             <Home className="w-6 h-6 text-indigo-600" />
             <span>Properties & Rooms Management</span>
+            <ContextualHelp
+              id="help-properties"
+              title="Properties & Space Architecture"
+              summary="Define primary residences, secondary units, and room allocations."
+              bullets={[
+                'Map rooms (Kitchen, Utility, Garage) to accurately localize appliances.',
+                'Record physical specifications (square footage, year built, archetypes).',
+                'Rooms serve as physical anchor points for maintenance routing.',
+              ]}
+            />
           </h1>
           <p className="text-xs text-slate-500 mt-1">
             Organize household structures, multi-unit properties, floorplans, and assigned equipment zones.

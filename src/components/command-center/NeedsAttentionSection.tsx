@@ -81,8 +81,16 @@ export function NeedsAttentionSection({
     const items: AttentionItem[] = [];
     const seenIds = new Set<string>();
 
+    const safeExpenses = expenses || [];
+    const safeCreditCards = creditCards || [];
+    const safeMaintenances = maintenances || [];
+    const safeAssets = assets || [];
+    const safeWarranties = warranties || [];
+    const safeInsights = insights || [];
+    const safeHealthSignals = healthSignals || [];
+
     // 1. Expenses / Bills
-    for (const exp of expenses) {
+    for (const exp of safeExpenses) {
       if (exp.paymentStatus !== 'paid' && exp.dueDate) {
         const ds = getDateStatus(exp.dueDate);
         if (ds.status === 'overdue') {
@@ -139,7 +147,7 @@ export function NeedsAttentionSection({
     }
 
     // 2. Credit Cards
-    for (const cc of creditCards) {
+    for (const cc of safeCreditCards) {
       if (cc.outstandingAmount > 0 && cc.paymentDueDate) {
         const ds = getDateStatus(cc.paymentDueDate);
         if (ds.status === 'overdue') {
@@ -194,7 +202,7 @@ export function NeedsAttentionSection({
     }
 
     // 3. Maintenance Tasks
-    for (const m of maintenances) {
+    for (const m of safeMaintenances) {
       if (m.status !== 'completed') {
         const targetDate = m.nextServiceDate || m.serviceDate;
         if (targetDate) {
@@ -251,7 +259,7 @@ export function NeedsAttentionSection({
     }
 
     // 4. Assets Needing Attention
-    for (const ast of assets) {
+    for (const ast of safeAssets) {
       if (ast.currentStatus === 'critical') {
         items.push({
           id: `att_ast_crit_${ast.id}`,
@@ -278,7 +286,7 @@ export function NeedsAttentionSection({
     }
 
     // 5. Warranties Expiring Soon (< 30 days)
-    for (const w of warranties) {
+    for (const w of safeWarranties) {
       if (w.endDate) {
         const ds = getDateStatus(w.endDate);
         if (ds.status === 'overdue' && ds.daysDiff >= -14) {
@@ -315,7 +323,7 @@ export function NeedsAttentionSection({
     }
 
     // 6. Deterministic Active Insights (High / Critical)
-    for (const ins of insights) {
+    for (const ins of safeInsights) {
       if (ins.status === 'new' || ins.status === 'viewed') {
         if (ins.severity === 'critical' || ins.severity === 'high') {
           // Avoid duplicate entry if covered already
@@ -335,7 +343,7 @@ export function NeedsAttentionSection({
     }
 
     // 7. Health Signals (Critical warnings from Phase 3)
-    for (const sig of healthSignals) {
+    for (const sig of safeHealthSignals) {
       if (sig.status === 'critical') {
         items.push({
           id: `att_sig_${sig.id}`,

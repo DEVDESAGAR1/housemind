@@ -29,6 +29,7 @@ import {
   RecurrenceFrequency,
 } from '../types';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
+import { ContextualHelp } from './help/ContextualHelp';
 
 interface MaintenanceWarrantiesViewProps {
   tasks: MaintenanceTask[];
@@ -302,6 +303,16 @@ export function MaintenanceWarrantiesView({
           <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
             <Wrench className="w-6 h-6 text-indigo-600" />
             <span>Preventative Maintenance & Warranty Vault</span>
+            <ContextualHelp
+              id="help-maintenance"
+              title="Maintenance & Warranties"
+              summary="Automate routine appliance upkeep and monitor equipment warranty expirations."
+              bullets={[
+                'Recurrence cycles automatically roll forward on task completion.',
+                'Warranties link directly to registered home appliances and serial numbers.',
+                'Configurable advance alerts notify you before coverage lapses.',
+              ]}
+            />
           </h1>
           <p className="text-xs text-slate-500 mt-1">
             Automate routine appliance upkeep, track service providers, and protect high-value equipment warranties.

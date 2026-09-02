@@ -28,6 +28,7 @@ import {
   LoanType,
 } from '../types';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
+import { ContextualHelp } from './help/ContextualHelp';
 
 interface UtilitiesDebtsViewProps {
   utilities: UtilityAccount[];
@@ -382,6 +383,16 @@ export function UtilitiesDebtsView({
           <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
             <Zap className="w-6 h-6 text-amber-500" />
             <span>Household Utilities, Mortgages & Debt</span>
+            <ContextualHelp
+              id="help-utilities-debts"
+              title="Utilities & Debt Management"
+              summary="Track utility providers, mortgage loan balances, and credit card commitments."
+              bullets={[
+                'Track AutoPay status and payment due dates for each account.',
+                'Record mortgage principal balances, interest rates, and monthly EMIs.',
+                'Mark obligations as paid to keep financial health scores up to date.',
+              ]}
+            />
           </h1>
           <p className="text-xs text-slate-500 mt-1">
             Track utility bills, amortized household loans, credit card balances, and scheduled payment due dates.

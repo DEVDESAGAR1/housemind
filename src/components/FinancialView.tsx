@@ -31,6 +31,7 @@ import {
   HouseholdProfile,
 } from '../types';
 import { formatCurrency, getCurrencySymbol } from '../config/locationCurrencyConfig';
+import { ContextualHelp } from './help/ContextualHelp';
 
 interface FinancialViewProps {
   token: string;
@@ -273,9 +274,21 @@ export const FinancialView: React.FC<FinancialViewProps> = ({
       {/* Header & Quick Action */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-            Financial & Cash Flow Intelligence
-          </h1>
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+              Financial & Cash Flow Intelligence
+            </h1>
+            <ContextualHelp
+              id="help-finances"
+              title="Household Financial Ledger"
+              summary="Itemized income, recurring expenses, utility bills, and loan repayments."
+              bullets={[
+                'Deterministic accounting without estimated guesses.',
+                'One-click CSV Financial Ledger export available in Profile Settings.',
+                'Disclaimer: HouseMind is an organizational tool, not a regulated financial adviser.',
+              ]}
+            />
+          </div>
           <p className="text-sm text-slate-500 mt-1">
             Verified financial transactions, bank statement reconciliations, and cash flow ledger.
           </p>

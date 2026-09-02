@@ -2,6 +2,7 @@ import { useState, useMemo, FormEvent } from 'react';
 import { Plus, Search, Filter, Trash2, Edit3, Wrench, CheckCircle2, AlertTriangle, ShieldAlert, X, Calendar, DollarSign } from 'lucide-react';
 import { HomeAsset, AssetCategory, AssetStatus } from '../types';
 import { formatCurrency, getCurrencySymbol } from '../config/locationCurrencyConfig';
+import { ContextualHelp } from './help/ContextualHelp';
 
 interface AssetsViewProps {
   assets: HomeAsset[];
@@ -156,7 +157,19 @@ export function AssetsView({
       {/* Header & Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Home Assets & Appliances</h1>
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Home Assets & Appliances</h1>
+            <ContextualHelp
+              id="help-assets"
+              title="Home Assets & Equipment"
+              summary="Register mechanical equipment, appliances, electronics, and structural assets."
+              bullets={[
+                'Track installation age and calculated replacement lifespan years.',
+                'Record serial numbers, user manuals, and purchase receipts.',
+                'Asset health status directly impacts your overall Household Health score.',
+              ]}
+            />
+          </div>
           <p className="text-xs text-slate-500 mt-0.5">Track warranties, operational health, and maintenance lifespans.</p>
         </div>
 

@@ -42,6 +42,7 @@ import { SearchModal } from './components/SearchModal';
 import { NotificationCenterModal } from './components/notifications/NotificationCenterModal';
 import { NotificationPreferencesModal } from './components/notifications/NotificationPreferencesModal';
 import { LandingPage } from './components/LandingPage';
+import { HelpCenterView } from './components/help/HelpCenterView';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ToastContainer, ToastMessage } from './components/Toast';
 
@@ -492,6 +493,7 @@ export default function App() {
         onOpenSearch={() => setIsSearchOpen(true)}
         unreadNotificationCount={unreadNotificationCount}
         onOpenNotifications={() => setIsNotificationsOpen(true)}
+        onOpenNotificationPreferences={() => setIsNotificationPreferencesOpen(true)}
       />
 
       {/* Main App Container */}
@@ -645,6 +647,17 @@ export default function App() {
               onNavigateTab={(tab) => setActiveTab(tab as NavigationTab)}
             />
           )}
+
+          {activeTab === 'help' && (
+            <HelpCenterView
+              onNavigateTab={(tab) => setActiveTab(tab as NavigationTab)}
+              onOpenGlobalUpload={() => handleOpenGlobalUpload()}
+              onOpenProfile={() => setIsProfileModalOpen(true)}
+              onOpenSearch={() => setIsSearchOpen(true)}
+              onOpenNotifications={() => setIsNotificationsOpen(true)}
+              onOpenNotificationPreferences={() => setIsNotificationPreferencesOpen(true)}
+            />
+          )}
         </ErrorBoundary>
       </main>
 
@@ -710,6 +723,8 @@ export default function App() {
         profile={profile}
         onClose={() => setIsProfileModalOpen(false)}
         onSave={handleSaveProfile}
+        onDataChanged={loadHouseholdData}
+        addToast={addToast}
       />
 
       {/* Global Search Modal */}

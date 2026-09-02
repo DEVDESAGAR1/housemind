@@ -45,15 +45,15 @@ interface DomainSnapshotsSectionProps {
 }
 
 export function DomainSnapshotsSection({
-  properties,
-  rooms,
-  assets,
-  maintenances,
-  warranties,
-  expenses,
-  utilities,
-  loans,
-  creditCards,
+  properties = [],
+  rooms = [],
+  assets = [],
+  maintenances = [],
+  warranties = [],
+  expenses = [],
+  utilities = [],
+  loans = [],
+  creditCards = [],
   homeHealth,
   assetHealth,
   financeHealth,
@@ -61,48 +61,58 @@ export function DomainSnapshotsSection({
   locale,
   onNavigate,
 }: DomainSnapshotsSectionProps) {
+  const safeProps = properties || [];
+  const safeRooms = rooms || [];
+  const safeAssets = assets || [];
+  const safeMaintenances = maintenances || [];
+  const safeWarranties = warranties || [];
+  const safeExpenses = expenses || [];
+  const safeUtilities = utilities || [];
+  const safeLoans = loans || [];
+  const safeCreditCards = creditCards || [];
+
   // 1. Home calculations
-  const totalSquareFeet = properties.reduce((sum, p) => sum + (p.squareFootage || 0), 0);
-  const totalPropertyValuation = properties.reduce(
+  const totalSquareFeet = safeProps.reduce((sum, p) => sum + (p.squareFootage || 0), 0);
+  const totalPropertyValuation = safeProps.reduce(
     (sum, p) => sum + (p.currentEstimatedValue || p.purchaseValue || 0),
     0
   );
 
   // 2. Asset calculations
-  const operationalAssets = assets.filter((a) => a.currentStatus === 'operational').length;
-  const operationalRate = assets.length > 0 ? Math.round((operationalAssets / assets.length) * 100) : 100;
-  const attentionAssetsCount = assets.filter(
+  const operationalAssets = safeAssets.filter((a) => a.currentStatus === 'operational').length;
+  const operationalRate = safeAssets.length > 0 ? Math.round((operationalAssets / safeAssets.length) * 100) : 100;
+  const attentionAssetsCount = safeAssets.filter(
     (a) => a.currentStatus === 'needs_maintenance' || a.currentStatus === 'critical'
   ).length;
-  const totalAssetValuation = assets.reduce(
+  const totalAssetValuation = safeAssets.reduce(
     (sum, a) => sum + (a.currentEstimatedValue || a.purchaseCost || 0),
     0
   );
-  const expiringWarrantiesCount = warranties.filter((w) => {
+  const expiringWarrantiesCount = safeWarranties.filter((w) => {
     if (!w.endDate) return false;
     const ds = getDateStatus(w.endDate);
     return ds.daysDiff >= 0 && ds.daysDiff <= 30;
   }).length;
 
   // 3. Finance calculations
-  const monthlyExpensesSum = expenses.reduce((sum, exp) => {
+  const monthlyExpensesSum = safeExpenses.reduce((sum, exp) => {
     if (exp.frequency === 'monthly') return sum + exp.amount;
     if (exp.frequency === 'quarterly') return sum + exp.amount / 3;
     if (exp.frequency === 'annual') return sum + exp.amount / 12;
     return sum;
   }, 0);
-  const monthlyLoanEmiSum = loans
+  const monthlyLoanEmiSum = safeLoans
     .filter((l) => l.status === 'active')
     .reduce((sum, l) => sum + (l.emiAmount || 0), 0);
   const totalMonthlyCommitment = monthlyExpensesSum + monthlyLoanEmiSum;
 
-  const totalOutstandingLoans = loans.reduce((sum, l) => sum + (l.outstandingAmount ?? (l as any).currentBalance ?? 0), 0);
-  const totalCreditCardDebt = creditCards.reduce((sum, cc) => sum + (cc.outstandingAmount ?? (cc as any).currentBalance ?? 0), 0);
-  const totalCreditLimit = creditCards.reduce((sum, cc) => sum + (cc.creditLimit || 0), 0);
+  const totalOutstandingLoans = safeLoans.reduce((sum, l) => sum + (l.outstandingAmount ?? (l as any).currentBalance ?? 0), 0);
+  const totalCreditCardDebt = safeCreditCards.reduce((sum, cc) => sum + (cc.outstandingAmount ?? (cc as any).currentBalance ?? 0), 0);
+  const totalCreditLimit = safeCreditCards.reduce((sum, cc) => sum + (cc.creditLimit || 0), 0);
   const overallCreditUtilPercent = totalCreditLimit > 0 ? Math.round((totalCreditCardDebt / totalCreditLimit) * 100) : 0;
 
   // 4. Maintenance calculations
-  const scheduledTasks = maintenances.filter((m) => m.status !== 'completed');
+  const scheduledTasks = safeMaintenances.filter((m) => m.status !== 'completed');
   const overdueTasks = scheduledTasks.filter((m) => {
     const d = m.nextServiceDate || m.serviceDate;
     if (!d) return false;
@@ -114,7 +124,7 @@ export function DomainSnapshotsSection({
     const ds = getDateStatus(d);
     return ds.daysDiff >= 0 && ds.daysDiff <= 30;
   });
-  const completedTasks = maintenances.filter((m) => m.status === 'completed');
+  const completedTasks = safeMaintenances.filter((m) => m.status === 'completed');
   const upcomingMaintenanceBudget = upcomingTasks.reduce((sum, t) => sum + (t.cost || 0), 0);
 
   return (

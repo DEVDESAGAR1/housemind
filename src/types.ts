@@ -9,16 +9,21 @@ export interface HouseholdProfile {
   displayName: string;
   homeName: string;
   homeType: 'single_family' | 'apartment' | 'condo' | 'townhouse' | 'multi_family';
+  streetAddress?: string;
+  city?: string;
+  region?: string;
+  postalCode?: string;
+  country?: string;
   yearBuilt?: number;
   squareFootage?: number;
-  country?: string;
-  region?: string;
-  city?: string;
+  occupantsCount?: number;
+  primaryHeating?: string;
+  primaryCooling?: string;
+  notes?: string;
   timezone?: string;
   locale?: string;
   currency: string;
   currencyOverride?: boolean;
-  primaryHeating?: string;
   createdAt: string;
   updatedAt: string;
 }

@@ -20,6 +20,7 @@ import {
   HouseholdHealthCategory,
   HouseholdHealthSignal,
 } from '../types';
+import { ContextualHelp } from './help/ContextualHelp';
 
 interface HouseholdHealthWidgetProps {
   healthReport: HouseholdHealthReport | null;
@@ -147,6 +148,18 @@ export function HouseholdHealthWidget({
               <Activity className="w-4 h-4" />
             </div>
             <h2 className="text-lg font-bold text-slate-900 tracking-tight">Household Health Intelligence</h2>
+            <ContextualHelp
+              id="help-health-score"
+              title="Household Health Score (0–100)"
+              summary="A deterministic composite evaluated across 4 equal pillars (Home & Spaces, Assets, Financials, Documents)."
+              bullets={[
+                'Scored from 0 to 100 with zero random AI fluctuations.',
+                'Rewards active warranties, routine upkeep, and low debt ratios.',
+                'Deducts for overdue maintenance and expiring equipment.',
+              ]}
+              tip="Upload receipts or register rooms to increase your Completeness Index."
+              onNavigateToHelp={() => onNavigate('help')}
+            />
             <span
               className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${theme.badge}`}
             >

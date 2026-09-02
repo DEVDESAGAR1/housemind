@@ -65,8 +65,15 @@ export function UpcomingScheduleSection({
   const upcomingList = useMemo(() => {
     const list: UpcomingObligation[] = [];
 
+    const safeExpenses = expenses || [];
+    const safeMaintenances = maintenances || [];
+    const safeUtilities = utilities || [];
+    const safeLoans = loans || [];
+    const safeCreditCards = creditCards || [];
+    const safeWarranties = warranties || [];
+
     // 1. Expenses / Recurring Bills
-    for (const exp of expenses) {
+    for (const exp of safeExpenses) {
       if (exp.dueDate) {
         const ds = getDateStatus(exp.dueDate);
         if (ds.daysDiff >= 0 && ds.daysDiff <= 30) {
@@ -89,7 +96,7 @@ export function UpcomingScheduleSection({
     }
 
     // 2. Maintenances
-    for (const m of maintenances) {
+    for (const m of safeMaintenances) {
       if (m.status !== 'completed') {
         const targetDate = m.nextServiceDate || m.serviceDate;
         if (targetDate) {
@@ -114,7 +121,7 @@ export function UpcomingScheduleSection({
     }
 
     // 3. Utilities
-    for (const u of utilities) {
+    for (const u of safeUtilities) {
       const targetDate = u.nextDueDate;
       if (targetDate) {
         const ds = getDateStatus(targetDate);
@@ -138,7 +145,7 @@ export function UpcomingScheduleSection({
     }
 
     // 4. Loans / EMIs
-    for (const l of loans) {
+    for (const l of safeLoans) {
       if (l.status === 'active') {
         const now = new Date();
         const dueDay = l.paymentDueDay || 1;
@@ -167,7 +174,7 @@ export function UpcomingScheduleSection({
     }
 
     // 5. Credit Cards
-    for (const cc of creditCards) {
+    for (const cc of safeCreditCards) {
       if (cc.paymentDueDate && cc.outstandingAmount > 0) {
         const ds = getDateStatus(cc.paymentDueDate);
         if (ds.daysDiff >= 0 && ds.daysDiff <= 30) {
@@ -190,7 +197,7 @@ export function UpcomingScheduleSection({
     }
 
     // 6. Warranties Expiring
-    for (const w of warranties) {
+    for (const w of safeWarranties) {
       if (w.endDate) {
         const ds = getDateStatus(w.endDate);
         if (ds.daysDiff >= 0 && ds.daysDiff <= 30) {

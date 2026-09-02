@@ -2067,6 +2067,82 @@ router.post('/reset-data', async (req: AuthenticatedRequest, res: Response): Pro
   }
 });
 
+/**
+ * GET /api/household/export
+ * Generates an authoritative full JSON vault export of all household data
+ */
+router.get('/export', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  try {
+    const profile = await DatabaseService.getProfile(userId, req.userToken);
+    const properties = await DatabaseService.listProperties(userId);
+    const rooms = await DatabaseService.listRooms(userId);
+    const assets = await DatabaseService.listAssets(userId);
+    const maintenances = await DatabaseService.listMaintenances(userId);
+    const warranties = await DatabaseService.listWarranties(userId);
+    const utilities = await DatabaseService.listUtilities(userId);
+    const loans = await DatabaseService.listLoans(userId);
+    const creditCards = await DatabaseService.listCreditCards(userId);
+    const expenses = await DatabaseService.listExpenses(userId, req.userToken);
+    const transactions = await DatabaseService.listTransactions(userId);
+    const documents = await DatabaseService.listDocuments(userId);
+    const scenarios = await DatabaseService.listScenarios(userId);
+    const insights = await DatabaseService.listInsights(userId);
+
+    const exportData = {
+      version: '1.0',
+      exportedAt: new Date().toISOString(),
+      userId,
+      householdProfile: profile,
+      dataInventory: {
+        propertiesCount: properties.length,
+        roomsCount: rooms.length,
+        assetsCount: assets.length,
+        maintenancesCount: maintenances.length,
+        warrantiesCount: warranties.length,
+        utilitiesCount: utilities.length,
+        loansCount: loans.length,
+        creditCardsCount: creditCards.length,
+        expensesCount: expenses.length,
+        transactionsCount: transactions.length,
+        documentsCount: documents.length,
+        scenariosCount: scenarios.length,
+        insightsCount: insights.length,
+      },
+      properties,
+      rooms,
+      assets,
+      maintenances,
+      warranties,
+      utilities,
+      loans,
+      creditCards,
+      expenses,
+      transactions,
+      documents,
+      scenarios,
+      insights,
+    };
+
+    res.status(200).json({
+      success: true,
+      data: exportData,
+    });
+  } catch (error: unknown) {
+    console.error('[EXPORT] Failed to generate household export:', {
+      userId,
+      message: error instanceof Error ? error.message : String(error),
+    });
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'EXPORT_FAILED',
+        message: 'Failed to generate household data export package.',
+      },
+    });
+  }
+});
+
 // ==========================================
 // Phase 3: Household Health Intelligence Routes
 // ==========================================

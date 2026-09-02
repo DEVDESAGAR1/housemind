@@ -18,6 +18,7 @@ import {
 import { HouseholdDocument, DocumentType, HouseholdProfile, HouseholdEntityType } from '../types';
 import { DocumentReviewModal } from './DocumentReviewModal';
 import { DocumentEntityExtractionModal } from './DocumentEntityExtractionModal';
+import { ContextualHelp } from './help/ContextualHelp';
 
 interface DocumentManagerViewProps {
   token: string;
@@ -157,9 +158,21 @@ export const DocumentManagerView: React.FC<DocumentManagerViewProps> = ({
     <div className="space-y-8 pb-12">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-          Financial & Household Document Intelligence
-        </h1>
+        <div className="flex items-center gap-2.5">
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+            Financial & Household Document Intelligence
+          </h1>
+          <ContextualHelp
+            id="help-documents"
+            title="AI Document Intake & Verification"
+            summary="Extract appliances, warranties, utilities, and expenses from PDFs and receipts."
+            bullets={[
+              '6-Step Verification: Upload → Extract → Review → Edit → Confirm → Save.',
+              '100% Human-in-the-Loop review before records are saved.',
+              'Original files securely cataloged in your private household vault.',
+            ]}
+          />
+        </div>
         <p className="text-sm text-slate-500 mt-1">
           Import and analyze PDF bank statements, CSV ledgers, salary slips, and utility bills with AI-assisted candidate review.
         </p>

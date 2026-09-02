@@ -29,6 +29,7 @@ import {
   HouseholdCalendarEventStatus,
 } from '../../types';
 import { api } from '../../lib/api';
+import { ContextualHelp } from '../help/ContextualHelp';
 
 interface CalendarViewProps {
   onNavigateTab: (tab: string, subTab?: string, entityId?: string) => void;
@@ -330,6 +331,17 @@ export function CalendarView({
           <div>
             <div className="flex items-center gap-2.5">
               <h1 className="text-2xl font-bold text-slate-900">Household Calendar</h1>
+              <ContextualHelp
+                id="help-calendar"
+                title="Unified Calendar Schedule"
+                summary="Automatically synchronizes recurring bills, scheduled maintenance, debt payments, and warranty expirations."
+                bullets={[
+                  'Calculates exact dates dynamically from your household records.',
+                  'Monthly obligations badge sums up total scheduled cash outflows.',
+                  'Export full schedule to iCalendar (.ics) format at any time.',
+                ]}
+                onNavigateToHelp={() => onNavigateTab('help')}
+              />
               <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-100">
                 {calendarData?.totalCount || 0} Events
               </span>

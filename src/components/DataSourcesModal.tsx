@@ -174,7 +174,7 @@ export function DataSourcesModal({ isOpen, onClose, onDataChanged }: DataSources
                     </span>
                   </div>
                   <p className="text-xs text-emerald-700 mt-1 leading-relaxed">
-                    All household records are strictly scoped to your authenticated user account (UID: {privacySummary?.userId.slice(0, 8) || dataSourcesSummary?.userId.slice(0, 8)}...). Cross-tenant access is blocked at both Firestore rules and backend API layers.
+                    All household records are strictly scoped to your authenticated user account (UID: {privacySummary?.userId ? privacySummary.userId.slice(0, 8) : (dataSourcesSummary?.userId ? dataSourcesSummary.userId.slice(0, 8) : 'account')}...). Cross-tenant access is blocked at both Firestore rules and backend API layers.
                   </p>
                 </div>
               </div>
@@ -201,10 +201,10 @@ export function DataSourcesModal({ isOpen, onClose, onDataChanged }: DataSources
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl text-center">
                     <div className="text-xl font-bold text-slate-900">
-                      {privacySummary?.recordsByType.transactions.total ?? dataSourcesSummary?.dataCounts.confirmedTransactions ?? 0}
+                      {privacySummary?.recordsByType?.transactions?.total ?? dataSourcesSummary?.dataCounts?.confirmedTransactions ?? 0}
                     </div>
                     <div className="text-[11px] text-slate-500 font-medium mt-0.5">Transactions</div>
-                    {privacySummary && (
+                    {privacySummary?.recordsByType?.transactions && (
                       <div className="text-[10px] text-slate-400 mt-0.5">
                         {privacySummary.recordsByType.transactions.user} user / {privacySummary.recordsByType.transactions.demo} demo
                       </div>
@@ -212,10 +212,10 @@ export function DataSourcesModal({ isOpen, onClose, onDataChanged }: DataSources
                   </div>
                   <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl text-center">
                     <div className="text-xl font-bold text-slate-900">
-                      {privacySummary?.recordsByType.documents.total ?? dataSourcesSummary?.dataCounts.importedDocuments ?? 0}
+                      {privacySummary?.recordsByType?.documents?.total ?? dataSourcesSummary?.dataCounts?.importedDocuments ?? 0}
                     </div>
                     <div className="text-[11px] text-slate-500 font-medium mt-0.5">Documents</div>
-                    {privacySummary && (
+                    {privacySummary?.recordsByType?.documents && (
                       <div className="text-[10px] text-slate-400 mt-0.5">
                         {privacySummary.recordsByType.documents.user} user / {privacySummary.recordsByType.documents.demo} demo
                       </div>
@@ -223,10 +223,10 @@ export function DataSourcesModal({ isOpen, onClose, onDataChanged }: DataSources
                   </div>
                   <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl text-center">
                     <div className="text-xl font-bold text-slate-900">
-                      {privacySummary?.recordsByType.expenses.total ?? dataSourcesSummary?.dataCounts.recurringExpenses ?? 0}
+                      {privacySummary?.recordsByType?.expenses?.total ?? dataSourcesSummary?.dataCounts?.recurringExpenses ?? 0}
                     </div>
                     <div className="text-[11px] text-slate-500 font-medium mt-0.5">Tracked Bills</div>
-                    {privacySummary && (
+                    {privacySummary?.recordsByType?.expenses && (
                       <div className="text-[10px] text-slate-400 mt-0.5">
                         {privacySummary.recordsByType.expenses.user} user / {privacySummary.recordsByType.expenses.demo} demo
                       </div>
@@ -234,10 +234,10 @@ export function DataSourcesModal({ isOpen, onClose, onDataChanged }: DataSources
                   </div>
                   <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl text-center">
                     <div className="text-xl font-bold text-slate-900">
-                      {privacySummary?.recordsByType.assets.total ?? dataSourcesSummary?.dataCounts.registeredAssets ?? 0}
+                      {privacySummary?.recordsByType?.assets?.total ?? dataSourcesSummary?.dataCounts?.registeredAssets ?? 0}
                     </div>
                     <div className="text-[11px] text-slate-500 font-medium mt-0.5">Home Assets</div>
-                    {privacySummary && (
+                    {privacySummary?.recordsByType?.assets && (
                       <div className="text-[10px] text-slate-400 mt-0.5">
                         {privacySummary.recordsByType.assets.user} user / {privacySummary.recordsByType.assets.demo} demo
                       </div>
