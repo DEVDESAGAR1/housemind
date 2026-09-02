@@ -33,7 +33,7 @@ interface CopilotViewProps {
   profile: HouseholdProfile | null;
   expenses: HouseholdExpense[];
   assets: HomeAsset[];
-  onNavigateTab: (tab: 'dashboard' | 'expenses' | 'assets') => void;
+  onNavigateTab: (tab: string) => void;
 }
 
 const STARTER_PROMPTS = [

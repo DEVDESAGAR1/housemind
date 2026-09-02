@@ -179,7 +179,7 @@ export function HelpCenterView({
           </div>
 
           {/* Quick Filter Tags */}
-          <div className="flex items-center gap-2 pt-1 overflow-x-auto no-scrollbar text-xs">
+          <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
             <span className="text-indigo-200/80 font-medium shrink-0">Popular:</span>
             {['Upload & Scan', 'Health Score', 'Ledger Export', 'Calendar', 'Lead Times', 'DELETE MY DATA'].map((tag) => (
               <button
@@ -348,9 +348,9 @@ export function HelpCenterView({
       </div>
 
       {/* Main Content Layout: Categories & Search Results vs Article Detail */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 min-w-0">
         {/* Left Column: Category Pills & Article List (4 cols) */}
-        <div className="lg:col-span-4 space-y-4">
+        <div className="lg:col-span-4 space-y-4 min-w-0">
           {/* Category Filter Horizontal Scroll / Tabs */}
           <div className="bg-white border border-slate-200 rounded-2xl p-3 shadow-xs">
             <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-2 py-1">

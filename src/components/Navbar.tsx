@@ -86,7 +86,12 @@ export function Navbar({
   const homeDisplayName = profile?.homeName || 'My Household';
 
   // Check if active tab is in the secondary "Tools" group
-  const isToolActive = activeTab === 'simulator' || activeTab === 'expenses' || activeTab === 'help';
+  const isToolActive =
+    activeTab === 'simulator' ||
+    activeTab === 'expenses' ||
+    activeTab === 'help' ||
+    activeTab === 'maintenance' ||
+    activeTab === 'utilities';
 
   // Handle outside clicks for dropdowns
   useEffect(() => {
@@ -125,34 +130,34 @@ export function Navbar({
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-2xs">
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 gap-2">
+        <div className="flex items-center justify-between h-16 gap-2 min-w-0">
           {/* Left: Brand Identity */}
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-2.5 shrink-0 min-w-0">
             <button
               onClick={() => handleTabSelect('dashboard')}
-              className="flex items-center gap-2.5 text-left group cursor-pointer focus:outline-hidden"
+              className="flex items-center gap-2 text-left group cursor-pointer focus:outline-hidden min-w-0"
               title="Return to Command Center"
             >
-              <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-xs shadow-indigo-600/20 group-hover:scale-105 transition-transform">
+              <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-xs shadow-indigo-600/20 group-hover:scale-105 transition-transform shrink-0">
                 <Building2 className="w-5 h-5" />
               </div>
-              <div className="hidden sm:block">
-                <span className="font-bold text-slate-900 tracking-tight text-base block group-hover:text-indigo-600 transition-colors">
+              <div className="min-w-0 hidden sm:block">
+                <span className="font-bold text-slate-900 tracking-tight text-sm md:text-base block group-hover:text-indigo-600 transition-colors leading-tight">
                   HouseMind
                 </span>
-                <span className="block text-[11px] text-slate-500 font-medium truncate max-w-[130px] lg:max-w-[160px]">
+                <span className="block text-[11px] text-slate-500 font-medium truncate max-w-[100px] md:max-w-[130px] lg:max-w-[150px] leading-tight">
                   {homeDisplayName}
                 </span>
               </div>
             </button>
           </div>
 
-          {/* Middle: Desktop Primary Navigation (Large Viewports >= 1200px) */}
-          <nav className="hidden xl:flex items-center gap-1">
+          {/* Middle: Desktop Primary Navigation (Large Viewports >= 1280px) */}
+          <nav className="hidden xl:flex items-center gap-1 min-w-0">
             <button
               id="nav-dashboard-tab"
               onClick={() => handleTabSelect('dashboard')}
-              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer shrink-0 ${
                 activeTab === 'dashboard'
                   ? 'bg-indigo-50 text-indigo-700'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
@@ -165,7 +170,7 @@ export function Navbar({
             <button
               id="nav-calendar-tab"
               onClick={() => handleTabSelect('calendar')}
-              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer shrink-0 ${
                 activeTab === 'calendar'
                   ? 'bg-indigo-50 text-indigo-700'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
@@ -178,7 +183,7 @@ export function Navbar({
             <button
               id="nav-properties-tab"
               onClick={() => handleTabSelect('properties')}
-              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer shrink-0 ${
                 activeTab === 'properties'
                   ? 'bg-indigo-50 text-indigo-700'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
@@ -191,7 +196,7 @@ export function Navbar({
             <button
               id="nav-assets-tab"
               onClick={() => handleTabSelect('assets')}
-              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer shrink-0 ${
                 activeTab === 'assets'
                   ? 'bg-indigo-50 text-indigo-700'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
@@ -201,10 +206,11 @@ export function Navbar({
               <span>Assets</span>
             </button>
 
+            {/* Maintenance: Visible on 2xl (>=1440px), grouped under Tools on xl (1280-1439px) */}
             <button
               id="nav-maintenance-tab"
               onClick={() => handleTabSelect('maintenance')}
-              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
+              className={`hidden 2xl:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer shrink-0 ${
                 activeTab === 'maintenance'
                   ? 'bg-indigo-50 text-indigo-700'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
@@ -214,10 +220,11 @@ export function Navbar({
               <span>Maintenance</span>
             </button>
 
+            {/* Utilities: Visible on 2xl (>=1440px), grouped under Tools on xl (1280-1439px) */}
             <button
               id="nav-utilities-tab"
               onClick={() => handleTabSelect('utilities')}
-              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
+              className={`hidden 2xl:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer shrink-0 ${
                 activeTab === 'utilities'
                   ? 'bg-indigo-50 text-indigo-700'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
@@ -230,7 +237,7 @@ export function Navbar({
             <button
               id="nav-finances-tab"
               onClick={() => handleTabSelect('finances')}
-              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer shrink-0 ${
                 activeTab === 'finances'
                   ? 'bg-indigo-50 text-indigo-700'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
@@ -243,7 +250,7 @@ export function Navbar({
             <button
               id="nav-documents-tab"
               onClick={() => handleTabSelect('documents')}
-              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer shrink-0 ${
                 activeTab === 'documents'
                   ? 'bg-indigo-50 text-indigo-700'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
@@ -260,7 +267,7 @@ export function Navbar({
                 type="button"
                 onClick={() => setIsToolsOpen(!isToolsOpen)}
                 aria-expanded={isToolsOpen}
-                className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
+                className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer shrink-0 ${
                   isToolActive
                     ? 'bg-indigo-50 text-indigo-700 font-bold border border-indigo-200/60'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
@@ -271,8 +278,51 @@ export function Navbar({
               </button>
 
               {isToolsOpen && (
-                <div className="absolute left-0 mt-2 w-56 bg-white border border-slate-200 rounded-2xl shadow-xl py-2 z-50 animate-in fade-in zoom-in-95 duration-100 text-left">
-                  <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                <div className="absolute left-0 mt-2 w-60 bg-white border border-slate-200 rounded-2xl shadow-xl py-2 z-50 animate-in fade-in zoom-in-95 duration-100 text-left max-w-[calc(100vw-2rem)]">
+                  {/* Items shown in Tools dropdown when screen is xl (1280-1439px) */}
+                  <div className="2xl:hidden">
+                    <div className="px-3 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                      Operations
+                    </div>
+
+                    <button
+                      id="tool-maintenance-btn"
+                      type="button"
+                      onClick={() => handleTabSelect('maintenance')}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium transition cursor-pointer ${
+                        activeTab === 'maintenance'
+                          ? 'bg-indigo-50 text-indigo-700 font-bold'
+                          : 'text-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                      <div className="text-left">
+                        <div className="leading-tight">Maintenance & Tasks</div>
+                        <div className="text-[10px] text-slate-400 font-normal">Schedules & warranties</div>
+                      </div>
+                    </button>
+
+                    <button
+                      id="tool-utilities-btn"
+                      type="button"
+                      onClick={() => handleTabSelect('utilities')}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium transition cursor-pointer ${
+                        activeTab === 'utilities'
+                          ? 'bg-indigo-50 text-indigo-700 font-bold'
+                          : 'text-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      <Zap className="w-4 h-4 text-amber-500" />
+                      <div className="text-left">
+                        <div className="leading-tight">Utilities & Debts</div>
+                        <div className="text-[10px] text-slate-400 font-normal">Bills, loans & credit cards</div>
+                      </div>
+                    </button>
+
+                    <div className="my-1.5 border-t border-slate-100" />
+                  </div>
+
+                  <div className="px-3 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                     Advanced Modules
                   </div>
 
@@ -340,7 +390,7 @@ export function Navbar({
             <button
               id="nav-copilot-tab"
               onClick={() => handleTabSelect('copilot')}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ml-1 ${
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer shrink-0 ml-0.5 ${
                 activeTab === 'copilot'
                   ? 'bg-indigo-600 text-white shadow-xs'
                   : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200/60'
@@ -383,20 +433,20 @@ export function Navbar({
                 id="global-upload-btn"
                 onClick={onOpenGlobalUpload}
                 title="Global Document Intake: Scan invoices, warranties, manuals"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-xs shadow-indigo-600/20 transition cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-xs shadow-indigo-600/20 transition cursor-pointer"
               >
                 <Upload className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Upload</span>
               </button>
             )}
 
-            {/* Help Center Quick Access Icon */}
+            {/* Help Center Quick Access Icon (hidden on xl when space is tight, accessible via Tools / Menu) */}
             <button
               id="quick-help-btn"
               type="button"
               onClick={() => handleTabSelect('help')}
               title="Open HouseMind Help Center & Knowledge Base"
-              className={`p-2 rounded-xl transition cursor-pointer ${
+              className={`hidden 2xl:flex p-2 rounded-xl transition cursor-pointer ${
                 activeTab === 'help'
                   ? 'bg-indigo-100 text-indigo-700'
                   : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'
@@ -431,7 +481,7 @@ export function Navbar({
               </button>
 
               {isProfileMenuOpen && (
-                <div className="absolute right-0 mt-2 w-64 bg-white border border-slate-200 rounded-2xl shadow-xl py-2 z-50 animate-in fade-in zoom-in-95 duration-100 text-left">
+                <div className="absolute right-0 mt-2 w-64 bg-white border border-slate-200 rounded-2xl shadow-xl py-2 z-50 animate-in fade-in zoom-in-95 duration-100 text-left max-w-[calc(100vw-2rem)]">
                   {/* User Profile Header */}
                   <div className="px-4 py-2 border-b border-slate-100">
                     <p className="text-xs font-bold text-slate-900 truncate">
