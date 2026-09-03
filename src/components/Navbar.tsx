@@ -129,7 +129,7 @@ export function Navbar({
 
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-2xs">
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+      <div className="w-full max-w-[1720px] mx-auto px-3 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 gap-2 min-w-0">
           {/* Left: Brand Identity */}
           <div className="flex items-center gap-2.5 shrink-0 min-w-0">
@@ -153,18 +153,19 @@ export function Navbar({
           </div>
 
           {/* Middle: Desktop Primary Navigation (Large Viewports >= 1280px) */}
-          <nav className="hidden xl:flex items-center gap-1 min-w-0">
+          <nav className="hidden xl:flex items-center gap-0.5 2xl:gap-1 min-w-0">
             <button
               id="nav-dashboard-tab"
               onClick={() => handleTabSelect('dashboard')}
-              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer shrink-0 ${
+              className={`inline-flex items-center gap-1.5 px-2 2xl:px-2.5 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer shrink-0 ${
                 activeTab === 'dashboard'
                   ? 'bg-indigo-50 text-indigo-700'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
               }`}
             >
               <LayoutDashboard className="w-3.5 h-3.5" />
-              <span>Command Center</span>
+              <span className="hidden 2xl:inline">Command Center</span>
+              <span className="2xl:hidden">Overview</span>
             </button>
 
             <button
@@ -273,7 +274,8 @@ export function Navbar({
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                 }`}
               >
-                <span>Tools & More</span>
+                <span className="hidden 2xl:inline">Tools & More</span>
+                <span className="2xl:hidden">Tools</span>
                 <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isToolsOpen ? 'rotate-180' : ''}`} />
               </button>
 
@@ -390,7 +392,7 @@ export function Navbar({
             <button
               id="nav-copilot-tab"
               onClick={() => handleTabSelect('copilot')}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer shrink-0 ml-0.5 ${
+              className={`inline-flex items-center gap-1.5 px-2.5 2xl:px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer shrink-0 ml-0.5 ${
                 activeTab === 'copilot'
                   ? 'bg-indigo-600 text-white shadow-xs'
                   : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200/60'
@@ -402,7 +404,7 @@ export function Navbar({
           </nav>
 
           {/* Right Utilities & Controls */}
-          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 ml-auto">
             {/* Global Search Button */}
             {onOpenSearch && (
               <button
@@ -412,8 +414,8 @@ export function Navbar({
                 className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200/80 border border-slate-200/80 rounded-xl transition cursor-pointer"
               >
                 <Search className="w-3.5 h-3.5 text-slate-500" />
-                <span className="hidden md:inline text-slate-600">Search</span>
-                <kbd className="hidden lg:inline-flex items-center px-1.5 py-0.5 text-[10px] font-mono text-slate-500 bg-white border border-slate-200 rounded shadow-2xs">
+                <span className="hidden 2xl:inline text-slate-600">Search</span>
+                <kbd className="hidden 2xl:inline-flex items-center px-1.5 py-0.5 text-[10px] font-mono text-slate-500 bg-white border border-slate-200 rounded shadow-2xs">
                   ⌘K
                 </kbd>
               </button>
@@ -436,7 +438,7 @@ export function Navbar({
                 className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-xs shadow-indigo-600/20 transition cursor-pointer"
               >
                 <Upload className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Upload</span>
+                <span className="hidden 2xl:inline">Upload</span>
               </button>
             )}
 

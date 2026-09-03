@@ -213,18 +213,18 @@ export function MaintenanceWarrantiesView({
   const handleOpenEditWarranty = (w: Warranty) => {
     setEditingWarranty(w);
     setWarrantyForm({
-      title: w.title,
-      providerName: w.providerName,
+      title: w.title || w.warrantyProvider || 'Warranty Policy',
+      providerName: w.providerName || w.warrantyProvider || '',
       policyNumber: w.policyNumber || '',
       assetId: w.assetId || '',
       propertyId: w.propertyId || properties[0]?.id || '',
       coverageType: w.coverageType || 'manufacturer',
-      coverageDetails: w.coverageDetails || '',
+      coverageDetails: w.coverageDetails || w.coverageNotes || '',
       startDate: w.startDate ? w.startDate.slice(0, 10) : '',
-      expiryDate: w.expiryDate ? w.expiryDate.slice(0, 10) : '',
+      expiryDate: (w.expiryDate || w.endDate) ? (w.expiryDate || w.endDate)!.slice(0, 10) : '',
       status: w.status,
-      contactPhone: w.contactPhone || '',
-      contactEmail: w.contactEmail || '',
+      contactPhone: w.contactPhone || w.contactInfo?.phone || '',
+      contactEmail: w.contactEmail || w.contactInfo?.email || '',
       notes: w.notes || '',
     });
     setIsWarrantyModalOpen(true);
@@ -233,11 +233,16 @@ export function MaintenanceWarrantiesView({
   const handleSaveWarranty = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const payload: Partial<Warranty> = {
+        ...warrantyForm,
+        warrantyProvider: warrantyForm.providerName || warrantyForm.title,
+        endDate: warrantyForm.expiryDate,
+      };
       if (editingWarranty) {
-        await api.updateWarranty(editingWarranty.id, warrantyForm);
+        await api.updateWarranty(editingWarranty.id, payload);
         addToast('success', 'Warranty Updated', `Updated policy "${warrantyForm.title}".`);
       } else {
-        await api.createWarranty(warrantyForm);
+        await api.createWarranty(payload);
         addToast('success', 'Warranty Saved', `Registered warranty "${warrantyForm.title}".`);
       }
       setIsWarrantyModalOpen(false);
@@ -266,22 +271,32 @@ export function MaintenanceWarrantiesView({
     }
   };
 
-  // Filter tasks & warranties
+  // Filter tasks & warranties safely without assuming optional fields exist
   const filteredTasks = tasks.filter((t) => {
-    const matchesSearch =
-      t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (t.description && t.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (t.category && t.category.toLowerCase().includes(searchQuery.toLowerCase()));
+    const q = searchQuery.toLowerCase().trim();
     const matchesAsset = !filterAssetId || t.assetId === filterAssetId;
+    if (!q) return matchesAsset;
+    const matchesSearch =
+      (t.title && t.title.toLowerCase().includes(q)) ||
+      (t.description && t.description.toLowerCase().includes(q)) ||
+      (t.category && t.category.toLowerCase().includes(q)) ||
+      (t.serviceProvider && t.serviceProvider.toLowerCase().includes(q));
     return matchesSearch && matchesAsset;
   });
 
   const filteredWarranties = warranties.filter((w) => {
-    const matchesSearch =
-      w.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      w.providerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (w.policyNumber && w.policyNumber.toLowerCase().includes(searchQuery.toLowerCase()));
+    const q = searchQuery.toLowerCase().trim();
     const matchesAsset = !filterAssetId || w.assetId === filterAssetId;
+    if (!q) return matchesAsset;
+    const title = w.title || '';
+    const provider = w.warrantyProvider || w.providerName || '';
+    const policy = w.policyNumber || '';
+    const coverage = w.coverageType || w.coverageDetails || w.coverageNotes || '';
+    const matchesSearch =
+      title.toLowerCase().includes(q) ||
+      provider.toLowerCase().includes(q) ||
+      policy.toLowerCase().includes(q) ||
+      coverage.toLowerCase().includes(q);
     return matchesSearch && matchesAsset;
   });
 
@@ -290,8 +305,9 @@ export function MaintenanceWarrantiesView({
     (t) => t.status !== 'completed' && t.dueDate && new Date(t.dueDate) < now
   );
   const expiringWarranties = warranties.filter((w) => {
-    if (!w.expiryDate || w.status === 'expired') return false;
-    const diffDays = (new Date(w.expiryDate).getTime() - now.getTime()) / (1000 * 3600 * 24);
+    const exp = w.expiryDate || w.endDate;
+    if (!exp || w.status === 'expired') return false;
+    const diffDays = (new Date(exp).getTime() - now.getTime()) / (1000 * 3600 * 24);
     return diffDays >= 0 && diffDays <= 60;
   });
 
@@ -605,9 +621,10 @@ export function MaintenanceWarrantiesView({
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredWarranties.map((warranty) => {
+                const expiry = warranty.expiryDate || warranty.endDate;
                 const isExpired =
                   warranty.status === 'expired' ||
-                  (warranty.expiryDate && new Date(warranty.expiryDate) < now);
+                  (Boolean(expiry) && new Date(expiry!) < now);
                 const linkedAsset = assets.find((a) => a.id === warranty.assetId);
 
                 return (
@@ -633,11 +650,15 @@ export function MaintenanceWarrantiesView({
                               {isExpired ? 'Expired' : 'Active Coverage'}
                             </span>
                             <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-slate-100 text-slate-600 capitalize">
-                              {warranty.coverageType.replace('_', ' ')}
+                              {(warranty.coverageType || 'warranty').replace(/_/g, ' ')}
                             </span>
                           </div>
-                          <h4 className="text-sm font-bold text-slate-900">{warranty.title}</h4>
-                          <p className="text-xs font-semibold text-indigo-600">{warranty.providerName}</p>
+                          <h4 className="text-sm font-bold text-slate-900">
+                            {warranty.title || warranty.warrantyProvider || 'Warranty Policy'}
+                          </h4>
+                          <p className="text-xs font-semibold text-indigo-600">
+                            {warranty.providerName || warranty.warrantyProvider || 'Standard Coverage'}
+                          </p>
                         </div>
 
                         <div className="flex items-center gap-1">
@@ -663,8 +684,10 @@ export function MaintenanceWarrantiesView({
                         </p>
                       )}
 
-                      {warranty.coverageDetails && (
-                        <p className="text-xs text-slate-600 mt-2 line-clamp-2">{warranty.coverageDetails}</p>
+                      {(warranty.coverageDetails || warranty.coverageNotes) && (
+                        <p className="text-xs text-slate-600 mt-2 line-clamp-2">
+                          {warranty.coverageDetails || warranty.coverageNotes}
+                        </p>
                       )}
 
                       {linkedAsset && (
@@ -679,24 +702,24 @@ export function MaintenanceWarrantiesView({
                       <div className="flex items-center justify-between text-slate-500">
                         <span>Expires:</span>
                         <span className="font-bold text-slate-900">
-                          {warranty.expiryDate
-                            ? new Date(warranty.expiryDate).toLocaleDateString()
+                          {expiry
+                            ? new Date(expiry).toLocaleDateString()
                             : 'Lifetime'}
                         </span>
                       </div>
 
-                      {(warranty.contactPhone || warranty.contactEmail) && (
+                      {(warranty.contactPhone || warranty.contactEmail || warranty.contactInfo?.phone || warranty.contactInfo?.email) && (
                         <div className="pt-1 flex items-center gap-3 text-slate-500">
-                          {warranty.contactPhone && (
+                          {(warranty.contactPhone || warranty.contactInfo?.phone) && (
                             <span className="flex items-center gap-1">
                               <Phone className="w-3 h-3 text-slate-400" />
-                              {warranty.contactPhone}
+                              {warranty.contactPhone || warranty.contactInfo?.phone}
                             </span>
                           )}
-                          {warranty.contactEmail && (
+                          {(warranty.contactEmail || warranty.contactInfo?.email) && (
                             <span className="flex items-center gap-1 truncate">
                               <Mail className="w-3 h-3 text-slate-400" />
-                              {warranty.contactEmail}
+                              {warranty.contactEmail || warranty.contactInfo?.email}
                             </span>
                           )}
                         </div>
