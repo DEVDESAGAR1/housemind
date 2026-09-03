@@ -29,6 +29,8 @@ interface PropertiesViewProps {
   onOpenEntityExtractor: (entityType?: any) => void;
   addToast: (type: 'success' | 'error' | 'info', title: string, message?: string) => void;
   currency?: string;
+  autoOpenAdd?: boolean;
+  onAddModalOpened?: () => void;
 }
 
 export function PropertiesView({
@@ -39,6 +41,8 @@ export function PropertiesView({
   onOpenEntityExtractor,
   addToast,
   currency = 'USD',
+  autoOpenAdd,
+  onAddModalOpened,
 }: PropertiesViewProps) {
   const [selectedPropertyId, setSelectedPropertyId] = useState<string>(
     properties[0]?.id || ''
@@ -115,6 +119,13 @@ export function PropertiesView({
     });
     setIsPropertyModalOpen(true);
   };
+
+  useEffect(() => {
+    if (autoOpenAdd) {
+      handleOpenNewProperty();
+      onAddModalOpened?.();
+    }
+  }, [autoOpenAdd]);
 
   const handleOpenEditProperty = (prop: Property) => {
     setEditingProperty(prop);

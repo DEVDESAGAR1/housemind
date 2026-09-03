@@ -1,4 +1,4 @@
-import { useState, useMemo, FormEvent } from 'react';
+import { useState, useMemo, useEffect, FormEvent } from 'react';
 import { Plus, Search, Filter, Trash2, Edit3, Calendar, CheckCircle2, Clock, AlertCircle, DollarSign, X } from 'lucide-react';
 import { HouseholdExpense, ExpenseCategory, ExpenseFrequency, PaymentStatus } from '../types';
 import { formatCurrency, getCurrencySymbol } from '../config/locationCurrencyConfig';
@@ -10,6 +10,8 @@ interface ExpensesViewProps {
   onAddExpense: (expense: Omit<HouseholdExpense, 'id' | 'userId' | 'createdAt' | 'updatedAt'>) => Promise<void>;
   onUpdateExpense: (id: string, updated: Partial<HouseholdExpense>) => Promise<void>;
   onDeleteExpense: (id: string) => Promise<void>;
+  autoOpenAdd?: boolean;
+  onAddModalOpened?: () => void;
 }
 
 export function ExpensesView({
@@ -19,6 +21,8 @@ export function ExpensesView({
   onAddExpense,
   onUpdateExpense,
   onDeleteExpense,
+  autoOpenAdd,
+  onAddModalOpened,
 }: ExpensesViewProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -63,6 +67,13 @@ export function ExpensesView({
     setFormError(null);
     setIsModalOpen(true);
   };
+
+  useEffect(() => {
+    if (autoOpenAdd) {
+      openAddModal();
+      onAddModalOpened?.();
+    }
+  }, [autoOpenAdd]);
 
   const openEditModal = (exp: HouseholdExpense) => {
     setEditingExpense(exp);

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Zap,
   Landmark,
@@ -39,6 +39,10 @@ interface UtilitiesDebtsViewProps {
   onOpenEntityExtractor: (entityType: 'utility' | 'loan' | 'credit_card') => void;
   addToast: (type: 'success' | 'error' | 'info', title: string, message?: string) => void;
   currency?: string;
+  initialTab?: 'utilities' | 'loans' | 'cards';
+  onTabChange?: (tab: 'utilities' | 'loans' | 'cards') => void;
+  autoOpenAddType?: 'utility' | 'loan' | 'card' | null;
+  onAddModalOpened?: () => void;
 }
 
 export function UtilitiesDebtsView({
@@ -50,8 +54,23 @@ export function UtilitiesDebtsView({
   onOpenEntityExtractor,
   addToast,
   currency = 'USD',
+  initialTab,
+  onTabChange,
+  autoOpenAddType,
+  onAddModalOpened,
 }: UtilitiesDebtsViewProps) {
-  const [activeTab, setActiveTab] = useState<'utilities' | 'loans' | 'cards'>('utilities');
+  const [activeTab, setActiveTab] = useState<'utilities' | 'loans' | 'cards'>(initialTab || 'utilities');
+
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
+
+  const handleSetTab = (tab: 'utilities' | 'loans' | 'cards') => {
+    setActiveTab(tab);
+    onTabChange?.(tab);
+  };
 
   // Deletion Confirmation States
   const [deletingUtility, setDeletingUtility] = useState<UtilityAccount | null>(null);
@@ -309,6 +328,19 @@ export function UtilitiesDebtsView({
     setIsCardModalOpen(true);
   };
 
+  useEffect(() => {
+    if (autoOpenAddType) {
+      if (autoOpenAddType === 'utility') {
+        handleOpenNewUtility();
+      } else if (autoOpenAddType === 'loan') {
+        handleOpenNewLoan();
+      } else if (autoOpenAddType === 'card') {
+        handleOpenNewCard();
+      }
+      onAddModalOpened?.();
+    }
+  }, [autoOpenAddType]);
+
   const handleOpenEditCard = (c: CreditCardAccount) => {
     setEditingCard(c);
     setCardForm({
@@ -506,7 +538,7 @@ export function UtilitiesDebtsView({
       {/* Tab Navigation */}
       <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
         <button
-          onClick={() => setActiveTab('utilities')}
+          onClick={() => handleSetTab('utilities')}
           className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
             activeTab === 'utilities'
               ? 'bg-amber-500 text-white shadow-xs'
@@ -518,7 +550,7 @@ export function UtilitiesDebtsView({
         </button>
 
         <button
-          onClick={() => setActiveTab('loans')}
+          onClick={() => handleSetTab('loans')}
           className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
             activeTab === 'loans'
               ? 'bg-rose-600 text-white shadow-xs'
@@ -530,7 +562,7 @@ export function UtilitiesDebtsView({
         </button>
 
         <button
-          onClick={() => setActiveTab('cards')}
+          onClick={() => handleSetTab('cards')}
           className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
             activeTab === 'cards'
               ? 'bg-violet-600 text-white shadow-xs'

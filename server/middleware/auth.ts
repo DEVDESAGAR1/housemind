@@ -38,9 +38,9 @@ export async function requireAuth(
     return;
   }
 
-  // Handle dedicated test tokens for automated test suites
-  if (idToken.startsWith('test-token-')) {
-    const rawUid = idToken.replace('test-token-', '').trim();
+  // Handle dedicated test and guest preview tokens
+  if (idToken.startsWith('test-token-') || idToken.startsWith('guest-token-')) {
+    const rawUid = idToken.replace('test-token-', '').replace('guest-token-', '').trim() || 'guest-user';
     if (!rawUid || rawUid === 'invalid' || rawUid === 'expired' || rawUid === 'forged') {
       res.status(401).json({
         success: false,

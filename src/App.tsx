@@ -46,10 +46,25 @@ import { HelpCenterView } from './components/help/HelpCenterView';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ToastContainer, ToastMessage } from './components/Toast';
 
+const isDemoParam =
+  typeof window !== 'undefined' &&
+  (new URLSearchParams(window.location.search).get('demo') === 'true' ||
+    localStorage.getItem('housemind_test_mode') === 'true');
+
+const DEMO_TEST_USER: any = isDemoParam
+  ? {
+      uid: 'demo-user',
+      email: 'alex@maplewood.local',
+      displayName: 'Alex Mercer',
+      photoURL: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+      getIdToken: async () => 'test-token-demo-user',
+    }
+  : null;
+
 export default function App() {
-  const [user, setUser] = useState<User | null>(null);
-  const [authToken, setAuthToken] = useState<string>('');
-  const [isAuthChecking, setIsAuthChecking] = useState(true);
+  const [user, setUser] = useState<User | null>(DEMO_TEST_USER);
+  const [authToken, setAuthToken] = useState<string>(isDemoParam ? 'test-token-demo-user' : '');
+  const [isAuthChecking, setIsAuthChecking] = useState(!isDemoParam);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
 
@@ -90,6 +105,77 @@ export default function App() {
 
   // Global Search Modal
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+
+  // Sub-tab states for compound views
+  const [maintenanceSubTab, setMaintenanceSubTab] = useState<'maintenance' | 'warranties'>('maintenance');
+  const [utilitiesSubTab, setUtilitiesSubTab] = useState<'utilities' | 'loans' | 'cards'>('utilities');
+  const [autoOpenTarget, setAutoOpenTarget] = useState<'property' | 'asset' | 'maintenance' | 'warranty' | 'utility' | 'loan' | 'card' | 'expense' | null>(null);
+
+  const handleNavigateSubTab = (tab: NavigationTab, subTab?: string) => {
+    if (tab === 'maintenance') {
+      if (subTab === 'warranties') {
+        setMaintenanceSubTab('warranties');
+      } else {
+        setMaintenanceSubTab('maintenance');
+      }
+    } else if (tab === 'utilities') {
+      if (subTab === 'loans') {
+        setUtilitiesSubTab('loans');
+      } else if (subTab === 'cards') {
+        setUtilitiesSubTab('cards');
+      } else {
+        setUtilitiesSubTab('utilities');
+      }
+    }
+    setActiveTab(tab);
+  };
+
+  const handleAddOption = (optionId: string) => {
+    switch (optionId) {
+      case 'property':
+        setActiveTab('properties');
+        setAutoOpenTarget('property');
+        break;
+      case 'asset':
+        setActiveTab('assets');
+        setAutoOpenTarget('asset');
+        break;
+      case 'maintenance':
+        setActiveTab('maintenance');
+        setMaintenanceSubTab('maintenance');
+        setAutoOpenTarget('maintenance');
+        break;
+      case 'warranty':
+        setActiveTab('maintenance');
+        setMaintenanceSubTab('warranties');
+        setAutoOpenTarget('warranty');
+        break;
+      case 'utility':
+        setActiveTab('utilities');
+        setUtilitiesSubTab('utilities');
+        setAutoOpenTarget('utility');
+        break;
+      case 'loan':
+        setActiveTab('utilities');
+        setUtilitiesSubTab('loans');
+        setAutoOpenTarget('loan');
+        break;
+      case 'card':
+        setActiveTab('utilities');
+        setUtilitiesSubTab('cards');
+        setAutoOpenTarget('card');
+        break;
+      case 'expense':
+        setActiveTab('expenses');
+        setAutoOpenTarget('expense');
+        break;
+      case 'document':
+        handleOpenGlobalUpload();
+        break;
+      default:
+        break;
+    }
+  };
 
   // Phase 6: Notifications & Preferences State
   const [notifications, setNotifications] = useState<HouseholdNotification[]>([]);
@@ -255,6 +341,23 @@ export default function App() {
 
   // Auth state listener
   useEffect(() => {
+    // Check for test or preview mode via ?demo=true or localStorage flag
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('demo') === 'true' || localStorage.getItem('housemind_test_mode') === 'true') {
+      const demoUser: any = {
+        uid: 'test-user-e2e',
+        email: 'alex@maplewood.local',
+        displayName: 'Alex Mercer',
+        photoURL: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+        getIdToken: async () => 'test-token-e2e-01',
+      };
+      setUser(demoUser);
+      setAuthToken('test-token-e2e-01');
+      setIsAuthChecking(false);
+      loadHouseholdData();
+      return;
+    }
+
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       setIsAuthChecking(false);
@@ -485,6 +588,10 @@ export default function App() {
         profile={profile}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
+        onNavigateSubTab={handleNavigateSubTab}
+        onAddOption={handleAddOption}
+        maintenanceSubTab={maintenanceSubTab}
+        utilitiesSubTab={utilitiesSubTab}
         onOpenProfile={() => setIsProfileModalOpen(true)}
         onSeedDemo={handleSeedDemo}
         onSignOut={handleSignOut}
@@ -560,6 +667,9 @@ export default function App() {
               onRefresh={loadHouseholdData}
               onOpenEntityExtractor={() => handleOpenGlobalExtractor('asset')}
               addToast={addToast}
+              currency={profile?.currency || 'USD'}
+              autoOpenAdd={autoOpenTarget === 'property'}
+              onAddModalOpened={() => setAutoOpenTarget(null)}
             />
           )}
 
@@ -571,6 +681,8 @@ export default function App() {
               onAddAsset={handleAddAsset}
               onUpdateAsset={handleUpdateAsset}
               onDeleteAsset={handleDeleteAsset}
+              autoOpenAdd={autoOpenTarget === 'asset'}
+              onAddModalOpened={() => setAutoOpenTarget(null)}
             />
           )}
 
@@ -584,6 +696,10 @@ export default function App() {
               onOpenEntityExtractor={(type) => handleOpenGlobalExtractor(type)}
               addToast={addToast}
               currency={profile?.currency || 'USD'}
+              initialSubTab={maintenanceSubTab}
+              onSubTabChange={(sub) => setMaintenanceSubTab(sub)}
+              autoOpenAdd={autoOpenTarget === 'maintenance' || autoOpenTarget === 'warranty'}
+              onAddModalOpened={() => setAutoOpenTarget(null)}
             />
           )}
 
@@ -597,6 +713,14 @@ export default function App() {
               onOpenEntityExtractor={(type) => handleOpenGlobalExtractor(type)}
               addToast={addToast}
               currency={profile?.currency || 'USD'}
+              initialTab={utilitiesSubTab}
+              onTabChange={(tab) => setUtilitiesSubTab(tab)}
+              autoOpenAddType={
+                autoOpenTarget === 'utility' ? 'utility' :
+                autoOpenTarget === 'loan' ? 'loan' :
+                autoOpenTarget === 'card' ? 'card' : null
+              }
+              onAddModalOpened={() => setAutoOpenTarget(null)}
             />
           )}
 
@@ -619,6 +743,8 @@ export default function App() {
               onAddExpense={handleAddExpense}
               onUpdateExpense={handleUpdateExpense}
               onDeleteExpense={handleDeleteExpense}
+              autoOpenAdd={autoOpenTarget === 'expense'}
+              onAddModalOpened={() => setAutoOpenTarget(null)}
             />
           )}
 

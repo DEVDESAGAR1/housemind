@@ -85,6 +85,17 @@ export function LandingPage({ onSignIn, isAuthenticating, authError }: LandingPa
             </svg>
             <span>{isAuthenticating ? 'Connecting...' : 'Continue with Google'}</span>
           </button>
+
+          <button
+            id="hero-demo-preview-btn"
+            onClick={() => {
+              window.location.href = '/?demo=true';
+            }}
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 text-base font-medium rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition cursor-pointer"
+          >
+            <Sparkles className="w-4 h-4 text-indigo-400" />
+            <span>Explore Demo Household</span>
+          </button>
         </div>
 
         {/* Feature Grid */}

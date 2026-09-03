@@ -7,6 +7,10 @@ import {
   apiLimiter,
   uploadLimiter,
   aiLimiter,
+  authLimiter,
+  searchLimiter,
+  notificationLimiter,
+  webLimiter,
   requestLogger,
   errorHandler,
 } from './server/middleware/security';
@@ -58,9 +62,9 @@ export function buildExpressApp(): Express {
   app.use('/api/loans', forwardToHousehold('/loans'));
   app.use(['/api/credit-cards', '/api/cards'], forwardToHousehold('/credit-cards'));
   app.use(['/api/home/command-center-summary', '/api/home/command-center'], forwardToHousehold('/command-center'));
-  app.use('/api/search', forwardToHousehold('/search'));
+  app.use('/api/search', searchLimiter, forwardToHousehold('/search'));
   app.use(['/api/calendar', '/api/household/calendar'], forwardToHousehold('/calendar'));
-  app.use(['/api/notifications', '/api/household/notifications'], forwardToHousehold('/notifications'));
+  app.use(['/api/notifications', '/api/household/notifications'], notificationLimiter, forwardToHousehold('/notifications'));
 
   app.use('/api/copilot', aiLimiter, copilotRouter);
   app.use('/api/intelligence', aiLimiter, intelligenceRouter);
@@ -89,7 +93,7 @@ async function startServer() {
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
-    app.get('*', (_req, res) => {
+    app.get('*', webLimiter, (_req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }

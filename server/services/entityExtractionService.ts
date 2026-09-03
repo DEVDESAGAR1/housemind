@@ -219,6 +219,95 @@ Return ONLY a valid JSON object with the following structure:
 }
 
 /**
+ * Safe, linear-time warranty provider extraction without polynomial backtracking.
+ * Replaces vulnerable regex with bounded string slicing and token inspection.
+ */
+export function extractSafeWarrantyProvider(text: string): string | undefined {
+  if (!text || typeof text !== 'string') return undefined;
+  const boundedText = text.slice(0, 4096);
+
+  // 1. Explicit keyword search: "Provider: <name>" or "Provider <name>"
+  const providerIndex = boundedText.search(/\bprovider\b/i);
+  if (providerIndex !== -1) {
+    const after = boundedText.slice(providerIndex);
+    const prefixMatch = after.match(/^provider\s*[:#-]?\s*/i);
+    if (prefixMatch) {
+      const rest = after.slice(prefixMatch[0].length);
+      // Take first 80 characters max and stop at period, newline, semicolon, or comma
+      const lineSnippet = rest.slice(0, 80).split(/[.\n\r;\t,]/)[0].trim();
+      if (lineSnippet.length > 0 && lineSnippet.length <= 60 && /^[\w\s&-]+$/.test(lineSnippet)) {
+        return lineSnippet;
+      }
+    }
+  }
+
+  // 2. Suffix scan for appliance/insurance companies (e.g. "Bosch Appliances", "SquareTrade Protection")
+  // Tokenize words safely (bounded array of max 200 tokens)
+  const tokens = boundedText.split(/\s+/).slice(0, 200);
+  const targetSuffixes = new Set(['appliances', 'protection', 'care', 'insurance', 'llc', 'inc']);
+
+  for (let i = 0; i < tokens.length; i++) {
+    const cleanWord = tokens[i].replace(/[^\w]/g, '');
+    if (targetSuffixes.has(cleanWord.toLowerCase()) && i > 0) {
+      const captured: string[] = [cleanWord];
+      for (let j = i - 1; j >= Math.max(0, i - 2); j--) {
+        const prev = tokens[j].replace(/[^\w]/g, '');
+        if (prev.length > 0 && /^[A-Z][a-z0-9]*$/.test(prev)) {
+          captured.unshift(prev);
+        } else {
+          break;
+        }
+      }
+      if (captured.length > 1) {
+        return captured.join(' ');
+      }
+    }
+  }
+
+  return undefined;
+}
+
+/**
+ * Safe, linear-time policy number extraction with bounded search window.
+ */
+export function extractSafePolicyNumber(text: string): string | undefined {
+  if (!text || typeof text !== 'string') return undefined;
+  const boundedText = text.slice(0, 4096);
+  const policyIdx = boundedText.search(/\bpolicy\b/i);
+  if (policyIdx === -1) return undefined;
+
+  const snippet = boundedText.slice(policyIdx, policyIdx + 60);
+  const match = snippet.match(/^policy\s*[:#]?\s*([A-Za-z0-9-]{3,32})\b/i);
+  return match ? match[1].trim() : undefined;
+}
+
+/**
+ * Safe, linear-time warranty title extraction.
+ * Locates "RECEIPT & WARRANTY:" or "WARRANTY:" without polynomial backtracking.
+ */
+export function extractSafeWarrantyTitle(text: string): string | undefined {
+  if (!text || typeof text !== 'string') return undefined;
+  const boundedText = text.slice(0, 4096);
+
+  const marker = boundedText.search(/\b(?:receipt\s*&\s*warranty|warranty)\s*:\s*/i);
+  if (marker === -1) return undefined;
+
+  const after = boundedText.slice(marker);
+  const prefixMatch = after.match(/^(?:receipt\s*&\s*warranty|warranty)\s*:\s*/i);
+  if (!prefixMatch) return undefined;
+
+  const windowText = after.slice(prefixMatch[0].length, prefixMatch[0].length + 100);
+  const purchasedIndex = windowText.search(/\s+purchased\b/i);
+  const rawTitle = purchasedIndex !== -1 ? windowText.slice(0, purchasedIndex) : windowText.split(/[.\n\r;\t]/)[0];
+  const cleanTitle = rawTitle.trim();
+
+  if (cleanTitle.length > 0 && cleanTitle.length <= 80 && /^[\w\s&-]+$/.test(cleanTitle)) {
+    return cleanTitle;
+  }
+  return undefined;
+}
+
+/**
  * Heuristic fallback parser when AI API is unavailable
  */
 function buildHeuristicExtraction(
@@ -257,14 +346,15 @@ function buildHeuristicExtraction(
       break;
 
     case 'warranty': {
-      // Regex extraction from text
-      const providerMatch = fullText.match(/Provider\s+([A-Za-z0-9\s]+?)(?:\.|$)/i) || fullText.match(/([A-Z][a-z0-9]+(?:\s+[A-Z][a-z0-9]+)*\s+(?:Appliances|Protection|Care|Insurance|LLC|Inc))/);
-      const policyMatch = fullText.match(/Policy\s+#?([A-Za-z0-9-]+)/i);
-      const titleMatch = fullText.match(/(?:RECEIPT\s*&\s*WARRANTY:\s*|WARRANTY:\s*)([A-Za-z0-9\s]+?)(?:\s+purchased|\.|$)/i);
+      // Safe, bounded extraction without polynomial backtracking
+      const boundedContext = fullText.slice(0, 4096);
+      const safeProvider = extractSafeWarrantyProvider(boundedContext);
+      const safePolicy = extractSafePolicyNumber(boundedContext);
+      const safeTitle = extractSafeWarrantyTitle(boundedContext);
 
-      const provider = providerMatch ? providerMatch[1].trim() : (cleanedName || 'Bosch Home Appliances');
-      const policy = policyMatch ? policyMatch[1].trim() : undefined;
-      const title = titleMatch ? titleMatch[1].trim() : 'Household Warranty';
+      const provider = safeProvider || (cleanedName || 'Bosch Home Appliances');
+      const policy = safePolicy || undefined;
+      const title = safeTitle || 'Household Warranty';
 
       fields.warrantyProvider = provider;
       fields.providerName = provider;

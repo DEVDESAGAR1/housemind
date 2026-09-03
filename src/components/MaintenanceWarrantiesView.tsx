@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Wrench,
   ShieldCheck,
@@ -40,6 +40,10 @@ interface MaintenanceWarrantiesViewProps {
   onOpenEntityExtractor: (entityType: 'maintenance' | 'warranty') => void;
   addToast: (type: 'success' | 'error' | 'info', title: string, message?: string) => void;
   currency?: string;
+  initialSubTab?: 'maintenance' | 'warranties';
+  onSubTabChange?: (tab: 'maintenance' | 'warranties') => void;
+  autoOpenAdd?: boolean;
+  onAddModalOpened?: () => void;
 }
 
 export function MaintenanceWarrantiesView({
@@ -51,8 +55,24 @@ export function MaintenanceWarrantiesView({
   onOpenEntityExtractor,
   addToast,
   currency = 'USD',
+  initialSubTab,
+  onSubTabChange,
+  autoOpenAdd,
+  onAddModalOpened,
 }: MaintenanceWarrantiesViewProps) {
-  const [activeSubTab, setActiveSubTab] = useState<'maintenance' | 'warranties'>('maintenance');
+  const [activeSubTab, setActiveSubTab] = useState<'maintenance' | 'warranties'>(initialSubTab || 'maintenance');
+
+  useEffect(() => {
+    if (initialSubTab) {
+      setActiveSubTab(initialSubTab);
+    }
+  }, [initialSubTab]);
+
+  const handleSetSubTab = (tab: 'maintenance' | 'warranties') => {
+    setActiveSubTab(tab);
+    onSubTabChange?.(tab);
+  };
+
   const [searchQuery, setSearchQuery] = useState('');
   const [filterAssetId, setFilterAssetId] = useState<string>('');
 
@@ -209,6 +229,17 @@ export function MaintenanceWarrantiesView({
     });
     setIsWarrantyModalOpen(true);
   };
+
+  useEffect(() => {
+    if (autoOpenAdd) {
+      if (activeSubTab === 'warranties') {
+        handleOpenNewWarranty();
+      } else {
+        handleOpenNewTask();
+      }
+      onAddModalOpened?.();
+    }
+  }, [autoOpenAdd]);
 
   const handleOpenEditWarranty = (w: Warranty) => {
     setEditingWarranty(w);
@@ -376,7 +407,7 @@ export function MaintenanceWarrantiesView({
                 </span>
               </div>
               <button
-                onClick={() => setActiveSubTab('maintenance')}
+                onClick={() => handleSetSubTab('maintenance')}
                 className="text-[11px] font-bold text-rose-700 underline cursor-pointer"
               >
                 Review Tasks →
@@ -393,7 +424,7 @@ export function MaintenanceWarrantiesView({
                 </span>
               </div>
               <button
-                onClick={() => setActiveSubTab('warranties')}
+                onClick={() => handleSetSubTab('warranties')}
                 className="text-[11px] font-bold text-amber-700 underline cursor-pointer"
               >
                 Inspect Vault →
@@ -407,7 +438,7 @@ export function MaintenanceWarrantiesView({
       <div className="flex items-center justify-between border-b border-slate-200 pb-2">
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setActiveSubTab('maintenance')}
+            onClick={() => handleSetSubTab('maintenance')}
             className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
               activeSubTab === 'maintenance'
                 ? 'bg-indigo-600 text-white shadow-xs'
@@ -419,7 +450,7 @@ export function MaintenanceWarrantiesView({
           </button>
 
           <button
-            onClick={() => setActiveSubTab('warranties')}
+            onClick={() => handleSetSubTab('warranties')}
             className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
               activeSubTab === 'warranties'
                 ? 'bg-emerald-600 text-white shadow-xs'

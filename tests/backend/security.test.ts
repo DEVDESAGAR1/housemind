@@ -153,14 +153,70 @@ export async function runSecurityTests(runner: TestRunner) {
     }
 
     // 3. Rejected Arbitrary / Untrusted Origin
+    const evilOrigin = 'https://malicious-attacker.com';
     const evilRes = await apiRequest('/api/health', {
       headers: {
-        Origin: 'https://malicious-attacker.com',
+        Origin: evilOrigin,
       },
     });
     const evilCors = evilRes.headers.get('access-control-allow-origin');
-    if (evilCors && evilCors !== 'null' && evilCors.includes('malicious-attacker.com')) {
-      throw new Error(`Untrusted origin must NOT receive Access-Control-Allow-Origin! Got: ${evilCors}`);
+    if (evilCors && evilCors !== 'null') {
+      try {
+        const parsedCors = new URL(evilCors);
+        if (parsedCors.origin === evilOrigin || parsedCors.hostname === 'malicious-attacker.com') {
+          throw new Error(`Untrusted origin must NOT receive Access-Control-Allow-Origin! Got: ${evilCors}`);
+        }
+      } catch {
+        if (evilCors === evilOrigin || evilCors === '*') {
+          throw new Error(`Untrusted origin must NOT receive Access-Control-Allow-Origin! Got: ${evilCors}`);
+        }
+      }
+    }
+  });
+
+  await runner.test('Structured URL & Origin Validation: WhatWG URL parsing and domain spoofing prevention', async () => {
+    const { isAllowedOrigin, isSafeUrl } = await import('../../server/middleware/security');
+
+    // Valid origins
+    if (!isAllowedOrigin('https://ai.studio')) throw new Error('Expected https://ai.studio to be allowed');
+    if (!isAllowedOrigin('https://my-app.ai.studio')) throw new Error('Expected subdomain of ai.studio to be allowed');
+    if (!isAllowedOrigin('http://localhost:3000')) throw new Error('Expected localhost to be allowed in dev');
+
+    // Malicious suffix spoofing (e.g. evil-domain ending with trusted keyword or prefixing)
+    if (isAllowedOrigin('https://ai.studio.attacker.com')) {
+      throw new Error('Spoofed suffix domain ai.studio.attacker.com MUST be rejected');
+    }
+    if (isAllowedOrigin('https://attacker-ai.studio.com')) {
+      throw new Error('Attacker prefixed domain attacker-ai.studio.com MUST be rejected');
+    }
+    if (isAllowedOrigin('https://run.app.phishing.org')) {
+      throw new Error('Spoofed run.app.phishing.org MUST be rejected');
+    }
+    if (isAllowedOrigin('javascript:alert(1)')) {
+      throw new Error('javascript: URI MUST be rejected');
+    }
+    if (isAllowedOrigin('https://user:pass@ai.studio')) {
+      throw new Error('Origin with credentials MUST be rejected');
+    }
+
+    // SSRF / isSafeUrl validation
+    if (!isSafeUrl('https://firestore.googleapis.com/v1/projects/my-proj')) {
+      throw new Error('Expected valid HTTPS URL to be safe');
+    }
+    if (isSafeUrl('http://127.0.0.1:8080/secret')) {
+      throw new Error('Loopback IP MUST be rejected');
+    }
+    if (isSafeUrl('http://localhost:3000/api')) {
+      throw new Error('Localhost MUST be rejected by isSafeUrl');
+    }
+    if (isSafeUrl('http://169.254.169.254/computeMetadata/v1/')) {
+      throw new Error('Metadata IP MUST be rejected');
+    }
+    if (isSafeUrl('javascript:evil()')) {
+      throw new Error('javascript URL MUST be rejected');
+    }
+    if (isSafeUrl('https://admin:secret@trusted.com/data')) {
+      throw new Error('Credential-bearing URL MUST be rejected');
     }
   });
 
@@ -212,6 +268,91 @@ export async function runSecurityTests(runner: TestRunner) {
     }
     if (!Array.isArray(result) || result.length === 0) {
       throw new Error('Expected adversarial line to parse safely into cell array');
+    }
+  });
+
+  await runner.test('Entity Extraction ReDoS Defense: Linear-time regex-free extraction under adversarial inputs', async () => {
+    const {
+      extractSafeWarrantyProvider,
+      extractSafePolicyNumber,
+      extractSafeWarrantyTitle,
+    } = await import('../../server/services/entityExtractionService');
+
+    // 1. Legitimate extraction cases
+    const legTitle = extractSafeWarrantyTitle('RECEIPT & WARRANTY: Bosch Series 800 Dishwasher purchased on 2026-02-10');
+    if (legTitle !== 'Bosch Series 800 Dishwasher') {
+      throw new Error(`Expected legitimate warranty title, got: ${legTitle}`);
+    }
+
+    const legProvider = extractSafeWarrantyProvider('Provider: Acme Home Protection LLC. Standard terms apply.');
+    if (legProvider !== 'Acme Home Protection LLC') {
+      throw new Error(`Expected legitimate provider, got: ${legProvider}`);
+    }
+
+    const legPolicy = extractSafePolicyNumber('Account details: Policy #POL-88392-CA active until 2028');
+    if (legPolicy !== 'POL-88392-CA') {
+      throw new Error(`Expected legitimate policy number, got: ${legPolicy}`);
+    }
+
+    // 2. Adversarial ReDoS payloads (repetition designed to cause catastrophic backtracking in polynomial regexes)
+    const longRepeatingWords = 'Word '.repeat(5000);
+    const adversarialProviderInput = 'Provider ' + longRepeatingWords;
+    const adversarialTitleInput = 'RECEIPT & WARRANTY: ' + longRepeatingWords;
+    const adversarialPolicyInput = 'Policy ' + '#'.repeat(5000) + '99999';
+
+    const t0 = performance.now();
+    const advProviderResult = extractSafeWarrantyProvider(adversarialProviderInput);
+    const advTitleResult = extractSafeWarrantyTitle(adversarialTitleInput);
+    const advPolicyResult = extractSafePolicyNumber(adversarialPolicyInput);
+    const elapsed = performance.now() - t0;
+
+    if (elapsed > 50) {
+      throw new Error(`Adversarial extraction took too long (${elapsed.toFixed(2)}ms) - ReDoS vulnerability!`);
+    }
+
+    // Handled safely without throw
+    if (typeof advProviderResult !== 'undefined' && typeof advProviderResult !== 'string') {
+      throw new Error('Unexpected return type');
+    }
+  });
+
+  await runner.test('Document Parser Loop Bound Defense: Strict upper bounds on input sizes and iterations', async () => {
+    const {
+      parseDelimitedLine,
+      parseCsvDeterministically,
+      MAX_LINE_CHAR_LIMIT,
+      MAX_CSV_ROW_LIMIT,
+    } = await import('../../server/services/documentParserService');
+
+    // 1. Line exceeding MAX_LINE_CHAR_LIMIT is safely clamped
+    const oversizedLine = 'cell1,cell2,' + 'x'.repeat(MAX_LINE_CHAR_LIMIT + 5000);
+    const cells = parseDelimitedLine(oversizedLine);
+    if (!Array.isArray(cells) || cells.length === 0) {
+      throw new Error('Expected clamped parse of oversized line');
+    }
+
+    // 2. Invalid or malicious maxLineLength bounds (NaN, Infinity, negative) clamp safely
+    const badBoundCells = parseDelimitedLine('a,b,c', -100 as any);
+    if (badBoundCells.length !== 3) {
+      throw new Error('Negative bound should safely fall back to safe default limit');
+    }
+
+    const nanBoundCells = parseDelimitedLine('a,b,c', NaN as any);
+    if (nanBoundCells.length !== 3) {
+      throw new Error('NaN bound should safely fall back to safe default limit');
+    }
+
+    // 3. Huge CSV with 10,000 lines processes safely up to MAX_CSV_ROW_LIMIT without hanging
+    const fakeCsv = 'Date,Description,Amount\n' + '2026-01-01,Adversarial Item,10.00\n'.repeat(10000);
+    const t0 = performance.now();
+    const result = parseCsvDeterministically('test-user', 'massive.csv', fakeCsv);
+    const elapsed = performance.now() - t0;
+
+    if (elapsed > 200) {
+      throw new Error(`Massive CSV processing took too long (${elapsed.toFixed(2)}ms)`);
+    }
+    if (result.candidates.length > MAX_CSV_ROW_LIMIT) {
+      throw new Error(`Candidates exceeded safe limit: ${result.candidates.length}`);
     }
   });
 }

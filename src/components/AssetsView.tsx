@@ -1,4 +1,4 @@
-import { useState, useMemo, FormEvent } from 'react';
+import { useState, useMemo, useEffect, FormEvent } from 'react';
 import { Plus, Search, Filter, Trash2, Edit3, Wrench, CheckCircle2, AlertTriangle, ShieldAlert, X, Calendar, DollarSign } from 'lucide-react';
 import { HomeAsset, AssetCategory, AssetStatus } from '../types';
 import { formatCurrency, getCurrencySymbol } from '../config/locationCurrencyConfig';
@@ -11,6 +11,8 @@ interface AssetsViewProps {
   onAddAsset: (asset: Omit<HomeAsset, 'id' | 'userId' | 'createdAt' | 'updatedAt'>) => Promise<void>;
   onUpdateAsset: (id: string, updated: Partial<HomeAsset>) => Promise<void>;
   onDeleteAsset: (id: string) => Promise<void>;
+  autoOpenAdd?: boolean;
+  onAddModalOpened?: () => void;
 }
 
 export function AssetsView({
@@ -20,6 +22,8 @@ export function AssetsView({
   onAddAsset,
   onUpdateAsset,
   onDeleteAsset,
+  autoOpenAdd,
+  onAddModalOpened,
 }: AssetsViewProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -81,6 +85,13 @@ export function AssetsView({
     setFormError(null);
     setIsModalOpen(true);
   };
+
+  useEffect(() => {
+    if (autoOpenAdd) {
+      openAddModal();
+      onAddModalOpened?.();
+    }
+  }, [autoOpenAdd]);
 
   const openEditModal = (asset: HomeAsset) => {
     setEditingAsset(asset);

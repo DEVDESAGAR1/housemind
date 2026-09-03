@@ -38,20 +38,33 @@ export interface ParsedDocumentResult {
   rawNotes?: string;
 }
 
+export const MAX_LINE_CHAR_LIMIT = 16384;      // Max 16 KB per single line
+export const MAX_CELLS_PER_LINE = 256;         // Max 256 cells per line
+export const MAX_CSV_ROW_LIMIT = 5000;         // Max 5000 lines processed
+export const MAX_CSV_CANDIDATE_LIMIT = 5000;   // Max 5000 candidates extracted
+
 /**
  * Deterministic O(n) parser for CSV/TSV lines without regular expression backtracking.
  * Accurately parses quoted cells containing commas, tabs, escaped quotes, and trailing delimiters.
+ * Uses strictly validated, finite loop bounds to prevent loop bound injection.
  */
-export function parseDelimitedLine(rawLine: string): string[] {
-  if (!rawLine || rawLine.trim().length === 0) return [];
+export function parseDelimitedLine(rawLine: string, maxLineLength: number = MAX_LINE_CHAR_LIMIT): string[] {
+  if (typeof rawLine !== 'string' || rawLine.trim().length === 0) return [];
+
+  // Enforce validated numeric safe upper bound (guards against NaN, Infinity, negative, zero)
+  const safeBound = (typeof maxLineLength === 'number' && Number.isFinite(maxLineLength) && maxLineLength > 0)
+    ? Math.min(Math.floor(maxLineLength), MAX_LINE_CHAR_LIMIT)
+    : MAX_LINE_CHAR_LIMIT;
+
+  const len = Math.min(rawLine.length, safeBound);
+  if (len <= 0) return [];
 
   const cells: string[] = [];
   let current = '';
   let inQuotes = false;
   let quoteChar = '';
 
-  const len = rawLine.length;
-  for (let i = 0; i < len; i++) {
+  for (let i = 0; i < len && cells.length < MAX_CELLS_PER_LINE; i++) {
     const char = rawLine[i];
 
     if ((char === '"' || char === "'") && (!inQuotes || quoteChar === char)) {
@@ -76,7 +89,9 @@ export function parseDelimitedLine(rawLine: string): string[] {
     }
   }
 
-  cells.push(current.trim());
+  if (cells.length < MAX_CELLS_PER_LINE) {
+    cells.push(current.trim());
+  }
   return cells;
 }
 
@@ -124,10 +139,14 @@ export function parseCsvDeterministically(
   let totalCredits = 0;
   let totalDebits = 0;
 
-  for (let i = 1; i < lines.length; i++) {
+  // Enforce explicit safe, validated loop bound to eliminate loop bound injection
+  const rawLineCount = Array.isArray(lines) ? lines.length : 0;
+  const safeMaxLines = Math.min(Math.max(0, rawLineCount), MAX_CSV_ROW_LIMIT);
+
+  for (let i = 1; i < safeMaxLines && candidates.length < MAX_CSV_CANDIDATE_LIMIT; i++) {
     const rawLine = lines[i];
-    // Deterministic O(n) cell extraction
-    const cleanCells = parseDelimitedLine(rawLine);
+    // Deterministic O(n) cell extraction with strict character bound
+    const cleanCells = parseDelimitedLine(rawLine, MAX_LINE_CHAR_LIMIT);
 
     if (cleanCells.length < 2) continue;
 
@@ -175,8 +194,10 @@ export function parseCsvDeterministically(
         }
       }
     } else {
-      // Fallback search in cells
-      for (const cell of cleanCells) {
+      // Fallback search in cells with bounded count
+      const cellSearchLimit = Math.min(cleanCells.length, 32);
+      for (let c = 0; c < cellSearchLimit; c++) {
+        const cell = cleanCells[c];
         const p = parseFloat(cell.replace(/[^0-9.-]/g, ''));
         if (!isNaN(p) && p > 0 && p < 1000000) {
           amount = p;
