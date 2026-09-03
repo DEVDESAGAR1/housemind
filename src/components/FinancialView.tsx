@@ -559,7 +559,45 @@ export const FinancialView: React.FC<FinancialViewProps> = ({
               ) : filteredTransactions.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="py-12 text-center text-slate-400">
-                    No transactions match your current filters.
+                    <div className="space-y-3">
+                      <p>
+                        {transactions.length === 0
+                          ? 'No transactions recorded in ledger yet.'
+                          : 'No transactions match your current filters.'}
+                      </p>
+                      {transactions.length === 0 ? (
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => openAddModal()}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-xs transition cursor-pointer"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>Add First Transaction</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={onNavigateToDocuments}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg shadow-xs transition cursor-pointer"
+                          >
+                            <Upload className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>Import Statement</span>
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSearchTerm('');
+                            setSelectedType('ALL');
+                            setSelectedCategory('ALL');
+                          }}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium rounded-lg transition cursor-pointer"
+                        >
+                          <span>Clear Filters</span>
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ) : (

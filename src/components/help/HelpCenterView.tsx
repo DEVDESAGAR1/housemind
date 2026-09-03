@@ -219,7 +219,12 @@ export function HelpCenterView({
           </div>
           <button
             type="button"
-            className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 inline-flex items-center gap-1"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsChecklistExpanded((prev) => !prev);
+            }}
+            aria-expanded={isChecklistExpanded}
+            className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 inline-flex items-center gap-1 cursor-pointer"
           >
             <span>{isChecklistExpanded ? 'Hide Steps' : 'View Steps'}</span>
             <ChevronRight

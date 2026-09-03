@@ -308,8 +308,16 @@ export const DocumentManagerView: React.FC<DocumentManagerViewProps> = ({
             Loading document repository...
           </div>
         ) : documents.length === 0 ? (
-          <div className="p-12 text-center text-xs text-slate-400 bg-white rounded-xl border border-slate-200">
-            No documents uploaded yet. Upload a statement above to begin financial extraction.
+          <div className="p-12 text-center text-xs text-slate-400 bg-white rounded-xl border border-slate-200 flex flex-col items-center justify-center space-y-3">
+            <p>No documents uploaded yet. Upload a statement above to begin financial extraction.</p>
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl shadow-xs transition cursor-pointer"
+            >
+              <Upload className="w-3.5 h-3.5" />
+              <span>Upload & Scan</span>
+            </button>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
