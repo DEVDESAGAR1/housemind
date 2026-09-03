@@ -58,12 +58,10 @@ async function getAuthHeader(): Promise<HeadersInit> {
 
   if (currentUser) {
     token = await currentUser.getIdToken();
-  } else if (
-    typeof window !== 'undefined' &&
-    (new URLSearchParams(window.location.search).get('demo') === 'true' ||
-      localStorage.getItem('housemind_test_mode') === 'true')
-  ) {
-    token = 'test-token-demo-user';
+  } else if (import.meta.env.DEV && typeof window !== 'undefined' && (window as any).__PLAYWRIGHT_TEST_USER__) {
+    // Isolated to local automated Playwright test runner fixture (tree-shaken in production builds)
+    const testUser = (window as any).__PLAYWRIGHT_TEST_USER__;
+    token = typeof testUser.getIdToken === 'function' ? await testUser.getIdToken() : testUser.testToken;
   }
 
   if (!token) {

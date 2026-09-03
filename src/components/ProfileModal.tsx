@@ -191,7 +191,8 @@ export function ProfileModal({
   };
 
   const handleCopyUid = () => {
-    const uid = profile?.userId || 'guest-user';
+    const uid = profile?.userId || '';
+    if (!uid) return;
     navigator.clipboard?.writeText(uid);
     setCopiedUid(true);
     setTimeout(() => setCopiedUid(false), 2000);
@@ -767,7 +768,7 @@ export function ProfileModal({
                   <div className="p-3 bg-white border border-slate-200/80 rounded-xl sm:col-span-2 flex items-center justify-between">
                     <div>
                       <span className="text-slate-400 block text-[10px] font-medium">Isolated Household UID</span>
-                      <span className="font-mono text-xs text-slate-800">{profile?.userId || 'guest-user'}</span>
+                      <span className="font-mono text-xs text-slate-800">{profile?.userId || 'account-user'}</span>
                     </div>
                     <button
                       type="button"

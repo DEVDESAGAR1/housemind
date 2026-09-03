@@ -38,24 +38,28 @@ export async function requireAuth(
     return;
   }
 
-  // Handle dedicated test and guest preview tokens
-  if (idToken.startsWith('test-token-') || idToken.startsWith('guest-token-')) {
-    const rawUid = idToken.replace('test-token-', '').replace('guest-token-', '').trim() || 'guest-user';
-    if (!rawUid || rawUid === 'invalid' || rawUid === 'expired' || rawUid === 'forged') {
-      res.status(401).json({
-        success: false,
-        error: {
-          code: 'UNAUTHORIZED',
-          message: 'Invalid, expired, or revoked authentication token.',
-        },
-      });
+  // In dedicated test execution (NODE_ENV === 'test'), allow deterministic test runners
+  // Strictly blocked in all non-test / production environments
+  if (process.env.NODE_ENV === 'test') {
+    if (idToken.startsWith('test-token-')) {
+      const rawUid = idToken.replace('test-token-', '').trim();
+      const forbiddenTestUids = ['invalid', 'expired', 'forged', 'attacker', 'unauthorized', 'malformed'];
+      if (!rawUid || forbiddenTestUids.includes(rawUid.toLowerCase())) {
+        res.status(401).json({
+          success: false,
+          error: {
+            code: 'UNAUTHORIZED',
+            message: 'Invalid, expired, or revoked authentication token.',
+          },
+        });
+        return;
+      }
+      req.userId = rawUid;
+      req.userEmail = `${rawUid}@example.com`;
+      req.userToken = idToken;
+      next();
       return;
     }
-    req.userId = rawUid;
-    req.userEmail = `${rawUid}@example.com`;
-    req.userToken = idToken;
-    next();
-    return;
   }
 
   try {

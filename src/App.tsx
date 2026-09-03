@@ -46,25 +46,10 @@ import { HelpCenterView } from './components/help/HelpCenterView';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ToastContainer, ToastMessage } from './components/Toast';
 
-const isDemoParam =
-  typeof window !== 'undefined' &&
-  (new URLSearchParams(window.location.search).get('demo') === 'true' ||
-    localStorage.getItem('housemind_test_mode') === 'true');
-
-const DEMO_TEST_USER: any = isDemoParam
-  ? {
-      uid: 'demo-user',
-      email: 'alex@maplewood.local',
-      displayName: 'Alex Mercer',
-      photoURL: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
-      getIdToken: async () => 'test-token-demo-user',
-    }
-  : null;
-
 export default function App() {
-  const [user, setUser] = useState<User | null>(DEMO_TEST_USER);
-  const [authToken, setAuthToken] = useState<string>(isDemoParam ? 'test-token-demo-user' : '');
-  const [isAuthChecking, setIsAuthChecking] = useState(!isDemoParam);
+  const [user, setUser] = useState<User | null>(null);
+  const [authToken, setAuthToken] = useState<string>('');
+  const [isAuthChecking, setIsAuthChecking] = useState(true);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
 
@@ -341,18 +326,36 @@ export default function App() {
 
   // Auth state listener
   useEffect(() => {
-    // Check for test or preview mode via ?demo=true or localStorage flag
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('demo') === 'true' || localStorage.getItem('housemind_test_mode') === 'true') {
-      const demoUser: any = {
-        uid: 'test-user-e2e',
-        email: 'alex@maplewood.local',
-        displayName: 'Alex Mercer',
-        photoURL: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
-        getIdToken: async () => 'test-token-e2e-01',
-      };
-      setUser(demoUser);
-      setAuthToken('test-token-e2e-01');
+    // Safely scrub any unsupported demo, guest, or test query parameters without altering auth state
+    if (typeof window !== 'undefined' && window.location.search) {
+      try {
+        const url = new URL(window.location.href);
+        const paramsToScrub = ['demo', 'guest', 'anonymous', 'isDemo', 'demoMode', 'guestMode', 'demoUser', 'demoTenant'];
+        let modified = false;
+        for (const param of paramsToScrub) {
+          if (url.searchParams.has(param)) {
+            url.searchParams.delete(param);
+            modified = true;
+          }
+        }
+        // Also scrub malformed queries like ?demo==true or ?guest==true
+        if (url.search.includes('demo=') || url.search.includes('guest=') || url.search.includes('anonymous=')) {
+          url.search = '';
+          modified = true;
+        }
+        if (modified) {
+          window.history.replaceState({}, document.title, url.pathname + (url.search ? url.search : '') + url.hash);
+        }
+      } catch {
+        // Ignore URL parsing errors
+      }
+    }
+
+    // In local development test runs, allow explicit Playwright fixture injection (tree-shaken in production)
+    if (import.meta.env.DEV && typeof window !== 'undefined' && (window as any).__PLAYWRIGHT_TEST_USER__) {
+      const fixtureUser = (window as any).__PLAYWRIGHT_TEST_USER__;
+      setUser(fixtureUser);
+      setAuthToken(fixtureUser.testToken || 'test-token-e2e-01');
       setIsAuthChecking(false);
       loadHouseholdData();
       return;

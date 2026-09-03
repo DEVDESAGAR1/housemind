@@ -78,4 +78,114 @@ export async function runAuthTests(runner: TestRunner) {
       throw new Error('Tenant isolation breach! User Beta received User Alpha expense item.');
     }
   });
+
+  // =========================================================================
+  // URL Query Bypass & Attacker Forgery Regression Suite
+  // =========================================================================
+
+  await runner.test('Reject unauthenticated request with ?demo=true with 401', async () => {
+    const res = await apiRequest('/api/household/profile?demo=true');
+    if (res.status !== 401) {
+      throw new Error(`Expected 401 Unauthorized, got ${res.status}`);
+    }
+    if (res.body?.success !== false || res.body?.error?.code !== 'UNAUTHORIZED') {
+      throw new Error(`Expected UNAUTHORIZED error, got ${JSON.stringify(res.body)}`);
+    }
+  });
+
+  await runner.test('Reject unauthenticated request with ?demo==true with 401', async () => {
+    const res = await apiRequest('/api/household/profile?demo==true');
+    if (res.status !== 401) {
+      throw new Error(`Expected 401 Unauthorized, got ${res.status}`);
+    }
+  });
+
+  await runner.test('Reject unauthenticated request with ?guest=true with 401', async () => {
+    const res = await apiRequest('/api/household/expenses?guest=true');
+    if (res.status !== 401) {
+      throw new Error(`Expected 401 Unauthorized, got ${res.status}`);
+    }
+  });
+
+  await runner.test('Reject unauthenticated request with ?anonymous=true with 401', async () => {
+    const res = await apiRequest('/api/household/command-center?anonymous=true');
+    if (res.status !== 401) {
+      throw new Error(`Expected 401 Unauthorized, got ${res.status}`);
+    }
+  });
+
+  await runner.test('Reject forged bearer token Authorization: Bearer test-token-attacker with 401', async () => {
+    const res = await apiRequest('/api/household/profile', {
+      headers: { Authorization: 'Bearer test-token-attacker' },
+    });
+    if (res.status !== 401) {
+      throw new Error(`Expected 401 Unauthorized for test-token-attacker, got ${res.status}`);
+    }
+  });
+
+  await runner.test('Reject forged bearer token Authorization: Bearer test-token-forged with 401', async () => {
+    const res = await apiRequest('/api/household/expenses', {
+      headers: { Authorization: 'Bearer test-token-forged' },
+    });
+    if (res.status !== 401) {
+      throw new Error(`Expected 401 Unauthorized for test-token-forged, got ${res.status}`);
+    }
+  });
+
+  await runner.test('Reject forged bearer token Authorization: Bearer test-token-invalid with 401', async () => {
+    const res = await apiRequest('/api/household/profile', {
+      headers: { Authorization: 'Bearer test-token-invalid' },
+    });
+    if (res.status !== 401) {
+      throw new Error(`Expected 401 Unauthorized for test-token-invalid, got ${res.status}`);
+    }
+  });
+
+  await runner.test('Reject legacy guest bearer token Authorization: Bearer guest-token-preview with 401', async () => {
+    const res = await apiRequest('/api/household/profile', {
+      headers: { Authorization: 'Bearer guest-token-preview' },
+    });
+    if (res.status !== 401) {
+      throw new Error(`Expected 401 Unauthorized for guest-token-preview, got ${res.status}`);
+    }
+  });
+
+  await runner.test('Reject unauthenticated request to POST /api/household/demo-seed with 401', async () => {
+    const res = await apiRequest('/api/household/demo-seed', {
+      method: 'POST',
+    });
+    if (res.status !== 401) {
+      throw new Error(`Expected 401 Unauthorized for unauthenticated demo-seed, got ${res.status}`);
+    }
+  });
+
+  await runner.test('Authenticated user can seed realistic starter demo DATA idempotently', async () => {
+    const seedRes = await apiRequest('/api/household/demo-seed', {
+      method: 'POST',
+      token: 'test-token-seed-tester',
+    });
+    if (seedRes.status !== 200) {
+      throw new Error(`Expected 200 OK for authenticated demo seed, got ${seedRes.status}`);
+    }
+    if (seedRes.body?.success !== true) {
+      throw new Error(`Expected success: true, got ${JSON.stringify(seedRes.body)}`);
+    }
+
+    // Verify records exist for this user
+    const listRes = await apiRequest('/api/household/expenses', {
+      token: 'test-token-seed-tester',
+    });
+    if (listRes.status !== 200 || !Array.isArray(listRes.body?.data) || listRes.body.data.length === 0) {
+      throw new Error(`Expected seeded expenses to be present, got: ${JSON.stringify(listRes.body)}`);
+    }
+
+    // Clean up seeded records for this user
+    const removeRes = await apiRequest('/api/household/demo-remove', {
+      method: 'POST',
+      token: 'test-token-seed-tester',
+    });
+    if (removeRes.status !== 200 || removeRes.body?.success !== true) {
+      throw new Error(`Expected 200 OK for demo removal, got ${removeRes.status}`);
+    }
+  });
 }

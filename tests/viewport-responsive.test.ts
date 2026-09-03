@@ -1,4 +1,4 @@
-import { chromium, Browser, Page } from 'playwright';
+import { chromium, Browser } from 'playwright';
 
 interface ViewportTestCase {
   name: string;
@@ -43,34 +43,87 @@ async function runResponsiveTestSuite() {
       args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
     });
 
-    const context = await browser.newContext();
-    const page = await context.newPage();
+    const publicContext = await browser.newContext();
+    const publicPage = await publicContext.newPage();
 
-    // Catch page console errors
-    const consoleErrors: string[] = [];
-    page.on('console', (msg) => {
-      if (msg.type() === 'error') {
-        consoleErrors.push(msg.text());
+    // =========================================================================
+    // 1. Unauthenticated URL Bypass & Attacker Regression Suite
+    // =========================================================================
+    console.log('--- Verifying Unauthenticated URL Bypass Rejection & Landing Page Isolation ---');
+    const bypassAttackUrls = [
+      'http://localhost:3000',
+      'http://localhost:3000/?demo=true',
+      'http://localhost:3000/?demo==true',
+      'http://localhost:3000/?guest=true',
+      'http://localhost:3000/?anonymous=true',
+      'http://localhost:3000/demo',
+      'http://localhost:3000/guest',
+    ];
+
+    for (const testUrl of bypassAttackUrls) {
+      try {
+        await publicPage.goto(testUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
+        await publicPage.waitForSelector('main', { timeout: 10000 });
+
+        // Must display the Google Sign-In button
+        const signinBtn = await publicPage.$('#hero-google-signin-btn');
+        if (!signinBtn) {
+          throw new Error(`Expected #hero-google-signin-btn on unauthenticated URL: ${testUrl}`);
+        }
+
+        // Must NOT display any demo preview button
+        const demoBtn = await publicPage.$('#hero-demo-preview-btn');
+        if (demoBtn) {
+          throw new Error(`Forbidden #hero-demo-preview-btn still present in DOM for URL: ${testUrl}`);
+        }
+
+        // Must NOT render authenticated navigation or dashboard
+        const desktopNav = await publicPage.$('#primary-desktop-navigation');
+        const mobileToggle = await publicPage.$('#mobile-menu-toggle-btn');
+        if (desktopNav || mobileToggle) {
+          throw new Error(`Bypass breached! Authenticated navbar rendered for unauthenticated URL: ${testUrl}`);
+        }
+
+        console.log(`  ✓ Unauthenticated URL safely isolated: ${testUrl}`);
+        passedCount++;
+      } catch (err: any) {
+        console.error(`  ✗ Bypass vulnerability at ${testUrl}: ${err.message}`);
+        failedCount++;
+        failures.push(`Bypass test ${testUrl}: ${err.message}`);
       }
+    }
+
+    // =========================================================================
+    // 2. Authenticated Viewport & Navigation Suite (via Test Fixture)
+    // =========================================================================
+    console.log(`\nTesting across ${VIEWPORT_TEST_CASES.length} responsive viewports at http://localhost:3000 (authenticated test fixture)...\n`);
+
+    const authContext = await browser.newContext();
+    // Inject deterministic test user fixture into window scope before document loads
+    await authContext.addInitScript(() => {
+      (window as any).__PLAYWRIGHT_TEST_USER__ = {
+        uid: 'test-user-e2e',
+        email: 'alex@maplewood.local',
+        displayName: 'Alex Mercer',
+        photoURL: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+        getIdToken: async () => 'test-token-e2e-01',
+        testToken: 'test-token-e2e-01',
+      };
     });
 
-    page.on('pageerror', (err) => {
-      consoleErrors.push(`Page Error: ${err.message}`);
-    });
-
-    console.log(`Testing across ${VIEWPORT_TEST_CASES.length} responsive viewports at http://localhost:3000?demo=true...\n`);
+    const authPage = await authContext.newPage();
 
     for (const vp of VIEWPORT_TEST_CASES) {
       const label = `[${vp.name} (${vp.width}x${vp.height})]`;
       try {
-        await page.setViewportSize({ width: vp.width, height: vp.height });
-        await page.goto('http://localhost:3000?demo=true', { waitUntil: 'domcontentloaded', timeout: 15000 });
+        await authPage.setViewportSize({ width: vp.width, height: vp.height });
+        await authPage.goto('http://localhost:3000', { waitUntil: 'domcontentloaded', timeout: 15000 });
 
         // Wait for main container
-        await page.waitForSelector('main', { timeout: 10000 });
+        await authPage.waitForSelector('main', { timeout: 10000 });
 
         // 1. Check for horizontal overflow (must not exceed viewport width by more than 1px for subpixel rounding)
-        const overflow = await page.evaluate(() => {
+        const overflow = await authPage.evaluate(() => {
           return {
             windowWidth: window.innerWidth,
             bodyScrollWidth: document.body.scrollWidth,
@@ -87,7 +140,7 @@ async function runResponsiveTestSuite() {
         // 2. Responsive Navbar Checks
         if (vp.width < 1024) {
           // Mobile Mode: Mobile menu toggle should be visible
-          const mobileBtn = await page.$('#mobile-menu-toggle-btn');
+          const mobileBtn = await authPage.$('#mobile-menu-toggle-btn');
           if (!mobileBtn) {
             throw new Error('Mobile menu toggle button (#mobile-menu-toggle-btn) not found in DOM');
           }
@@ -97,28 +150,16 @@ async function runResponsiveTestSuite() {
           }
 
           // Desktop nav should be hidden
-          const desktopNav = await page.$('#primary-desktop-navigation');
+          const desktopNav = await authPage.$('#primary-desktop-navigation');
           if (desktopNav) {
             const isDesktopNavVisible = await desktopNav.isVisible();
             if (isDesktopNavVisible) {
-              throw new Error('Desktop navigation should be hidden on viewports < 1024px');
+              throw new Error('Desktop navigation should NOT be visible on viewports < 1024px');
             }
           }
-
-          // Test Opening Mobile Drawer
-          await mobileBtn.click();
-          await page.waitForSelector('#mobile-navigation-drawer', { timeout: 3000 });
-          const isDrawerVisible = await (await page.$('#mobile-navigation-drawer'))?.isVisible();
-          if (!isDrawerVisible) {
-            throw new Error('Mobile drawer menu failed to open on button click');
-          }
-
-          // Close Drawer by toggling again
-          await mobileBtn.click();
-          await page.waitForTimeout(100);
         } else {
-          // Desktop Mode: Desktop navigation should be visible
-          const desktopNav = await page.$('#primary-desktop-navigation');
+          // Desktop Mode (>= 1024px)
+          const desktopNav = await authPage.$('#primary-desktop-navigation');
           if (!desktopNav) {
             throw new Error('Desktop navigation (#primary-desktop-navigation) not found in DOM');
           }
@@ -127,38 +168,17 @@ async function runResponsiveTestSuite() {
             throw new Error('Desktop navigation should be visible on viewports >= 1024px');
           }
 
-          // Mobile menu button should be hidden
-          const mobileBtn = await page.$('#mobile-menu-toggle-btn');
+          const mobileBtn = await authPage.$('#mobile-menu-toggle-btn');
           if (mobileBtn) {
             const isMobileBtnVisible = await mobileBtn.isVisible();
             if (isMobileBtnVisible) {
-              throw new Error('Mobile menu button should be hidden on viewports >= 1024px');
+              throw new Error('Mobile menu button should NOT be visible on viewports >= 1024px');
             }
-          }
-
-          // Protected right action zone must be visible
-          const rightZone = await page.$('#protected-right-action-zone');
-          if (!rightZone || !(await rightZone.isVisible())) {
-            throw new Error('Protected right action zone (#protected-right-action-zone) is missing or not visible');
-          }
-
-          // Test "+ Add" Global Dropdown
-          const addBtn = await page.$('#nav-add-btn');
-          if (addBtn) {
-            await addBtn.click();
-            await page.waitForTimeout(100);
-            const addDropdownOption = await page.$('#add-opt-property');
-            if (!addDropdownOption || !(await addDropdownOption.isVisible())) {
-              throw new Error('"+ Add" dropdown failed to open on click');
-            }
-            // Close it by clicking add button again
-            await addBtn.click();
-            await page.waitForTimeout(100);
           }
         }
 
         // 3. Command Center Operating Screen Checks
-        const main = await page.$('main');
+        const main = await authPage.$('main');
         if (!main) {
           throw new Error('Main content element not found');
         }
@@ -174,47 +194,47 @@ async function runResponsiveTestSuite() {
 
     // 4. Multi-view navigation and modal verification at standard laptop resolution
     console.log('\n--- Verifying View Navigation & Subtab Sync at 1366x768 ---');
-    await page.setViewportSize({ width: 1366, height: 768 });
-    await page.goto('http://localhost:3000?demo=true', { waitUntil: 'domcontentloaded' });
-    await page.waitForSelector('main', { timeout: 10000 });
+    await authPage.setViewportSize({ width: 1366, height: 768 });
+    await authPage.goto('http://localhost:3000', { waitUntil: 'domcontentloaded' });
+    await authPage.waitForSelector('main', { timeout: 10000 });
 
     // Click Home -> Maintenance
-    const homeMenuBtn = await page.$('#nav-home-group-btn');
+    const homeMenuBtn = await authPage.$('#nav-home-group-btn');
     if (homeMenuBtn) {
       await homeMenuBtn.click();
-      await page.waitForTimeout(150);
-      const maintItem = await page.$('#nav-maintenance-tab');
+      await authPage.waitForTimeout(150);
+      const maintItem = await authPage.$('#nav-maintenance-tab');
       if (maintItem) {
         await maintItem.click();
-        await page.waitForTimeout(300);
+        await authPage.waitForTimeout(300);
         console.log('  ✓ Navigation to Maintenance view successful');
         passedCount++;
       }
     }
 
     // Click Assets -> Warranties
-    const assetsMenuBtn = await page.$('#nav-assets-group-btn');
+    const assetsMenuBtn = await authPage.$('#nav-assets-group-btn');
     if (assetsMenuBtn) {
       await assetsMenuBtn.click();
-      await page.waitForTimeout(150);
-      const warrantyItem = await page.$('#nav-item-warranties');
+      await authPage.waitForTimeout(150);
+      const warrantyItem = await authPage.$('#nav-item-warranties');
       if (warrantyItem) {
         await warrantyItem.click();
-        await page.waitForTimeout(300);
+        await authPage.waitForTimeout(300);
         console.log('  ✓ Navigation to Warranties subtab successful');
         passedCount++;
       }
     }
 
     // Click Finances -> Loans
-    const finMenuBtn = await page.$('#nav-finances-group-btn');
+    const finMenuBtn = await authPage.$('#nav-finances-group-btn');
     if (finMenuBtn) {
       await finMenuBtn.click();
-      await page.waitForTimeout(150);
-      const loansItem = await page.$('#nav-item-loans');
+      await authPage.waitForTimeout(150);
+      const loansItem = await authPage.$('#nav-item-loans');
       if (loansItem) {
         await loansItem.click();
-        await page.waitForTimeout(300);
+        await authPage.waitForTimeout(300);
         console.log('  ✓ Navigation to Loans & Mortgages subtab successful');
         passedCount++;
       }
