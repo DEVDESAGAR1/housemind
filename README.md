@@ -129,7 +129,7 @@ npm start
 ## 🔒 Security & Privacy
 
 For comprehensive details on HouseMind's security posture, threat mitigation, data isolation, and AI safety controls, consult:
-- [PRIVACY.md](./PRIVACY.md) — Privacy-First Data Architecture & Governance
+- [PRIVACY.md](./PRIVACY.md) — Privacy-First Data Architecture &  Governance
 - [SECURITY.md](./SECURITY.md) — Security Architecture & Threat Model
 - [THREAT_MODEL.md](./THREAT_MODEL.md) — Threat Matrix & Vulnerability Mitigations
 - [ARCHITECTURE.md](./ARCHITECTURE.md) — System Architecture & Data Flow Diagrams
