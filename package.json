@@ -9,6 +9,7 @@
     "start": "node dist/server.cjs",
     "clean": "rm -rf dist server.js",
     "test": "tsx tests/run-all.ts",
+    "test:browser": "tsx tests/browser-user-journeys.test.ts",
     "lint": "tsc --noEmit"
   },
   "dependencies": {

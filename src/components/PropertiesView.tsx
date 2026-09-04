@@ -350,7 +350,7 @@ export function PropertiesView({
                     : 'bg-slate-100 text-slate-600'
                 }`}
               >
-                {prop.propertyType.replace('_', ' ')}
+                {prop.propertyType?.replace('_', ' ') || 'Property'}
               </span>
             </button>
           ))}
@@ -367,7 +367,7 @@ export function PropertiesView({
                 <div className="flex items-center gap-2">
                   <h2 className="text-base font-bold text-slate-900">{selectedProperty.name}</h2>
                   <span className="text-xs px-2.5 py-0.5 rounded-full font-semibold bg-indigo-50 text-indigo-700 capitalize">
-                    {selectedProperty.propertyType.replace('_', ' ')}
+                    {selectedProperty.propertyType?.replace('_', ' ') || 'Property'}
                   </span>
                 </div>
                 {selectedProperty.address && (

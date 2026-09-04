@@ -82,7 +82,9 @@ export function HouseholdHealthDetailModal({
                   Household Health Intelligence Report
                 </h3>
                 <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-500/30 text-indigo-200 border border-indigo-400/40">
-                  {healthReport.overallScore}/100 • {healthReport.statusLabel}
+                  {healthReport.isProvisional && healthReport.completenessScore < 25
+                    ? 'Unrated (Setup Required)'
+                    : `${healthReport.overallScore}/100 • ${healthReport.statusLabel}`}
                 </span>
               </div>
               <p className="text-xs text-slate-300">

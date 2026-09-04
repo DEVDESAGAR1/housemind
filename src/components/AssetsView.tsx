@@ -276,7 +276,7 @@ export function AssetsView({
                 {/* Status & Category Strip */}
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-semibold uppercase tracking-wider px-2.5 py-1 bg-slate-100 text-slate-700 rounded-lg">
-                    {asset.category.replace('_', ' ')}
+                    {asset.category?.replace('_', ' ') || 'General'}
                   </span>
 
                   <span
@@ -291,7 +291,7 @@ export function AssetsView({
                     {asset.currentStatus === 'operational' && <CheckCircle2 className="w-3.5 h-3.5" />}
                     {asset.currentStatus === 'needs_maintenance' && <AlertTriangle className="w-3.5 h-3.5" />}
                     {asset.currentStatus === 'critical' && <ShieldAlert className="w-3.5 h-3.5" />}
-                    {asset.currentStatus.replace('_', ' ')}
+                    {asset.currentStatus?.replace('_', ' ') || 'Active'}
                   </span>
                 </div>
 

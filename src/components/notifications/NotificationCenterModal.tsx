@@ -71,6 +71,8 @@ export function NotificationCenterModal({
         return <ShieldAlert className="w-4 h-4 text-amber-600" />;
       case 'documents':
         return <FileText className="w-4 h-4 text-sky-600" />;
+      case 'agent':
+        return <Sparkles className="w-4 h-4 text-purple-600" />;
       case 'alerts':
       default:
         return <AlertTriangle className="w-4 h-4 text-rose-600" />;

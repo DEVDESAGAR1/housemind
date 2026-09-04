@@ -1,4 +1,5 @@
 import { DatabaseService, getOrCreateUserStore } from './dbService';
+import { ActionExecutor } from './agent/actionExecutor';
 import {
   HouseholdNotification,
   HouseholdNotificationsResponse,
@@ -516,8 +517,9 @@ export class NotificationService {
       }
     }
 
-    // 5. Household Alerts (e.g. Critical Asset Failure)
+    // 5. Household Alerts & Agent Notifications
     if (prefs.categories.householdAlerts) {
+      // 5a. Critical Asset Alerts
       const assets = Array.from(store.assets.values());
       for (const asset of assets) {
         if (asset.status === 'critical') {
@@ -541,6 +543,37 @@ export class NotificationService {
               createdAt: new Date(refDate.getTime() - 1 * 3600000).toISOString(),
             });
           }
+        }
+      }
+
+      // 5b. Agent Action Approval Notifications (Phase 20)
+      const pendingProposals = ActionExecutor.listPendingProposals(userId);
+      for (const proposal of pendingProposals) {
+        const notifId = `notif_action_approval_${proposal.actionId}`;
+        const savedState = stateMap.get(notifId);
+        if (!savedState?.isDismissed) {
+          notifications.push({
+            id: notifId,
+            userId,
+            category: 'agent',
+            priority: 'important',
+            title: `Approval Required: ${proposal.title}`,
+            message: `HouseMind is waiting for your authorization to execute "${proposal.title}". Expected outcome: ${proposal.expectedOutcome}`,
+            sourceEntityType: 'agent_action',
+            sourceId: proposal.actionId,
+            targetTab: 'copilot',
+            targetSubTab: 'actions',
+            actionLabel: 'Review & Approve',
+            isRead: savedState?.isRead || false,
+            readAt: savedState?.readAt,
+            isDismissed: false,
+            createdAt: proposal.createdAt,
+            metadata: {
+              actionId: proposal.actionId,
+              actionType: proposal.actionType,
+              riskLevel: proposal.riskLevel,
+            },
+          });
         }
       }
     }

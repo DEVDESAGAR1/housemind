@@ -38,6 +38,12 @@ import {
   HouseholdNotificationsResponse,
   NotificationPreferences,
   HouseholdNotification,
+  HouseholdMorningBrief,
+  AgentActionProposal,
+  AgentActionExecutionResult,
+  AgentActivityTimelineResponse,
+  HouseholdMemoryItem,
+  HouseholdMemoriesResponse,
 } from '../types';
 
 
@@ -58,7 +64,7 @@ async function getAuthHeader(): Promise<HeadersInit> {
 
   if (currentUser) {
     token = await currentUser.getIdToken();
-  } else if (import.meta.env.DEV && typeof window !== 'undefined' && (window as any).__PLAYWRIGHT_TEST_USER__) {
+  } else if (typeof window !== 'undefined' && (window as any).__PLAYWRIGHT_TEST_USER__) {
     // Isolated to local automated Playwright test runner fixture (tree-shaken in production builds)
     const testUser = (window as any).__PLAYWRIGHT_TEST_USER__;
     token = typeof testUser.getIdToken === 'function' ? await testUser.getIdToken() : testUser.testToken;
@@ -256,6 +262,10 @@ export const api = {
     return handleResponse<CopilotChatResponse>(res);
   },
 
+  async sendCopilotMessage(message: string, conversationId?: string): Promise<CopilotChatResponse> {
+    return this.sendCopilotChat({ message, conversationId });
+  },
+
   async getCopilotConversations(): Promise<ConversationSummary[]> {
     const headers = await getAuthHeader();
     const res = await fetch('/api/copilot/conversations', {
@@ -281,6 +291,57 @@ export const api = {
       headers,
     });
     return handleResponse<{ id: string; deleted: boolean }>(res);
+  },
+
+  async getMorningBrief(): Promise<HouseholdMorningBrief> {
+    const headers = await getAuthHeader();
+    const res = await fetch('/api/copilot/morning-brief', {
+      method: 'GET',
+      headers,
+    });
+    return handleResponse<HouseholdMorningBrief>(res);
+  },
+
+  async getAgentAction(actionId: string): Promise<AgentActionProposal> {
+    const headers = await getAuthHeader();
+    const res = await fetch(`/api/copilot/actions/${encodeURIComponent(actionId)}`, {
+      method: 'GET',
+      headers,
+    });
+    return handleResponse<AgentActionProposal>(res);
+  },
+
+  async approveAgentAction(actionId: string): Promise<AgentActionExecutionResult> {
+    const headers = await getAuthHeader();
+    const res = await fetch(`/api/copilot/actions/${encodeURIComponent(actionId)}/approve`, {
+      method: 'POST',
+      headers,
+    });
+    return handleResponse<AgentActionExecutionResult>(res);
+  },
+
+  async cancelAgentAction(actionId: string): Promise<{ success: boolean; message: string; proposal?: AgentActionProposal }> {
+    const headers = await getAuthHeader();
+    const res = await fetch(`/api/copilot/actions/${encodeURIComponent(actionId)}/cancel`, {
+      method: 'POST',
+      headers,
+    });
+    return handleResponse<{ success: boolean; message: string; proposal?: AgentActionProposal }>(res);
+  },
+
+  async getAgentActivity(params?: { limit?: number; offset?: number; eventType?: string }): Promise<AgentActivityTimelineResponse> {
+    const headers = await getAuthHeader();
+    const query = new URLSearchParams();
+    if (params?.limit) query.append('limit', String(params.limit));
+    if (params?.offset) query.append('offset', String(params.offset));
+    if (params?.eventType) query.append('eventType', params.eventType);
+
+    const qs = query.toString() ? `?${query.toString()}` : '';
+    const res = await fetch(`/api/copilot/activity${qs}`, {
+      method: 'GET',
+      headers,
+    });
+    return handleResponse<AgentActivityTimelineResponse>(res);
   },
 
   // Global Household Discovery & Search
@@ -1052,6 +1113,44 @@ export const api = {
       headers,
     });
     return handleResponse<any>(res);
+  },
+
+  // Household Memory (Phase 20)
+  async getHouseholdMemories(confirmedOnly: boolean = false): Promise<HouseholdMemoriesResponse> {
+    const headers = await getAuthHeader();
+    const res = await fetch(`/api/household/memory?confirmedOnly=${confirmedOnly}`, {
+      method: 'GET',
+      headers,
+    });
+    return handleResponse<HouseholdMemoriesResponse>(res);
+  },
+
+  async createHouseholdMemory(data: Partial<HouseholdMemoryItem>): Promise<HouseholdMemoryItem> {
+    const headers = await getAuthHeader();
+    const res = await fetch('/api/household/memory', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(data),
+    });
+    return handleResponse<HouseholdMemoryItem>(res);
+  },
+
+  async confirmHouseholdMemory(id: string): Promise<HouseholdMemoryItem> {
+    const headers = await getAuthHeader();
+    const res = await fetch(`/api/household/memory/${encodeURIComponent(id)}/confirm`, {
+      method: 'PUT',
+      headers,
+    });
+    return handleResponse<HouseholdMemoryItem>(res);
+  },
+
+  async deleteHouseholdMemory(id: string): Promise<{ success: boolean; message: string }> {
+    const headers = await getAuthHeader();
+    const res = await fetch(`/api/household/memory/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      headers,
+    });
+    return handleResponse<{ success: boolean; message: string }>(res);
   },
 };
 

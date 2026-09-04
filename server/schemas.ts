@@ -932,6 +932,32 @@ export const toggleSourceSchema = z.object({
   queryFilter: z.string().max(256).optional().nullable(),
 });
 
+// Household Memory Schemas (Phase 20)
+export const memoryIdParamSchema = idParamSchema;
+
+export const createHouseholdMemorySchema = z.object({
+  category: z.enum(['preference', 'asset', 'maintenance', 'notification', 'fact']),
+  key: z.string().trim().min(1, 'Key is required').max(100, 'Key exceeds 100 characters'),
+  value: z.union([
+    z.string().trim().min(1, 'Value cannot be empty').max(500, 'Value exceeds 500 characters'),
+    z.record(z.string(), z.any()),
+  ]),
+  source: z.enum(['user_explicit', 'app_preference', 'confirmed_suggestion']).optional().default('user_explicit'),
+  confirmed: z.boolean().optional().default(true),
+});
+
+export const updateHouseholdMemorySchema = z.object({
+  category: z.enum(['preference', 'asset', 'maintenance', 'notification', 'fact']).optional(),
+  key: z.string().trim().min(1).max(100).optional(),
+  value: z
+    .union([
+      z.string().trim().min(1).max(500),
+      z.record(z.string(), z.any()),
+    ])
+    .optional(),
+  confirmed: z.boolean().optional(),
+});
+
 
 
 

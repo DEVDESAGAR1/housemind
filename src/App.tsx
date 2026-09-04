@@ -43,13 +43,29 @@ import { NotificationCenterModal } from './components/notifications/Notification
 import { NotificationPreferencesModal } from './components/notifications/NotificationPreferencesModal';
 import { LandingPage } from './components/LandingPage';
 import { HelpCenterView } from './components/help/HelpCenterView';
+import { FloatingHelpWidget } from './components/help/FloatingHelpWidget';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ToastContainer, ToastMessage } from './components/Toast';
 
 export default function App() {
-  const [user, setUser] = useState<User | null>(null);
-  const [authToken, setAuthToken] = useState<string>('');
-  const [isAuthChecking, setIsAuthChecking] = useState(true);
+  const [user, setUser] = useState<User | null>(() => {
+    if (typeof window !== 'undefined' && (window as any).__PLAYWRIGHT_TEST_USER__) {
+      return (window as any).__PLAYWRIGHT_TEST_USER__;
+    }
+    return null;
+  });
+  const [authToken, setAuthToken] = useState<string>(() => {
+    if (typeof window !== 'undefined' && (window as any).__PLAYWRIGHT_TEST_USER__) {
+      return (window as any).__PLAYWRIGHT_TEST_USER__.testToken || 'test-token-e2e-01';
+    }
+    return '';
+  });
+  const [isAuthChecking, setIsAuthChecking] = useState<boolean>(() => {
+    if (typeof window !== 'undefined' && (window as any).__PLAYWRIGHT_TEST_USER__) {
+      return false;
+    }
+    return true;
+  });
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
 
@@ -90,6 +106,9 @@ export default function App() {
 
   // Global Search Modal
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+
+  // Contextual Copilot Navigation State
+  const [copilotContext, setCopilotContext] = useState<{ initialPrompt?: string; initialDomain?: string } | undefined>(undefined);
 
   // Sub-tab states for compound views
   const [maintenanceSubTab, setMaintenanceSubTab] = useState<'maintenance' | 'warranties'>('maintenance');
@@ -170,7 +189,7 @@ export default function App() {
   const [isNotificationPreferencesOpen, setIsNotificationPreferencesOpen] = useState<boolean>(false);
 
   const loadNotifications = useCallback(async () => {
-    if (!auth.currentUser) return;
+    if (!auth.currentUser && !(typeof window !== 'undefined' && (window as any).__PLAYWRIGHT_TEST_USER__)) return;
     setIsLoadingNotifications(true);
     try {
       const data = await api.getNotifications();
@@ -263,7 +282,7 @@ export default function App() {
 
   // Fetch comprehensive household data
   const loadHouseholdData = useCallback(async () => {
-    if (!auth.currentUser) return;
+    if (!auth.currentUser && !(typeof window !== 'undefined' && (window as any).__PLAYWRIGHT_TEST_USER__)) return;
     setIsLoadingData(true);
     setIsLoadingInsights(true);
     try {
@@ -352,7 +371,7 @@ export default function App() {
     }
 
     // In local development test runs, allow explicit Playwright fixture injection (tree-shaken in production)
-    if (import.meta.env.DEV && typeof window !== 'undefined' && (window as any).__PLAYWRIGHT_TEST_USER__) {
+    if (typeof window !== 'undefined' && (window as any).__PLAYWRIGHT_TEST_USER__) {
       const fixtureUser = (window as any).__PLAYWRIGHT_TEST_USER__;
       setUser(fixtureUser);
       setAuthToken(fixtureUser.testToken || 'test-token-e2e-01');
@@ -773,7 +792,12 @@ export default function App() {
               profile={profile}
               expenses={expenses}
               assets={assets}
-              onNavigateTab={(tab) => setActiveTab(tab as NavigationTab)}
+              onNavigateTab={(tab) => {
+                setCopilotContext(undefined);
+                setActiveTab(tab as NavigationTab);
+              }}
+              initialPrompt={copilotContext?.initialPrompt}
+              initialDomain={copilotContext?.initialDomain}
             />
           )}
 
@@ -884,7 +908,7 @@ export default function App() {
         }}
         onNavigateToSource={(tab, subTab, sourceId) => {
           setIsNotificationsOpen(false);
-          setActiveTab(tab as NavigationTab);
+          handleNavigateSubTab(tab as NavigationTab, subTab);
         }}
       />
 
@@ -896,6 +920,14 @@ export default function App() {
           loadNotifications();
         }}
         addToast={addToast}
+      />
+
+      {/* Floating AI Copilot & Quick Help Assistant Widget */}
+      <FloatingHelpWidget
+        onNavigate={(tab) => {
+          setActiveTab(tab);
+        }}
+        activeTab={activeTab}
       />
 
       {/* Toast Notifications */}

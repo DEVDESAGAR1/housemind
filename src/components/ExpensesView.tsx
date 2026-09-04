@@ -263,7 +263,7 @@ export function ExpensesView({
 
                     <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
                       <span className="capitalize px-2 py-0.5 bg-slate-100 rounded-md font-medium text-slate-700">
-                        {exp.category.replace('_', ' ')}
+                        {exp.category?.replace('_', ' ') || 'General'}
                       </span>
                       <span>•</span>
                       <span className="capitalize">{exp.frequency}</span>

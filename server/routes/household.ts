@@ -32,7 +32,11 @@ import {
   creditCardIdParamSchema,
   extractEntityFromDocSchema,
   saveExtractedEntitySchema,
+  memoryIdParamSchema,
+  createHouseholdMemorySchema,
+  updateHouseholdMemorySchema,
 } from '../schemas';
+import { HouseholdMemoryService } from '../services/agent/householdMemoryService';
 import {
   SUPPORTED_COUNTRIES,
   SUPPORTED_CURRENCIES,
@@ -2205,6 +2209,185 @@ router.post('/health/explain', async (req: AuthenticatedRequest, res: Response):
       error: {
         code: 'INTERNAL_SERVER_ERROR',
         message: 'Failed to generate health explanation.',
+      },
+    });
+  }
+});
+
+// ==========================================
+// 19. CONTROLLED HOUSEHOLD MEMORY (PHASE 20)
+// ==========================================
+
+/**
+ * GET /api/household/memory
+ * Retrieves tenant-isolated confirmed/all household memories
+ */
+router.get('/memory', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const confirmedOnly = req.query.confirmedOnly === 'true';
+
+  try {
+    const memories = await HouseholdMemoryService.getMemories(userId, confirmedOnly);
+    res.status(200).json({
+      success: true,
+      data: {
+        total: memories.length,
+        memories,
+      },
+    });
+  } catch (error: any) {
+    console.error('[HOUSEHOLD] Error retrieving memories:', {
+      userId,
+      message: error instanceof Error ? error.message : String(error),
+    });
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'Failed to retrieve household memories.',
+      },
+    });
+  }
+});
+
+/**
+ * POST /api/household/memory
+ * Creates a new confirmed or proposed household memory item with privacy validation
+ */
+router.post('/memory', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+
+  const parsed = createHouseholdMemorySchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({
+      success: false,
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: parsed.error.issues[0]?.message || 'Invalid memory payload.',
+        details: parsed.error.issues,
+      },
+    });
+    return;
+  }
+
+  try {
+    const memory = await HouseholdMemoryService.addMemory(userId, parsed.data);
+    res.status(201).json({
+      success: true,
+      data: memory,
+    });
+  } catch (error: any) {
+    console.warn('[HOUSEHOLD] Memory creation rejected:', {
+      userId,
+      message: error instanceof Error ? error.message : String(error),
+    });
+    res.status(400).json({
+      success: false,
+      error: {
+        code: 'MEMORY_REJECTED',
+        message: error instanceof Error ? error.message : String(error),
+      },
+    });
+  }
+});
+
+/**
+ * PUT /api/household/memory/:id/confirm
+ * Explicitly confirms a suggested household memory item
+ */
+router.put('/memory/:id/confirm', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+
+  const paramCheck = memoryIdParamSchema.safeParse(req.params);
+  if (!paramCheck.success) {
+    res.status(400).json({
+      success: false,
+      error: {
+        code: 'INVALID_ID',
+        message: 'Invalid memory ID format.',
+      },
+    });
+    return;
+  }
+
+  try {
+    const memory = await HouseholdMemoryService.confirmMemory(userId, req.params.id);
+    if (!memory) {
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'NOT_FOUND',
+          message: `Household memory '${req.params.id}' not found.`,
+        },
+      });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      data: memory,
+    });
+  } catch (error: any) {
+    console.error('[HOUSEHOLD] Error confirming memory:', {
+      userId,
+      message: error instanceof Error ? error.message : String(error),
+    });
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'Failed to confirm household memory.',
+      },
+    });
+  }
+});
+
+/**
+ * DELETE /api/household/memory/:id
+ * Deletes a household memory item
+ */
+router.delete('/memory/:id', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+
+  const paramCheck = memoryIdParamSchema.safeParse(req.params);
+  if (!paramCheck.success) {
+    res.status(400).json({
+      success: false,
+      error: {
+        code: 'INVALID_ID',
+        message: 'Invalid memory ID format.',
+      },
+    });
+    return;
+  }
+
+  try {
+    const deleted = await HouseholdMemoryService.deleteMemory(userId, req.params.id);
+    if (!deleted) {
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'NOT_FOUND',
+          message: `Household memory '${req.params.id}' not found.`,
+        },
+      });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Household memory deleted successfully.',
+    });
+  } catch (error: any) {
+    console.error('[HOUSEHOLD] Error deleting memory:', {
+      userId,
+      message: error instanceof Error ? error.message : String(error),
+    });
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'Failed to delete household memory.',
       },
     });
   }

@@ -547,7 +547,7 @@ export function MaintenanceWarrantiesView({
                               {isCompleted ? 'Completed' : isOverdue ? 'Overdue' : task.status}
                             </span>
                             <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-slate-100 text-slate-600 capitalize">
-                              {task.frequency.replace('_', ' ')}
+                              {task.frequency?.replace('_', ' ') || 'As Needed'}
                             </span>
                           </div>
                           <h4

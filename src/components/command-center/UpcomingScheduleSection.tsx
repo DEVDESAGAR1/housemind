@@ -81,7 +81,7 @@ export function UpcomingScheduleSection({
             id: `up_exp_${exp.id}`,
             type: 'expense',
             title: exp.title,
-            subtitle: `${exp.category.replace('_', ' ')} • ${exp.frequency || 'monthly'}`,
+            subtitle: `${(exp.category || 'General').replace('_', ' ')} • ${exp.frequency || 'monthly'}`,
             dueDate: exp.dueDate,
             daysDiff: ds.daysDiff,
             formattedDate: ds.formattedDate,

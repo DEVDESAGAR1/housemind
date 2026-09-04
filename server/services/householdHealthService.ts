@@ -43,8 +43,8 @@ function getGeminiClient(): GoogleGenAI {
 }
 
 function getStatusLevel(score: number, completeness: number): { level: HealthStatusLevel; label: string } {
-  if (completeness < 20) {
-    return { level: 'insufficient_data', label: 'Provisional (Setup Required)' };
+  if (completeness < 25) {
+    return { level: 'insufficient_data', label: 'Unrated (Setup Required)' };
   }
   if (score >= 85) return { level: 'excellent', label: 'Excellent' };
   if (score >= 70) return { level: 'good', label: 'Good' };

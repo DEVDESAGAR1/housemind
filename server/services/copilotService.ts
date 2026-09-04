@@ -771,127 +771,17 @@ function extractSuggestedQuestions(aiReply: string): { reply: string; suggestedQ
   return { reply: cleanReply, suggestedQuestions };
 }
 
+import { HouseholdAgentOrchestrator } from './agent/householdAgentOrchestrator';
+
 /**
  * Executes a Copilot chat interaction grounded in the user's household data
+ * using the HouseholdAgentOrchestrator
  */
 export async function executeCopilotChat(
   userId: string,
   userMessage: string,
   existingConversationId?: string
-): Promise<{
-  conversationId: string;
-  reply: string;
-  suggestedQuestions: string[];
-  groundedSummary: {
-    profileLoaded: boolean;
-    expensesCount: number;
-    assetsCount: number;
-    healthScore: number;
-  };
-}> {
-  // 1. Fetch grounded context
-  const context = await fetchHouseholdContext(userId);
-
-  // 2. Resolve or generate conversation ID
-  const conversationId = existingConversationId || `conv_${crypto.randomUUID()}`;
-  let conversation = await DatabaseService.getConversation(userId, conversationId);
-
-  // 3. Load prior message history
-  const history: Array<{ role: string; parts: Array<{ text: string }> }> = [];
-  if (conversation && conversation.messages) {
-    conversation.messages.slice(-12).forEach((m) => {
-      history.push({
-        role: m.role === 'assistant' ? 'model' : 'user',
-        parts: [{ text: m.content }],
-      });
-    });
-  }
-
-  // 4. Construct prompt instructions & model call
-  const systemInstruction = buildSystemInstruction(context);
-  const modelName = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
-
-  const client = getGeminiClient();
-
-  let generatedText = '';
-  try {
-    const contents: Array<{ role: string; parts: Array<{ text: string }> }> = [
-      ...history,
-      {
-        role: 'user',
-        parts: [{ text: userMessage }],
-      },
-    ];
-
-    const generatePromise = client.models.generateContent({
-      model: modelName,
-      contents: contents as any,
-      config: {
-        systemInstruction,
-        temperature: 0.3,
-      },
-    });
-
-    const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('AI generation response timeout (exceeded 3.5s)')), 3500)
-    );
-
-    const response = (await Promise.race([generatePromise, timeoutPromise])) as any;
-
-    generatedText =
-      response.text ||
-      "I've analyzed your household data, but could not generate a response. Please try rephrasing.";
-  } catch (geminiError: any) {
-    console.warn('[COPILOT] Upstream Gemini notice', {
-      userId,
-      message: geminiError?.message || String(geminiError),
-    });
-
-    // Graceful, resilient fallback grounded strictly in real user household data with intelligent domain routing
-    generatedText = generateDomainGroundedReply(context, userMessage);
-  }
-
-  // 5. Extract suggested follow-up questions
-  const { reply, suggestedQuestions } = extractSuggestedQuestions(generatedText);
-  const timestamp = new Date().toISOString();
-
-  // 6. Persist User Message & Assistant Response
-  const newMessages: ChatMessage[] = conversation ? [...conversation.messages] : [];
-  newMessages.push({
-    id: `msg_${crypto.randomUUID()}`,
-    role: 'user',
-    content: userMessage,
-    timestamp,
-  });
-  newMessages.push({
-    id: `msg_${crypto.randomUUID()}`,
-    role: 'assistant',
-    content: reply,
-    suggestedQuestions,
-    timestamp: new Date(Date.now() + 100).toISOString(),
-  });
-
-  const updatedConv: CopilotConversation = {
-    id: conversationId,
-    userId,
-    title: conversation?.title || userMessage.slice(0, 50) + (userMessage.length > 50 ? '...' : ''),
-    createdAt: conversation?.createdAt || timestamp,
-    updatedAt: timestamp,
-    messages: newMessages,
-    lastMessage: reply.slice(0, 120),
-  };
-
-  await DatabaseService.saveConversation(userId, updatedConv);
-
-  return {
-    conversationId,
-    reply,
-    suggestedQuestions,
-    groundedSummary: {
-      profileLoaded: Boolean(context.profile),
-      expensesCount: context.expenses.length,
-      assetsCount: context.assets.length,
-      healthScore: context.healthReport?.overallScore || 0,
-    },
-  };
+) {
+  return HouseholdAgentOrchestrator.handleChat(userId, userMessage, existingConversationId);
 }
+

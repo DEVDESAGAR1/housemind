@@ -21,6 +21,13 @@ import { runHealthIntelligenceTests } from './backend/health_intelligence.test';
 import { runCommandCenterTests } from './backend/command_center.test';
 import { runGlobalSearchTests } from './backend/global_search.test';
 import { runE2EJourneysTests } from './integration/e2e-journeys.test';
+import { runAgentOrchestratorTests } from './backend/agent_orchestrator.test';
+import { runAgentToolsPermissionsTests } from './backend/agent_tools_permissions.test';
+import { runMorningBriefTests } from './backend/morning_brief.test';
+import { runAgentActionApprovalTests } from './backend/agent_action_approval.test';
+import { runAgentActivityUITests } from './backend/agent_activity_ui.test';
+import { runAgentNotificationsMemoryTests } from './backend/agent_notifications_memory.test';
+import { runUnifiedCopilotUXTests } from './backend/unified_copilot_ux.test';
 
 async function main() {
   console.log('\n===============================================================');
@@ -99,6 +106,27 @@ async function main() {
 
     console.log('\n--- 22. Phase 5: Global Search & Household-Wide Discovery ---');
     await runGlobalSearchTests(runner);
+
+    console.log('\n--- 23. Phase 15A: Household Agent & Orchestrator Foundation ---');
+    await runAgentOrchestratorTests(runner);
+
+    console.log('\n--- 24. Phase 16: Controlled Agent Tools & Permission Engine ---');
+    await runAgentToolsPermissionsTests(runner);
+
+    console.log('\n--- 25. Phase 17: Household Morning Brief / Killer Agent Workflow ---');
+    await runMorningBriefTests(runner);
+
+    console.log('\n--- 26. Phase 18: Human Approval + Safe Action Execution ---');
+    await runAgentActionApprovalTests(runner);
+
+    console.log('\n--- 27. Phase 19: Agent Activity Timeline + Copilot UI Polish ---');
+    await runAgentActivityUITests(runner);
+
+    console.log('\n--- 28. Phase 20: Agent Notifications + Controlled Household Context & Memory ---');
+    await runAgentNotificationsMemoryTests(runner);
+
+    console.log('\n--- 29. Phase 22: Unified Agentic Copilot UX Across the Entire Application ---');
+    await runUnifiedCopilotUXTests(runner);
   } finally {
 
     await stopTestServer();

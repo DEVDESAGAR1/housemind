@@ -36,8 +36,11 @@ tests/
 ## 2. Running Test Suites
 
 ```bash
-# Run all tests (81 tests, 15 suites)
+# Run all backend and integration tests (139 tests, 22 suites)
 npm test
+
+# Run full-stack Playwright browser user journey test suite (16 journeys)
+npm run test:browser
 ```
 
 ---

@@ -20,6 +20,7 @@ import {
   HouseholdLoan,
   CreditCardAccount,
   HomeCommandCenterSummary,
+  HouseholdMemoryItem,
 } from '../../src/types';
 
 // In-Memory Multi-Tenant Master Storage (isolated strictly per userId)
@@ -39,6 +40,7 @@ interface UserDataStore {
   insights: Map<string, any>;
   conversations: Map<string, any>;
   scenarios: Map<string, any>;
+  memories: Map<string, any>;
 }
 
 const multiTenantStore = new Map<string, UserDataStore>();
@@ -72,6 +74,7 @@ export function getOrCreateUserStore(userId: string): UserDataStore {
       insights: new Map(),
       conversations: new Map(),
       scenarios: new Map(),
+      memories: new Map(),
     };
     multiTenantStore.set(userId, store);
   }
@@ -2982,6 +2985,77 @@ export class DatabaseService {
     };
   }
 
+  // ==========================================
+  // HOUSEHOLD MEMORY STORAGE (ISOLATED PER USER)
+  // ==========================================
+
+  static async listMemories(userId: string, confirmedOnly: boolean = false): Promise<HouseholdMemoryItem[]> {
+    const store = getOrCreateUserStore(userId);
+    let items = Array.from(store.memories.values()) as HouseholdMemoryItem[];
+    if (confirmedOnly) {
+      items = items.filter((m) => m.confirmed);
+    }
+    // Newest first
+    return items.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+  }
+
+  static async getMemory(userId: string, id: string): Promise<HouseholdMemoryItem | null> {
+    const store = getOrCreateUserStore(userId);
+    const item = store.memories.get(id);
+    return item ? { ...item } : null;
+  }
+
+  static async createMemory(userId: string, data: Partial<HouseholdMemoryItem>): Promise<HouseholdMemoryItem> {
+    const store = getOrCreateUserStore(userId);
+    const id = data.id || `mem_${crypto.randomUUID()}`;
+    const now = new Date().toISOString();
+
+    const memoryItem: HouseholdMemoryItem = {
+      id,
+      userId,
+      category: data.category || 'preference',
+      key: data.key || '',
+      value: data.value !== undefined ? data.value : '',
+      source: data.source || 'user_explicit',
+      confirmed: data.confirmed !== undefined ? data.confirmed : true,
+      createdAt: data.createdAt || now,
+      updatedAt: now,
+    };
+
+    store.memories.set(id, memoryItem);
+    return { ...memoryItem };
+  }
+
+  static async updateMemory(
+    userId: string,
+    id: string,
+    updates: Partial<HouseholdMemoryItem>
+  ): Promise<HouseholdMemoryItem | null> {
+    const store = getOrCreateUserStore(userId);
+    const existing = store.memories.get(id);
+    if (!existing) return null;
+
+    const updated: HouseholdMemoryItem = {
+      ...existing,
+      ...updates,
+      id,
+      userId,
+      updatedAt: new Date().toISOString(),
+    };
+
+    store.memories.set(id, updated);
+    return { ...updated };
+  }
+
+  static async confirmMemory(userId: string, id: string): Promise<HouseholdMemoryItem | null> {
+    return this.updateMemory(userId, id, { confirmed: true });
+  }
+
+  static async deleteMemory(userId: string, id: string): Promise<boolean> {
+    const store = getOrCreateUserStore(userId);
+    return store.memories.delete(id);
+  }
+
   // Clear data for test isolation & full user data reset
   static clearUserData(userId: string): { resetCount: number } {
     const store = getOrCreateUserStore(userId);
@@ -2999,7 +3073,8 @@ export class DatabaseService {
       store.maintenances.size +
       store.utilities.size +
       store.loans.size +
-      store.creditCards.size;
+      store.creditCards.size +
+      store.memories.size;
 
     multiTenantStore.delete(userId);
     return { resetCount: count };

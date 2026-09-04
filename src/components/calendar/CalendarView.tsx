@@ -654,7 +654,7 @@ export function CalendarView({
 
                       <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1">
                         <span className="capitalize font-semibold text-indigo-600">
-                          {ev.eventType.replace('_', ' ')}
+                          {ev.eventType?.replace('_', ' ') || 'Event'}
                         </span>
                         <span
                           className={`px-1.5 py-0.2 rounded font-bold uppercase ${
@@ -665,7 +665,7 @@ export function CalendarView({
                               : 'text-slate-600 bg-slate-100'
                           }`}
                         >
-                          {ev.status.replace('_', ' ')}
+                          {ev.status?.replace('_', ' ') || 'Pending'}
                         </span>
                       </div>
                     </div>
@@ -749,7 +749,7 @@ export function CalendarView({
                             ev.status
                           )}`}
                         >
-                          {ev.status.replace('_', ' ')}
+                          {ev.status?.replace('_', ' ') || 'Pending'}
                         </span>
                       </div>
                       <p className="text-xs text-slate-600">{ev.subtitle}</p>
@@ -759,7 +759,7 @@ export function CalendarView({
                           {ev.formattedDate || ev.date}
                         </span>
                         <span>•</span>
-                        <span className="capitalize text-slate-600">{ev.eventType.replace('_', ' ')}</span>
+                        <span className="capitalize text-slate-600">{ev.eventType?.replace('_', ' ') || 'Event'}</span>
                       </div>
                     </div>
                   </div>
@@ -805,7 +805,7 @@ export function CalendarView({
                 </div>
                 <div>
                   <h3 className="text-lg font-bold text-slate-900">{selectedEvent.title}</h3>
-                  <p className="text-xs text-slate-500 capitalize">{selectedEvent.eventType.replace('_', ' ')} Record</p>
+                  <p className="text-xs text-slate-500 capitalize">{(selectedEvent.eventType?.replace('_', ' ') || 'Event')} Record</p>
                 </div>
               </div>
               <button
@@ -831,7 +831,7 @@ export function CalendarView({
                 )}
                 <div className="flex items-center justify-between">
                   <span className="text-slate-500 font-medium">Status:</span>
-                  <span className="font-bold capitalize text-indigo-600">{selectedEvent.status.replace('_', ' ')}</span>
+                  <span className="font-bold capitalize text-indigo-600">{selectedEvent.status?.replace('_', ' ') || 'Pending'}</span>
                 </div>
                 {selectedEvent.isAutoPay && (
                   <div className="flex items-center justify-between text-indigo-700">

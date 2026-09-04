@@ -70,7 +70,7 @@ export function RecentActivitySection({
           id: `act_maint_${m.id}`,
           type: 'maintenance',
           title: `Service Record: ${m.title}`,
-          description: `Status: ${m.status.replace('_', ' ')} • Provider: ${m.serviceProvider || 'Self'}`,
+          description: `Status: ${m.status?.replace('_', ' ') || 'Pending'} • Provider: ${m.serviceProvider || 'Self'}`,
           timestamp: ts,
           actionTab: 'maintenance',
         });
@@ -85,7 +85,7 @@ export function RecentActivitySection({
           id: `act_ast_${ast.id}`,
           type: 'asset',
           title: `Equipment Registered: ${ast.name}`,
-          description: `Category: ${ast.category.replace('_', ' ')} • Status: ${ast.currentStatus.replace('_', ' ')}`,
+          description: `Category: ${(ast.category || 'Asset').replace('_', ' ')} • Status: ${(ast.currentStatus || 'Operational').replace('_', ' ')}`,
           timestamp: ts,
           actionTab: 'assets',
         });
@@ -100,7 +100,7 @@ export function RecentActivitySection({
           id: `act_exp_${exp.id}`,
           type: 'expense',
           title: `Bill Tracked: ${exp.title}`,
-          description: `Category: ${exp.category.replace('_', ' ')} • Status: ${exp.paymentStatus}`,
+          description: `Category: ${(exp.category || 'Expense').replace('_', ' ')} • Status: ${exp.paymentStatus || 'Pending'}`,
           timestamp: ts,
           actionTab: 'expenses',
         });

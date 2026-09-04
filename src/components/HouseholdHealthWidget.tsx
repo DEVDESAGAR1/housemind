@@ -68,6 +68,7 @@ export function HouseholdHealthWidget({
 
   const score = healthReport.overallScore;
   const completeness = healthReport.completenessScore;
+  const isProvisionalEmpty = healthReport.isProvisional && completeness < 25;
 
   // Determine theme based on score
   const getScoreTheme = (s: number, prov: boolean) => {
@@ -161,9 +162,11 @@ export function HouseholdHealthWidget({
               onNavigateToHelp={() => onNavigate('help')}
             />
             <span
-              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${theme.badge}`}
+              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                isProvisionalEmpty ? 'bg-indigo-100 text-indigo-800' : theme.badge
+              }`}
             >
-              {healthReport.statusLabel}
+              {isProvisionalEmpty ? 'Unrated (Setup Required)' : healthReport.statusLabel}
             </span>
             {healthReport.isProvisional && (
               <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10.5px] font-medium bg-slate-100 text-slate-600">
@@ -232,22 +235,37 @@ export function HouseholdHealthWidget({
                   className={theme.ring}
                   fill="transparent"
                   strokeDasharray={`${2 * Math.PI * 40}`}
-                  strokeDashoffset={`${2 * Math.PI * 40 * (1 - score / 100)}`}
+                  strokeDashoffset={`${2 * Math.PI * 40 * (1 - (isProvisionalEmpty ? Math.max(0.08, completeness / 100) : score / 100))}`}
                   strokeLinecap="round"
                 />
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                <span className="text-2xl font-black tracking-tight text-slate-900 leading-none">
-                  {score}
-                </span>
-                <span className="text-[10px] font-bold text-slate-400">/100</span>
+                {isProvisionalEmpty ? (
+                  <>
+                    <span className="text-2xl font-black tracking-tight text-slate-700 leading-none">
+                      --
+                    </span>
+                    <span className="text-[9.5px] font-bold text-indigo-600 mt-0.5">Unrated</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-2xl font-black tracking-tight text-slate-900 leading-none">
+                      {score}
+                    </span>
+                    <span className="text-[10px] font-bold text-slate-400">/100</span>
+                  </>
+                )}
               </div>
             </div>
 
             <div className="space-y-1">
-              <div className={`text-sm font-bold ${theme.text}`}>{healthReport.statusLabel}</div>
+              <div className={`text-sm font-bold ${isProvisionalEmpty ? 'text-indigo-700' : theme.text}`}>
+                {isProvisionalEmpty ? 'Unrated • Setup Required' : healthReport.statusLabel}
+              </div>
               <p className="text-[11.5px] text-slate-600 leading-snug">
-                {criticalSignals.length > 0
+                {isProvisionalEmpty
+                  ? 'Add your first property, appliance, or bill to calculate your live Household Health Score.'
+                  : criticalSignals.length > 0
                   ? `${criticalSignals.length} high priority item(s) require action.`
                   : warningSignals.length > 0
                   ? `${warningSignals.length} optimization notice(s) detected.`
@@ -294,7 +312,9 @@ export function HouseholdHealthWidget({
               </div>
               <div className="text-right">
                 <span className="text-base font-bold text-slate-900">
-                  {healthReport.categories.home.score}
+                  {isProvisionalEmpty && healthReport.dataCompletenessDetails.propertiesCount === 0
+                    ? '--'
+                    : healthReport.categories.home.score}
                 </span>
                 <span className="text-xs text-slate-400">/100</span>
               </div>
@@ -302,7 +322,13 @@ export function HouseholdHealthWidget({
             <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
               <div
                 className="bg-amber-500 h-full rounded-full"
-                style={{ width: `${healthReport.categories.home.score}%` }}
+                style={{
+                  width: `${
+                    isProvisionalEmpty && healthReport.dataCompletenessDetails.propertiesCount === 0
+                      ? 10
+                      : healthReport.categories.home.score
+                  }%`,
+                }}
               ></div>
             </div>
             <p className="text-[11px] text-slate-600 line-clamp-1">
@@ -327,7 +353,9 @@ export function HouseholdHealthWidget({
               </div>
               <div className="text-right">
                 <span className="text-base font-bold text-slate-900">
-                  {healthReport.categories.assets.score}
+                  {isProvisionalEmpty && healthReport.dataCompletenessDetails.assetsCount === 0
+                    ? '--'
+                    : healthReport.categories.assets.score}
                 </span>
                 <span className="text-xs text-slate-400">/100</span>
               </div>
@@ -335,7 +363,13 @@ export function HouseholdHealthWidget({
             <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
               <div
                 className="bg-blue-500 h-full rounded-full"
-                style={{ width: `${healthReport.categories.assets.score}%` }}
+                style={{
+                  width: `${
+                    isProvisionalEmpty && healthReport.dataCompletenessDetails.assetsCount === 0
+                      ? 10
+                      : healthReport.categories.assets.score
+                  }%`,
+                }}
               ></div>
             </div>
             <p className="text-[11px] text-slate-600 line-clamp-1">
@@ -360,7 +394,9 @@ export function HouseholdHealthWidget({
               </div>
               <div className="text-right">
                 <span className="text-base font-bold text-slate-900">
-                  {healthReport.categories.finances.score}
+                  {isProvisionalEmpty && healthReport.dataCompletenessDetails.expensesCount === 0
+                    ? '--'
+                    : healthReport.categories.finances.score}
                 </span>
                 <span className="text-xs text-slate-400">/100</span>
               </div>
@@ -368,7 +404,13 @@ export function HouseholdHealthWidget({
             <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
               <div
                 className="bg-emerald-500 h-full rounded-full"
-                style={{ width: `${healthReport.categories.finances.score}%` }}
+                style={{
+                  width: `${
+                    isProvisionalEmpty && healthReport.dataCompletenessDetails.expensesCount === 0
+                      ? 10
+                      : healthReport.categories.finances.score
+                  }%`,
+                }}
               ></div>
             </div>
             <p className="text-[11px] text-slate-600 line-clamp-1">
@@ -393,7 +435,9 @@ export function HouseholdHealthWidget({
               </div>
               <div className="text-right">
                 <span className="text-base font-bold text-slate-900">
-                  {healthReport.categories.documents.score}
+                  {isProvisionalEmpty && healthReport.dataCompletenessDetails.documentsCount === 0
+                    ? '--'
+                    : healthReport.categories.documents.score}
                 </span>
                 <span className="text-xs text-slate-400">/100</span>
               </div>
@@ -401,7 +445,13 @@ export function HouseholdHealthWidget({
             <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
               <div
                 className="bg-indigo-500 h-full rounded-full"
-                style={{ width: `${healthReport.categories.documents.score}%` }}
+                style={{
+                  width: `${
+                    isProvisionalEmpty && healthReport.dataCompletenessDetails.documentsCount === 0
+                      ? 10
+                      : healthReport.categories.documents.score
+                  }%`,
+                }}
               ></div>
             </div>
             <p className="text-[11px] text-slate-600 line-clamp-1">

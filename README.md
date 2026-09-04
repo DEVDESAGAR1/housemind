@@ -71,6 +71,18 @@ HouseMind is an enterprise-grade, privacy-first household operating system and f
 
 ---
 
+## 📚 Comprehensive Documentation
+
+For full architectural deep-dives, entity diagrams, complete 45+ endpoint API specifications, security threat models, and algorithm details, consult:
+- **[Comprehensive Technical Handbook](file:///c:/Users/devde/Downloads/housemind/DOCUMENTATION.md)** (`DOCUMENTATION.md`)
+- **[REST API Specification](file:///c:/Users/devde/Downloads/housemind/API.md)** (`API.md`)
+- **[System Architecture](file:///c:/Users/devde/Downloads/housemind/ARCHITECTURE.md)** (`ARCHITECTURE.md`)
+- **[Data Models & Schemas](file:///c:/Users/devde/Downloads/housemind/DATA_MODEL.md)** (`DATA_MODEL.md`)
+- **[Security & Multi-Tenant Model](file:///c:/Users/devde/Downloads/housemind/SECURITY.md)** (`SECURITY.md`)
+- **[Testing & QA Verification Strategy](file:///c:/Users/devde/Downloads/housemind/TESTING.md)** (`TESTING.md`)
+
+---
+
 ## 🚀 Getting Started
 
 ### Prerequisites
@@ -80,8 +92,9 @@ HouseMind is an enterprise-grade, privacy-first household operating system and f
 ### Environment Variables
 Configure your environment variables in `.env` (refer to `.env.example`):
 ```env
+PORT=3000
+NODE_ENV=development
 GEMINI_API_KEY=your_gemini_api_key_here
-FIREBASE_CONFIG=your_firebase_config_json_here
 ```
 
 ### Installation & Development
@@ -89,14 +102,17 @@ FIREBASE_CONFIG=your_firebase_config_json_here
 # Install dependencies
 npm install
 
-# Start development server
+# Start full-stack development server (Express + Vite SPA)
 npm run dev
 ```
 
 ### Running Tests
 ```bash
-# Run complete test suite (81 tests, 15 suites)
+# Run all backend, unit, integration, and security tests (139 tests across 22 suites)
 npm test
+
+# Run full-stack Playwright browser user journey test suite (16 journeys)
+npm run test:browser
 ```
 
 ### Building for Production

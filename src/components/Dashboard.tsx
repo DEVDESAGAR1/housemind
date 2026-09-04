@@ -17,6 +17,7 @@ import {
   SlidersHorizontal,
   FileText,
   CreditCard,
+  Sun,
 } from 'lucide-react';
 
 import {
@@ -172,6 +173,15 @@ export function Dashboard({
 
           {/* Quick Operating Actions */}
           <div className="flex flex-wrap items-center gap-2.5">
+            <button
+              id="dash-morning-brief-btn"
+              onClick={() => onNavigate('copilot')}
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-linear-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-slate-950 text-xs sm:text-sm font-bold rounded-xl transition shadow-xs cursor-pointer"
+            >
+              <Sun className="w-4 h-4 text-slate-950" />
+              <span>Morning Brief</span>
+            </button>
+
             <button
               id="dash-import-doc-btn"
               onClick={onOpenGlobalUpload ? onOpenGlobalUpload : () => onNavigate('documents')}

@@ -288,6 +288,7 @@ export interface MaintenanceTask {
   frequency?: MaintenanceSchedule;
   status: MaintenanceStatus;
   lastCompletedDate?: string;
+  completedDate?: string;
   isDemo?: boolean;
   sourceMetadata?: ImportedSourceMetadata;
   createdAt: string;
@@ -601,12 +602,22 @@ export interface ExtractedEntityReviewData {
   };
 }
 
+export interface ChatStructuredData {
+  type: 'warranties' | 'financial' | 'health' | 'morning_brief' | 'maintenance';
+  title?: string;
+  data: any;
+}
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   timestamp: string;
   suggestedQuestions?: string[];
+  actionProposal?: AgentActionProposal;
+  actionExecution?: AgentActionExecutionResult;
+  morningBrief?: HouseholdMorningBrief;
+  structuredData?: ChatStructuredData;
 }
 
 export interface ConversationSummary {
@@ -624,6 +635,217 @@ export interface ConversationDetail extends ConversationSummary {
   messages: ChatMessage[];
 }
 
+export type HouseholdAgentIntent =
+  | 'GREETING'
+  | 'MORNING_BRIEF'
+  | 'HOUSEHOLD_HEALTH'
+  | 'NEEDS_ATTENTION'
+  | 'MAINTENANCE_WARRANTIES'
+  | 'FINANCES_BILLS_DEBTS'
+  | 'DOCUMENTS_VAULT'
+  | 'CALENDAR_SCHEDULE'
+  | 'NOTIFICATIONS_ALERTS'
+  | 'COMPREHENSIVE_DIAGNOSTIC';
+
+export interface AgentPriorityItem {
+  id?: string;
+  title: string;
+  category: 'maintenance' | 'utility' | 'loan' | 'card' | 'asset' | 'warranty' | 'general';
+  urgency: 'urgent' | 'soon' | 'optimal';
+  reason: string;
+  actionTab?: string;
+  dueDate?: string;
+  amount?: number;
+}
+
+export type MorningBriefUrgency =
+  | 'critical'
+  | 'overdue'
+  | 'due_today'
+  | 'warning'
+  | 'due_soon'
+  | 'nominal';
+
+export interface MorningBriefItem {
+  id: string;
+  title: string;
+  category:
+    | 'maintenance'
+    | 'utility'
+    | 'loan'
+    | 'card'
+    | 'expense'
+    | 'warranty'
+    | 'document'
+    | 'alert'
+    | 'general';
+  urgency: MorningBriefUrgency;
+  reason: string;
+  dueDate?: string;
+  amount?: number;
+  currency?: string;
+  actionTab?: string;
+  actionLabel?: string;
+}
+
+export interface MorningBriefRecommendedAction {
+  title: string;
+  category: string;
+  urgency: MorningBriefUrgency;
+  reason: string;
+  actionTab: string;
+  actionLabel: string;
+}
+
+export interface MorningBriefFinancialObligation {
+  title: string;
+  amount: number;
+  dueDate?: string;
+  type: string;
+  status?: string;
+}
+
+export interface MorningBriefMaintenanceConcern {
+  title: string;
+  urgency: MorningBriefUrgency;
+  dueDate?: string;
+  cost?: number;
+}
+
+export interface MorningBriefWarrantyConcern {
+  title: string;
+  type: 'warranty' | 'document';
+  dateOrStatus: string;
+}
+
+export interface HouseholdMorningBrief {
+  generatedAt: string;
+  homeName: string;
+  statusHeadline: string;
+  overallStatus: 'nominal' | 'attention_required' | 'critical' | 'setup_required';
+  healthScore?: number;
+  healthLabel?: string;
+  isProvisional: boolean;
+  completenessScore: number;
+  itemsNeedingAttention: MorningBriefItem[];
+  itemsToWatch: MorningBriefItem[];
+  financialObligationsSummary: {
+    monthlyBurnRate: number;
+    upcomingTotalDueNext7Days: number;
+    currency: string;
+    keyObligations: MorningBriefFinancialObligation[];
+  };
+  maintenanceAssetConcerns: {
+    overdueTasksCount: number;
+    upcomingTasksCount: number;
+    concerns: MorningBriefMaintenanceConcern[];
+  };
+  documentWarrantyConcerns: {
+    expiringWarrantiesCount: number;
+    pendingReviewDocsCount: number;
+    concerns: MorningBriefWarrantyConcern[];
+  };
+  recommendedFirstAction: MorningBriefRecommendedAction | null;
+  synthesizedNarrative: string;
+  groundedFacts: {
+    totalAssetsCount: number;
+    activeWarrantiesCount: number;
+    totalMonthlyBurnRate: number;
+    totalOutstandingDebt: number;
+    currency: string;
+  };
+  agentAudit?: AgentAuditMetadata;
+}
+
+export type AgentActionCategory =
+  | 'READ'
+  | 'RECOMMEND'
+  | 'NAVIGATE'
+  | 'SAFE_ACTION'
+  | 'WRITE'
+  | 'DELETE'
+  | 'PAYMENT'
+  | 'TRANSFER'
+  | 'AUTH'
+  | 'SECURITY'
+  | 'PERMISSION';
+
+export type AgentActionType =
+  | 'markNotificationRead'
+  | 'markAllNotificationsRead'
+  | 'completeMaintenanceTask'
+  | 'dismissInsight'
+  | 'navigateTab';
+
+export type AgentActionRiskLevel = 'low' | 'medium' | 'high';
+
+export type AgentActionStatus =
+  | 'pending_approval'
+  | 'approved'
+  | 'rejected'
+  | 'executed'
+  | 'failed'
+  | 'denied'
+  | 'cancelled';
+
+export interface AgentActionProposal {
+  actionId: string;
+  actionType: AgentActionType;
+  title: string;
+  description: string;
+  targetEntityId?: string;
+  targetEntityType?: string;
+  targetEntityName?: string;
+  parameters?: Record<string, any>;
+  riskLevel: AgentActionRiskLevel;
+  expectedOutcome: string;
+  status: AgentActionStatus;
+  createdAt: string;
+  expiresAt: string;
+}
+
+export interface AgentActionExecutionResult {
+  actionId: string;
+  actionType: AgentActionType;
+  status: 'executed' | 'failed' | 'denied' | 'cancelled';
+  success: boolean;
+  message: string;
+  executedAt: string;
+  postState?: Record<string, any>;
+  verification: {
+    verified: boolean;
+    verifiedAt?: string;
+    checkedCondition: string;
+    postState?: Record<string, any>;
+  };
+  audit?: AgentToolAuditRecord;
+  auditRecord?: AgentToolAuditRecord;
+}
+
+export type AgentToolName =
+  | 'getHouseholdHealth'
+  | 'getUpcomingObligations'
+  | 'getOverdueMaintenance'
+  | 'getFinancialSummary'
+  | 'getExpiringWarrantiesAndDocuments'
+  | 'getRecentNotifications';
+
+export interface AgentToolAuditRecord {
+  toolName: string;
+  category: AgentActionCategory;
+  status: 'success' | 'denied' | 'error';
+  executionTimeMs: number;
+  denialReason?: string;
+  paramsSummary?: Record<string, string | number | boolean>;
+}
+
+export interface AgentAuditMetadata {
+  intent: HouseholdAgentIntent | string;
+  toolsInvoked: AgentToolAuditRecord[];
+  authenticatedTenant: string;
+  timestamp: string;
+}
+
 export interface CopilotChatResponse {
   conversationId: string;
   reply: string;
@@ -632,7 +854,85 @@ export interface CopilotChatResponse {
     profileLoaded: boolean;
     expensesCount: number;
     assetsCount: number;
+    healthScore?: number;
+    intent?: HouseholdAgentIntent | string;
+    domainsConsulted?: string[];
   };
+  agentActionPlan?: {
+    intent: HouseholdAgentIntent | string;
+    priorityItems?: AgentPriorityItem[];
+    reasoningBrief?: string;
+  };
+  agentAudit?: AgentAuditMetadata;
+  morningBrief?: HouseholdMorningBrief;
+  actionProposal?: AgentActionProposal;
+  actionExecution?: AgentActionExecutionResult;
+}
+
+export type AgentActivityEventType =
+  | 'DETECTED'
+  | 'INVESTIGATED'
+  | 'RECOMMENDED'
+  | 'ACTION_PROPOSED'
+  | 'APPROVAL_REQUESTED'
+  | 'ACTION_APPROVED'
+  | 'ACTION_CANCELLED'
+  | 'ACTION_EXECUTED'
+  | 'VERIFICATION_PASSED'
+  | 'VERIFICATION_FAILED'
+  | 'ACTION_DENIED';
+
+export type AgentActivityStatus = 'info' | 'pending' | 'success' | 'warning' | 'error' | 'cancelled';
+
+export interface AgentActivityItem {
+  id: string;
+  userId: string;
+  timestamp: string;
+  eventType: AgentActivityEventType;
+  title: string;
+  description: string;
+  actionType?: AgentActionType;
+  actionId?: string;
+  targetDomain?: string;
+  targetEntityId?: string;
+  targetEntityName?: string;
+  status: AgentActivityStatus;
+  verification?: {
+    verified: boolean;
+    checkedCondition?: string;
+  };
+  metadata?: Record<string, any>;
+}
+
+export interface AgentActivityTimelineResponse {
+  total: number;
+  limit: number;
+  offset: number;
+  activities: AgentActivityItem[];
+}
+
+export type HouseholdMemoryCategory =
+  | 'preference'
+  | 'asset'
+  | 'maintenance'
+  | 'notification'
+  | 'fact';
+
+export interface HouseholdMemoryItem {
+  id: string;
+  userId: string;
+  category: HouseholdMemoryCategory;
+  key: string;
+  value: string | Record<string, any>;
+  source: 'user_explicit' | 'app_preference' | 'confirmed_suggestion';
+  confirmed: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface HouseholdMemoriesResponse {
+  total: number;
+  memories: HouseholdMemoryItem[];
 }
 
 export type InsightType =
@@ -1305,7 +1605,8 @@ export type HouseholdNotificationCategory =
   | 'maintenance'
   | 'warranties'
   | 'documents'
-  | 'alerts';
+  | 'alerts'
+  | 'agent';
 
 export type HouseholdNotificationPriority = 'critical' | 'important' | 'upcoming';
 
