@@ -5,6 +5,7 @@ interface Props {
   children: ReactNode;
   fallbackTitle?: string;
   onReset?: () => void;
+  resetKey?: string | number;
 }
 
 interface State {
@@ -38,8 +39,9 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   public componentDidUpdate(prevProps: Props) {
-    // Automatically recover when navigation changes children
-    if (this.state.hasError && prevProps.children !== this.props.children) {
+    // Only automatically recover when an explicit resetKey is provided and changed (e.g., navigation tab changed).
+    // Note: Never compare prevProps.children !== this.props.children as JSX children have new object references on every render.
+    if (this.state.hasError && this.props.resetKey !== undefined && prevProps.resetKey !== this.props.resetKey) {
       this.setState({ hasError: false, errorMessage: undefined });
     }
   }
@@ -47,32 +49,37 @@ export class ErrorBoundary extends Component<Props, State> {
   private handleReset = () => {
     this.setState({ hasError: false, errorMessage: undefined });
     if (this.props.onReset) {
-      this.props.onReset();
+      try {
+        this.props.onReset();
+      } catch (err) {
+        console.warn('[HOUSEMIND_BOUNDARY] Error in onReset handler:', err);
+      }
     }
   };
 
   public render() {
     if (this.state.hasError) {
       return (
-        <div className="p-8 rounded-2xl border border-rose-200 bg-rose-50/70 text-center max-w-lg mx-auto my-12 space-y-4 shadow-sm">
+        <div id="error-boundary-container" className="p-8 rounded-2xl border border-rose-200 bg-rose-50/70 text-center max-w-lg mx-auto my-12 space-y-4 shadow-sm">
           <div className="w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto">
             <AlertTriangle className="w-6 h-6" />
           </div>
           <div>
-            <h3 className="text-base font-bold text-slate-900">
+            <h3 id="error-boundary-title" className="text-base font-bold text-slate-900">
               {this.props.fallbackTitle || 'Section Display Anomaly'}
             </h3>
             <p className="text-xs text-slate-600 mt-1 max-w-md mx-auto">
               An unexpected display issue occurred while rendering this section. Your underlying data is completely safe in the household vault.
             </p>
             {this.state.errorMessage && (
-              <div className="mt-2 text-[11px] font-mono text-rose-700 bg-rose-100/60 p-2 rounded-lg max-w-md mx-auto overflow-x-auto text-left">
+              <div id="error-boundary-msg" className="mt-2 text-[11px] font-mono text-rose-700 bg-rose-100/60 p-2 rounded-lg max-w-md mx-auto overflow-x-auto text-left">
                 {this.state.errorMessage}
               </div>
             )}
           </div>
           <div className="pt-2 flex items-center justify-center gap-2">
             <button
+              id="error-boundary-try-again-btn"
               onClick={this.handleReset}
               className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold shadow-sm transition cursor-pointer"
             >
@@ -80,9 +87,14 @@ export class ErrorBoundary extends Component<Props, State> {
               Try Again
             </button>
             <button
+              id="error-boundary-reload-view-btn"
               onClick={() => {
                 this.setState({ hasError: false, errorMessage: undefined });
-                window.location.href = '/';
+                if (this.props.onReset) {
+                  this.props.onReset();
+                } else if (typeof window !== 'undefined') {
+                  window.location.reload();
+                }
               }}
               className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-semibold shadow-sm transition cursor-pointer"
             >
@@ -97,4 +109,5 @@ export class ErrorBoundary extends Component<Props, State> {
     return this.props.children;
   }
 }
+
 

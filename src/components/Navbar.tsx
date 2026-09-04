@@ -49,6 +49,8 @@ export type AddOptionType =
   | 'property'
   | 'asset'
   | 'maintenance'
+  | 'warranty'
+  | 'issue'
   | 'utility'
   | 'loan'
   | 'credit_card'
@@ -71,7 +73,7 @@ interface NavbarProps {
   onOpenNotificationPreferences?: () => void;
   onAddOption?: (option: AddOptionType) => void;
   onNavigateSubTab?: (tab: NavigationTab, subTab?: string) => void;
-  maintenanceSubTab?: 'maintenance' | 'warranties';
+  maintenanceSubTab?: 'maintenance' | 'warranties' | 'issues';
   utilitiesSubTab?: 'utilities' | 'loans' | 'cards';
 }
 

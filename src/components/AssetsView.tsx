@@ -1,8 +1,56 @@
 import { useState, useMemo, useEffect, FormEvent } from 'react';
-import { Plus, Search, Filter, Trash2, Edit3, Wrench, CheckCircle2, AlertTriangle, ShieldAlert, X, Calendar, DollarSign } from 'lucide-react';
-import { HomeAsset, AssetCategory, AssetStatus } from '../types';
+import {
+  Plus,
+  Search,
+  Filter,
+  Trash2,
+  Edit3,
+  Wrench,
+  CheckCircle2,
+  AlertTriangle,
+  ShieldAlert,
+  X,
+  Calendar,
+  DollarSign,
+  Link2,
+  FileText,
+  ShieldCheck,
+  Tag,
+  Building,
+  Clock,
+  Layers,
+  Phone,
+  Info,
+} from 'lucide-react';
+import { HomeAsset, AssetCategory, AssetStatus, AssetRelationships } from '../types';
 import { formatCurrency, getCurrencySymbol } from '../config/locationCurrencyConfig';
 import { ContextualHelp } from './help/ContextualHelp';
+import { api } from '../lib/api';
+
+export function formatCategoryLabel(cat?: string, customCat?: string): string {
+  if (typeof customCat === 'string' && customCat.trim()) return customCat.trim();
+  if (typeof cat !== 'string' || !cat) return 'General';
+  switch (cat) {
+    case 'hvac': return 'HVAC & Climate';
+    case 'plumbing': return 'Plumbing & Water';
+    case 'kitchen': return 'Kitchen Appliances';
+    case 'laundry': return 'Laundry';
+    case 'roofing_exterior': return 'Roofing & Exterior';
+    case 'electrical': return 'Electrical & Power';
+    case 'solar_energy': return 'Solar Energy';
+    case 'power_backup': return 'Power Backup / Inverter';
+    case 'water_system': return 'Water System / Purifier';
+    case 'smart_home': return 'Smart Home & IoT';
+    case 'tools_equipment': return 'Tools & Yard Equipment';
+    case 'vehicle': return 'Vehicles & Mobility';
+    case 'electronics': return 'Electronics & Tech';
+    case 'furniture': return 'Furniture';
+    case 'custom': return 'Custom Asset';
+    case 'other': return 'Other';
+    default:
+      return cat.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+}
 
 interface AssetsViewProps {
   assets: HomeAsset[];
@@ -16,7 +64,7 @@ interface AssetsViewProps {
 }
 
 export function AssetsView({
-  assets,
+  assets = [],
   currency,
   isLoading,
   onAddAsset,
@@ -34,9 +82,18 @@ export function AssetsView({
   const [deletingName, setDeletingName] = useState<string>('');
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Relationships Modal State
+  const [selectedAssetForRelationships, setSelectedAssetForRelationships] = useState<HomeAsset | null>(null);
+  const [relationships, setRelationships] = useState<AssetRelationships | null>(null);
+  const [isLoadingRelationships, setIsLoadingRelationships] = useState(false);
+
   // Form State
   const [name, setName] = useState('');
   const [category, setCategory] = useState<AssetCategory>('hvac');
+  const [customCategory, setCustomCategory] = useState('');
+  const [assetType, setAssetType] = useState('');
+  const [serviceProvider, setServiceProvider] = useState('');
+  const [serviceProviderContact, setServiceProviderContact] = useState('');
   const [brand, setBrand] = useState('');
   const [modelNumber, setModelNumber] = useState('');
   const [serialNumber, setSerialNumber] = useState('');
@@ -52,16 +109,58 @@ export function AssetsView({
 
   const currencySymbol = getCurrencySymbol(currency);
 
+  // Dynamic set of categories found in the assets list
+  const availableCategories = useMemo(() => {
+    const categoriesMap = new Map<string, string>();
+    // Default categories
+    const defaults: Array<{ key: string; label: string }> = [
+      { key: 'hvac', label: 'HVAC & Climate' },
+      { key: 'plumbing', label: 'Plumbing & Water' },
+      { key: 'kitchen', label: 'Kitchen Appliances' },
+      { key: 'laundry', label: 'Laundry' },
+      { key: 'electrical', label: 'Electrical & Power' },
+      { key: 'solar_energy', label: 'Solar Energy' },
+      { key: 'power_backup', label: 'Power Backup / Inverter' },
+      { key: 'water_system', label: 'Water System / Purifier' },
+      { key: 'electronics', label: 'Electronics & Tech' },
+      { key: 'smart_home', label: 'Smart Home & IoT' },
+      { key: 'vehicle', label: 'Vehicles & Mobility' },
+      { key: 'furniture', label: 'Furniture' },
+      { key: 'tools_equipment', label: 'Tools & Yard' },
+      { key: 'roofing_exterior', label: 'Roofing & Exterior' },
+    ];
+    defaults.forEach((d) => categoriesMap.set(d.key, d.label));
+
+    // Custom categories present in the user's assets
+    assets.forEach((a) => {
+      if (a.customCategory && a.customCategory.trim()) {
+        categoriesMap.set(a.customCategory.trim(), a.customCategory.trim());
+      } else if (a.category && !categoriesMap.has(a.category)) {
+        categoriesMap.set(a.category, formatCategoryLabel(a.category));
+      }
+    });
+
+    return Array.from(categoriesMap.entries()).map(([key, label]) => ({ key, label }));
+  }, [assets]);
+
   const filteredAssets = useMemo(() => {
-    return assets.filter((a) => {
-      const searchLower = searchTerm.toLowerCase();
+    return (assets || []).filter((a) => {
+      if (!a) return false;
+      const searchLower = (searchTerm || '').toLowerCase();
       const matchesSearch =
-        a.name.toLowerCase().includes(searchLower) ||
+        (a.name || '').toLowerCase().includes(searchLower) ||
         (a.brand || '').toLowerCase().includes(searchLower) ||
         (a.modelNumber || '').toLowerCase().includes(searchLower) ||
-        (a.roomLocation || '').toLowerCase().includes(searchLower);
+        (a.roomLocation || '').toLowerCase().includes(searchLower) ||
+        (a.customCategory || '').toLowerCase().includes(searchLower) ||
+        (a.assetType || '').toLowerCase().includes(searchLower) ||
+        (a.serviceProvider || '').toLowerCase().includes(searchLower);
 
-      const matchesCategory = selectedCategory === 'all' || a.category === selectedCategory;
+      const matchesCategory =
+        selectedCategory === 'all' ||
+        a.category === selectedCategory ||
+        a.customCategory === selectedCategory;
+
       const matchesStatus = selectedStatus === 'all' || a.currentStatus === selectedStatus;
 
       return matchesSearch && matchesCategory && matchesStatus;
@@ -72,6 +171,10 @@ export function AssetsView({
     setEditingAsset(null);
     setName('');
     setCategory('hvac');
+    setCustomCategory('');
+    setAssetType('');
+    setServiceProvider('');
+    setServiceProviderContact('');
     setBrand('');
     setModelNumber('');
     setSerialNumber('');
@@ -97,6 +200,10 @@ export function AssetsView({
     setEditingAsset(asset);
     setName(asset.name);
     setCategory(asset.category);
+    setCustomCategory(asset.customCategory || '');
+    setAssetType(asset.assetType || (asset as any).subcategory || '');
+    setServiceProvider(asset.serviceProvider || '');
+    setServiceProviderContact(asset.serviceProviderContact || '');
     setBrand(asset.brand || '');
     setModelNumber(asset.modelNumber || '');
     setSerialNumber(asset.serialNumber || '');
@@ -111,6 +218,23 @@ export function AssetsView({
     setIsModalOpen(true);
   };
 
+  const openRelationshipsModal = async (asset: HomeAsset) => {
+    setSelectedAssetForRelationships(asset);
+    setIsLoadingRelationships(true);
+    try {
+      const data = await api.getAssetRelationships(asset.id);
+      if (data) {
+        setRelationships(data as any);
+      } else {
+        setRelationships(null);
+      }
+    } catch {
+      setRelationships(null);
+    } finally {
+      setIsLoadingRelationships(false);
+    }
+  };
+
   const handleFormSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setFormError(null);
@@ -120,9 +244,15 @@ export function AssetsView({
       return;
     }
 
-    const payload = {
+    const isCustom = category === 'custom' || category === 'other';
+
+    const payload: any = {
       name: name.trim(),
-      category,
+      category: isCustom && customCategory.trim() ? 'custom' : category,
+      customCategory: isCustom && customCategory.trim() ? customCategory.trim() : (customCategory.trim() || undefined),
+      assetType: assetType.trim() || undefined,
+      serviceProvider: serviceProvider.trim() || undefined,
+      serviceProviderContact: serviceProviderContact.trim() || undefined,
       brand: brand.trim() || undefined,
       modelNumber: modelNumber.trim() || undefined,
       serialNumber: serialNumber.trim() || undefined,
@@ -215,13 +345,11 @@ export function AssetsView({
             className="px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500 transition cursor-pointer"
           >
             <option value="all">All Categories</option>
-            <option value="hvac">HVAC</option>
-            <option value="plumbing">Plumbing</option>
-            <option value="kitchen">Kitchen</option>
-            <option value="laundry">Laundry</option>
-            <option value="roofing_exterior">Roofing & Exterior</option>
-            <option value="electrical">Electrical</option>
-            <option value="other">Other</option>
+            {availableCategories.map((c) => (
+              <option key={c.key} value={c.key}>
+                {c.label}
+              </option>
+            ))}
           </select>
 
           <select
@@ -276,7 +404,7 @@ export function AssetsView({
                 {/* Status & Category Strip */}
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-semibold uppercase tracking-wider px-2.5 py-1 bg-slate-100 text-slate-700 rounded-lg">
-                    {asset.category?.replace('_', ' ') || 'General'}
+                    {formatCategoryLabel(asset.category, asset.customCategory)}
                   </span>
 
                   <span
@@ -297,12 +425,28 @@ export function AssetsView({
 
                 {/* Title & Brand */}
                 <div>
-                  <h3 className="font-bold text-slate-900 text-base">{asset.name}</h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-slate-900 text-base">{asset.name}</h3>
+                    {(asset.assetType || (asset as any).subcategory) && (
+                      <span className="text-[10px] font-medium px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-md">
+                        {asset.assetType || (asset as any).subcategory}
+                      </span>
+                    )}
+                  </div>
                   <div className="text-xs text-slate-500 mt-0.5">
                     {asset.brand && <span className="font-medium text-slate-700">{asset.brand} </span>}
                     {asset.modelNumber && <span>({asset.modelNumber})</span>}
                     {asset.roomLocation && <span> • {asset.roomLocation}</span>}
                   </div>
+                  {asset.serviceProvider && (
+                    <div className="text-[11px] text-slate-500 mt-1 flex items-center gap-1">
+                      <span className="text-slate-400 font-semibold">Service:</span>
+                      <span className="text-slate-700">{asset.serviceProvider}</span>
+                      {asset.serviceProviderContact && (
+                        <span className="text-slate-400 font-mono">({asset.serviceProviderContact})</span>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Details Metrics */}
@@ -342,9 +486,15 @@ export function AssetsView({
 
               {/* Bottom Card Actions */}
               <div className="flex items-center justify-between pt-3 border-t border-slate-100">
-                <span className="text-[10px] text-slate-400 font-mono">
-                  {asset.serialNumber ? `S/N: ${asset.serialNumber}` : 'ID: ' + asset.id.slice(0, 8)}
-                </span>
+                <button
+                  type="button"
+                  onClick={() => openRelationshipsModal(asset)}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition cursor-pointer"
+                  title="View linked warranties, tasks, expenses, and documents"
+                >
+                  <Link2 className="w-3.5 h-3.5" />
+                  <span>Connections</span>
+                </button>
 
                 <div className="flex items-center gap-1">
                   <button
@@ -425,8 +575,17 @@ export function AssetsView({
                       <option value="plumbing">Plumbing & Water</option>
                       <option value="kitchen">Kitchen Appliances</option>
                       <option value="laundry">Laundry</option>
+                      <option value="electrical">Electrical & Power</option>
+                      <option value="solar_energy">Solar Energy</option>
+                      <option value="power_backup">Power Backup / Inverter / UPS</option>
+                      <option value="water_system">Water System / Purifier / RO</option>
+                      <option value="electronics">Electronics & Tech</option>
+                      <option value="smart_home">Smart Home & IoT</option>
+                      <option value="vehicle">Vehicles & Mobility</option>
+                      <option value="furniture">Furniture</option>
+                      <option value="tools_equipment">Tools & Yard Equipment</option>
                       <option value="roofing_exterior">Roofing & Exterior</option>
-                      <option value="electrical">Electrical & Solar</option>
+                      <option value="custom">Custom Asset Category...</option>
                       <option value="other">Other</option>
                     </select>
                   </div>
@@ -448,7 +607,51 @@ export function AssetsView({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {(category === 'custom' || category === 'other') && (
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                      Custom Category Name *
+                    </label>
+                    <input
+                      type="text"
+                      value={customCategory}
+                      onChange={(e) => setCustomCategory(e.target.value)}
+                      placeholder="e.g. Solar Energy, Musical Instruments, Laboratory Tools"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden transition"
+                      required={category === 'custom'}
+                    />
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                      Specific Subtype / Role
+                    </label>
+                    <input
+                      type="text"
+                      value={assetType}
+                      onChange={(e) => setAssetType(e.target.value)}
+                      placeholder="e.g. Heat Pump, Inverter UPS, Water Purifier RO"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden transition"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                      Assigned Room / Space
+                    </label>
+                    <input
+                      type="text"
+                      value={roomLocation}
+                      onChange={(e) => setRoomLocation(e.target.value)}
+                      placeholder="e.g. Kitchen, Utility Closet, Roof"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden transition"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
                       Brand / Maker
@@ -457,7 +660,7 @@ export function AssetsView({
                       type="text"
                       value={brand}
                       onChange={(e) => setBrand(e.target.value)}
-                      placeholder="e.g. Bosch"
+                      placeholder="e.g. Bosch, Tesla, Luminous"
                       className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden transition"
                     />
                   </div>
@@ -474,16 +677,31 @@ export function AssetsView({
                       className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden transition"
                     />
                   </div>
+                </div>
 
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-                      Room Location
+                      Service Provider / Contractor
                     </label>
                     <input
                       type="text"
-                      value={roomLocation}
-                      onChange={(e) => setRoomLocation(e.target.value)}
-                      placeholder="e.g. Kitchen, Basement"
+                      value={serviceProvider}
+                      onChange={(e) => setServiceProvider(e.target.value)}
+                      placeholder="e.g. Apex Air Solutions, Authorized Service Center"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden transition"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                      Provider Contact Info
+                    </label>
+                    <input
+                      type="text"
+                      value={serviceProviderContact}
+                      onChange={(e) => setServiceProviderContact(e.target.value)}
+                      placeholder="e.g. (555) 234-5678 or support@apex.com"
                       className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden transition"
                     />
                   </div>
@@ -592,6 +810,243 @@ export function AssetsView({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Asset Connections & Relationships Modal */}
+      {selectedAssetForRelationships && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs">
+          <div className="w-full max-w-2xl bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                  <Link2 className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-sm">{selectedAssetForRelationships.name}</h3>
+                  <p className="text-xs text-slate-500">
+                    {formatCategoryLabel(selectedAssetForRelationships.category, selectedAssetForRelationships.customCategory)}
+                    {selectedAssetForRelationships.roomLocation ? ` • ${selectedAssetForRelationships.roomLocation}` : ''}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setSelectedAssetForRelationships(null);
+                  setRelationships(null);
+                }}
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 max-h-[70vh] overflow-y-auto space-y-6">
+              {isLoadingRelationships ? (
+                <div className="py-12 text-center text-sm text-slate-400">Loading linked household records...</div>
+              ) : !relationships ? (
+                <div className="py-12 text-center text-sm text-slate-400">No linked records found.</div>
+              ) : (
+                <div className="space-y-6">
+                  {/* Household Issues / Tickets */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2.5">
+                      <div className="flex items-center gap-2 text-xs font-bold text-slate-700 uppercase tracking-wider">
+                        <AlertTriangle className="w-4 h-4 text-amber-600" />
+                        <span>Household Issues & Tickets ({relationships.issues?.length || 0})</span>
+                      </div>
+                    </div>
+                    {(!relationships.issues || relationships.issues.length === 0) ? (
+                      <p className="text-xs text-slate-400 italic bg-slate-50 p-3 rounded-xl border border-slate-100">
+                        No reported issues or active repair tickets for this asset.
+                      </p>
+                    ) : (
+                      <div className="space-y-2">
+                        {relationships.issues.map((issue) => (
+                          <div key={issue.id} className="p-3 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-between text-xs">
+                            <div>
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-semibold text-slate-800">{issue.title}</span>
+                                {issue.safetyWarning && (
+                                  <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-700">
+                                    Safety
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-slate-500 text-[11px]">
+                                {issue.dueDate ? `Due: ${issue.dueDate}` : ''}
+                                {issue.serviceProvider ? ` • Contractor: ${issue.serviceProvider}` : ''}
+                                {issue.estimatedCost ? ` • Est: ${formatCurrency(issue.estimatedCost, currency)}` : ''}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${
+                                issue.severity === 'critical'
+                                  ? 'bg-rose-100 text-rose-800'
+                                  : issue.severity === 'high'
+                                  ? 'bg-orange-100 text-orange-800'
+                                  : 'bg-slate-100 text-slate-700'
+                              }`}>
+                                {issue.severity}
+                              </span>
+                              <span className={`px-2 py-0.5 rounded-md text-[10px] font-semibold capitalize ${
+                                issue.status === 'resolved' || issue.status === 'closed'
+                                  ? 'bg-emerald-100 text-emerald-700'
+                                  : 'bg-amber-100 text-amber-700'
+                              }`}>
+                                {issue.status.replace('_', ' ')}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Warranties */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2.5">
+                      <div className="flex items-center gap-2 text-xs font-bold text-slate-700 uppercase tracking-wider">
+                        <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                        <span>Warranties ({relationships.warranties.length})</span>
+                      </div>
+                    </div>
+                    {relationships.warranties.length === 0 ? (
+                      <p className="text-xs text-slate-400 italic bg-slate-50 p-3 rounded-xl border border-slate-100">
+                        No active warranties registered for this asset.
+                      </p>
+                    ) : (
+                      <div className="space-y-2">
+                        {relationships.warranties.map((w) => (
+                          <div key={w.id} className="p-3 bg-emerald-50/50 border border-emerald-100 rounded-xl flex items-center justify-between text-xs">
+                            <div>
+                              <div className="font-semibold text-slate-800">{w.warrantyProvider || w.providerName || w.title || 'Warranty Policy'}</div>
+                              <div className="text-slate-500 text-[11px]">
+                                {w.policyNumber ? `Policy: ${w.policyNumber}` : ''}
+                                {(w.expiryDate || w.endDate) ? ` • Expires: ${w.expiryDate || w.endDate}` : ''}
+                              </div>
+                            </div>
+                            <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-100 text-emerald-700 capitalize">
+                              {w.status || 'Active'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Maintenance Tasks */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2.5">
+                      <div className="flex items-center gap-2 text-xs font-bold text-slate-700 uppercase tracking-wider">
+                        <Wrench className="w-4 h-4 text-indigo-600" />
+                        <span>Scheduled Maintenance ({relationships.maintenances.length})</span>
+                      </div>
+                    </div>
+                    {relationships.maintenances.length === 0 ? (
+                      <p className="text-xs text-slate-400 italic bg-slate-50 p-3 rounded-xl border border-slate-100">
+                        No scheduled upkeep or maintenance tasks linked.
+                      </p>
+                    ) : (
+                      <div className="space-y-2">
+                        {relationships.maintenances.map((t) => (
+                          <div key={t.id} className="p-3 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-between text-xs">
+                            <div>
+                              <div className="font-semibold text-slate-800">{t.title}</div>
+                              <div className="text-slate-500 text-[11px]">
+                                {t.dueDate ? `Due: ${t.dueDate}` : t.serviceDate ? `Service: ${t.serviceDate}` : 'No due date'}
+                                {t.category ? ` • ${t.category}` : ''}
+                              </div>
+                            </div>
+                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-semibold capitalize ${
+                              t.status === 'completed' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                            }`}>
+                              {t.status || 'Scheduled'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Expenses */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2.5">
+                      <div className="flex items-center gap-2 text-xs font-bold text-slate-700 uppercase tracking-wider">
+                        <DollarSign className="w-4 h-4 text-slate-600" />
+                        <span>Linked Expenses ({relationships.expenses.length})</span>
+                      </div>
+                    </div>
+                    {relationships.expenses.length === 0 ? (
+                      <p className="text-xs text-slate-400 italic bg-slate-50 p-3 rounded-xl border border-slate-100">
+                        No financial transactions or maintenance receipts logged.
+                      </p>
+                    ) : (
+                      <div className="space-y-2">
+                        {relationships.expenses.map((exp) => (
+                          <div key={exp.id} className="p-3 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-between text-xs">
+                            <div>
+                              <div className="font-semibold text-slate-800">{exp.title || exp.category}</div>
+                              <div className="text-slate-500 text-[11px]">
+                                {exp.dueDate ? `Due: ${exp.dueDate}` : `Frequency: ${exp.frequency}`}
+                                {exp.paymentStatus ? ` • ${exp.paymentStatus}` : ''}
+                              </div>
+                            </div>
+                            <span className="font-bold text-slate-900">
+                              {formatCurrency(exp.amount, currency)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Documents */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2.5">
+                      <div className="flex items-center gap-2 text-xs font-bold text-slate-700 uppercase tracking-wider">
+                        <FileText className="w-4 h-4 text-blue-600" />
+                        <span>Manuals & Receipts ({relationships.documents.length})</span>
+                      </div>
+                    </div>
+                    {relationships.documents.length === 0 ? (
+                      <p className="text-xs text-slate-400 italic bg-slate-50 p-3 rounded-xl border border-slate-100">
+                        No user manuals, permits, or invoices attached.
+                      </p>
+                    ) : (
+                      <div className="space-y-2">
+                        {relationships.documents.map((doc) => (
+                          <div key={doc.id} className="p-3 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-between text-xs">
+                            <div className="flex items-center gap-2">
+                              <FileText className="w-4 h-4 text-slate-400" />
+                              <div>
+                                <div className="font-semibold text-slate-800">{doc.fileName}</div>
+                                <div className="text-slate-500 text-[11px] capitalize">{doc.documentType?.replace('_', ' ')}</div>
+                              </div>
+                            </div>
+                            <span className="text-[10px] text-slate-400 uppercase font-mono">{doc.fileType}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end px-6 py-4 bg-slate-50 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedAssetForRelationships(null);
+                  setRelationships(null);
+                }}
+                className="px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200 rounded-xl transition cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

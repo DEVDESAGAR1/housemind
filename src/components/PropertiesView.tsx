@@ -34,9 +34,9 @@ interface PropertiesViewProps {
 }
 
 export function PropertiesView({
-  properties,
-  rooms,
-  assets,
+  properties = [],
+  rooms = [],
+  assets = [],
   onRefresh,
   onOpenEntityExtractor,
   addToast,
@@ -45,7 +45,7 @@ export function PropertiesView({
   onAddModalOpened,
 }: PropertiesViewProps) {
   const [selectedPropertyId, setSelectedPropertyId] = useState<string>(
-    properties[0]?.id || ''
+    properties?.[0]?.id || ''
   );
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -90,13 +90,13 @@ export function PropertiesView({
   });
 
   useEffect(() => {
-    if (properties.length > 0 && !selectedPropertyId) {
+    if ((properties || []).length > 0 && !selectedPropertyId) {
       setSelectedPropertyId(properties[0].id);
     }
   }, [properties, selectedPropertyId]);
 
-  const selectedProperty = properties.find((p) => p.id === selectedPropertyId) || properties[0];
-  const propertyRooms = rooms.filter((r) => r.propertyId === (selectedProperty?.id || ''));
+  const selectedProperty = (properties || []).find((p) => p && p.id === selectedPropertyId) || properties?.[0];
+  const propertyRooms = (rooms || []).filter((r) => r && r.propertyId === (selectedProperty?.id || ''));
 
   const handleOpenNewProperty = () => {
     setEditingProperty(null);

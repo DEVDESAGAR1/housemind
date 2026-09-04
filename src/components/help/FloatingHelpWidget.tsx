@@ -148,12 +148,15 @@ export function FloatingHelpWidget({ onNavigate, activeTab }: FloatingHelpWidget
   };
 
   // Filtered Help Articles
-  const filteredArticles = HELP_ARTICLES.filter(
-    (a) =>
-      a.title.toLowerCase().includes(helpQuery.toLowerCase()) ||
-      a.shortDescription.toLowerCase().includes(helpQuery.toLowerCase()) ||
-      a.category.toLowerCase().includes(helpQuery.toLowerCase())
-  ).slice(0, 5);
+  const filteredArticles = HELP_ARTICLES.filter((a) => {
+    if (!a) return false;
+    const q = (helpQuery || '').toLowerCase().trim();
+    if (!q) return true;
+    const title = (a.title || '').toLowerCase();
+    const shortDesc = (a.shortDescription || '').toLowerCase();
+    const cat = (a.category || '').toLowerCase();
+    return title.includes(q) || shortDesc.includes(q) || cat.includes(q);
+  }).slice(0, 5);
 
   return (
     <>

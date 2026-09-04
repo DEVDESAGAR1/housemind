@@ -576,6 +576,108 @@ export class NotificationService {
           });
         }
       }
+
+      // 5c. Household Issue Intelligence Alerts (Phase 24.3)
+      const issues = Array.from(store.issues.values());
+      for (const issue of issues) {
+        const isResolved =
+          issue.status === 'resolved' || issue.status === 'verified' || issue.status === 'closed' || issue.status === 'cancelled';
+
+        if (isResolved) continue;
+
+        const linkedAsset = issue.assetId ? store.assets.get(issue.assetId) : undefined;
+
+        // 1. Critical safety risk issue alert
+        if (issue.severity === 'critical' || issue.safetyWarning) {
+          const notifId = `notif_issue_safety_${issue.id}`;
+          const savedState = stateMap.get(notifId);
+          if (!savedState?.isDismissed) {
+            notifications.push({
+              id: notifId,
+              userId,
+              category: 'alerts',
+              priority: 'critical',
+              title: `Urgent Hazard: ${issue.title}`,
+              message: issue.safetyWarning
+                ? `${issue.safetyWarning} Check issue intelligence for safe escalation steps.`
+                : `Critical household issue reported for ${linkedAsset?.name || 'property'}. Immediate mitigation required.`,
+              sourceEntityType: 'issue' as any,
+              sourceId: issue.id,
+              targetTab: 'maintenance',
+              targetSubTab: 'issues',
+              actionLabel: 'Inspect Issue',
+              isRead: savedState?.isRead || false,
+              readAt: savedState?.readAt,
+              isDismissed: false,
+              createdAt: issue.reportedAt || issue.createdAt,
+            });
+          }
+        }
+
+        // 2. Scheduled Repair Approaching
+        if (issue.scheduledDate) {
+          const dueIso = parseIsoDay(issue.scheduledDate);
+          if (dueIso) {
+            const daysDiff = calculateDaysDiff(dueIso, todayIso);
+            if (daysDiff >= 0 && daysDiff <= 3) {
+              const notifId = `notif_issue_sched_${issue.id}_${dueIso}`;
+              const savedState = stateMap.get(notifId);
+              if (!savedState?.isDismissed) {
+                notifications.push({
+                  id: notifId,
+                  userId,
+                  category: 'maintenance',
+                  priority: daysDiff === 0 ? 'critical' : 'important',
+                  title: daysDiff === 0 ? `Repair Service Today: ${issue.title}` : `Upcoming Repair: ${issue.title}`,
+                  message: `${issue.serviceProvider ? `Technician (${issue.serviceProvider})` : 'Service appointment'} scheduled for ${dueIso}. Prepare access to ${linkedAsset?.name || 'affected area'}.`,
+                  dueDate: dueIso,
+                  sourceEntityType: 'issue' as any,
+                  sourceId: issue.id,
+                  targetTab: 'maintenance',
+                  targetSubTab: 'issues',
+                  actionLabel: 'View Schedule',
+                  isRead: savedState?.isRead || false,
+                  readAt: savedState?.readAt,
+                  isDismissed: false,
+                  createdAt: issue.createdAt,
+                });
+              }
+            }
+          }
+        }
+
+        // 3. Overdue Resolution Due Date
+        if (issue.dueDate) {
+          const dueIso = parseIsoDay(issue.dueDate);
+          if (dueIso) {
+            const daysDiff = calculateDaysDiff(dueIso, todayIso);
+            if (daysDiff < 0) {
+              const notifId = `notif_issue_overdue_${issue.id}`;
+              const savedState = stateMap.get(notifId);
+              if (!savedState?.isDismissed) {
+                notifications.push({
+                  id: notifId,
+                  userId,
+                  category: 'maintenance',
+                  priority: 'important',
+                  title: `Unresolved Issue Overdue: ${issue.title}`,
+                  message: `Target resolution date (${dueIso}) passed ${Math.abs(daysDiff)} days ago. Review next steps or update timeline.`,
+                  dueDate: dueIso,
+                  sourceEntityType: 'issue' as any,
+                  sourceId: issue.id,
+                  targetTab: 'maintenance',
+                  targetSubTab: 'issues',
+                  actionLabel: 'Resolve Issue',
+                  isRead: savedState?.isRead || false,
+                  readAt: savedState?.readAt,
+                  isDismissed: false,
+                  createdAt: issue.createdAt,
+                });
+              }
+            }
+          }
+        }
+      }
     }
 
     // Sort: Critical first, then unread first, then date ascending

@@ -19,6 +19,7 @@ import {
   CreditCardAccount,
   FinancialTransaction,
   HouseholdDocument,
+  HouseholdIssue,
 } from '../../src/types';
 
 // Lazy-initialized Gemini Client

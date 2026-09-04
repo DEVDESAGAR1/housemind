@@ -21,6 +21,7 @@ import {
   HouseholdEntityType,
   HouseholdHealthReport,
   HouseholdNotification,
+  HouseholdIssue,
 } from './types';
 import { Navbar, NavigationTab } from './components/Navbar';
 import { Dashboard } from './components/Dashboard';
@@ -84,6 +85,7 @@ export default function App() {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [warranties, setWarranties] = useState<WarrantyPolicy[]>([]);
   const [tasks, setTasks] = useState<MaintenanceTask[]>([]);
+  const [issues, setIssues] = useState<HouseholdIssue[]>([]);
   const [utilities, setUtilities] = useState<UtilityAccount[]>([]);
   const [loans, setLoans] = useState<HouseholdLoan[]>([]);
   const [creditCards, setCreditCards] = useState<CreditCardAccount[]>([]);
@@ -111,14 +113,16 @@ export default function App() {
   const [copilotContext, setCopilotContext] = useState<{ initialPrompt?: string; initialDomain?: string } | undefined>(undefined);
 
   // Sub-tab states for compound views
-  const [maintenanceSubTab, setMaintenanceSubTab] = useState<'maintenance' | 'warranties'>('maintenance');
+  const [maintenanceSubTab, setMaintenanceSubTab] = useState<'maintenance' | 'warranties' | 'issues'>('maintenance');
   const [utilitiesSubTab, setUtilitiesSubTab] = useState<'utilities' | 'loans' | 'cards'>('utilities');
-  const [autoOpenTarget, setAutoOpenTarget] = useState<'property' | 'asset' | 'maintenance' | 'warranty' | 'utility' | 'loan' | 'card' | 'expense' | null>(null);
+  const [autoOpenTarget, setAutoOpenTarget] = useState<'property' | 'asset' | 'maintenance' | 'warranty' | 'issue' | 'utility' | 'loan' | 'card' | 'expense' | null>(null);
 
   const handleNavigateSubTab = (tab: NavigationTab, subTab?: string) => {
     if (tab === 'maintenance') {
       if (subTab === 'warranties') {
         setMaintenanceSubTab('warranties');
+      } else if (subTab === 'issues') {
+        setMaintenanceSubTab('issues');
       } else {
         setMaintenanceSubTab('maintenance');
       }
@@ -153,6 +157,11 @@ export default function App() {
         setActiveTab('maintenance');
         setMaintenanceSubTab('warranties');
         setAutoOpenTarget('warranty');
+        break;
+      case 'issue':
+        setActiveTab('maintenance');
+        setMaintenanceSubTab('issues');
+        setAutoOpenTarget('issue');
         break;
       case 'utility':
         setActiveTab('utilities');
@@ -295,6 +304,7 @@ export default function App() {
         roomsData,
         warrantiesData,
         tasksData,
+        issuesData,
         utilitiesData,
         loansData,
         cardsData,
@@ -310,6 +320,7 @@ export default function App() {
         api.getRooms().catch(() => []),
         api.getWarranties().catch(() => []),
         api.getMaintenanceTasks().catch(() => []),
+        api.getIssues().catch(() => []),
         api.getUtilities().catch(() => []),
         api.getLoans().catch(() => []),
         api.getCreditCards().catch(() => []),
@@ -326,6 +337,7 @@ export default function App() {
       if (roomsData) setRooms(roomsData);
       if (warrantiesData) setWarranties(warrantiesData);
       if (tasksData) setTasks(tasksData);
+      if (issuesData) setIssues(issuesData);
       if (utilitiesData) setUtilities(utilitiesData);
       if (loansData) setLoans(loansData);
       if (cardsData) setCreditCards(cardsData);
@@ -627,7 +639,12 @@ export default function App() {
 
       {/* Main App Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <ErrorBoundary fallbackTitle="View Rendering Error">
+        <ErrorBoundary
+          key={activeTab}
+          resetKey={activeTab}
+          fallbackTitle="View Rendering Error"
+          onReset={() => loadHouseholdData()}
+        >
           {activeTab === 'dashboard' && (
             <Dashboard
               profile={profile}
@@ -712,15 +729,17 @@ export default function App() {
             <MaintenanceWarrantiesView
               tasks={tasks}
               warranties={warranties}
+              issues={issues}
               assets={assets}
               properties={properties}
+              rooms={rooms}
               onRefresh={loadHouseholdData}
               onOpenEntityExtractor={(type) => handleOpenGlobalExtractor(type)}
               addToast={addToast}
               currency={profile?.currency || 'USD'}
               initialSubTab={maintenanceSubTab}
               onSubTabChange={(sub) => setMaintenanceSubTab(sub)}
-              autoOpenAdd={autoOpenTarget === 'maintenance' || autoOpenTarget === 'warranty'}
+              autoOpenAdd={autoOpenTarget === 'maintenance' || autoOpenTarget === 'warranty' || autoOpenTarget === 'issue'}
               onAddModalOpened={() => setAutoOpenTarget(null)}
             />
           )}

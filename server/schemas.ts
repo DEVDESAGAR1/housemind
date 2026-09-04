@@ -79,6 +79,8 @@ export const createExpenseSchema = z.object({
   isAutoPay: z.boolean().default(false),
   paymentStatus: z.enum(['paid', 'pending', 'overdue']).default('pending'),
   notes: z.string().trim().max(1000, 'Notes cannot exceed 1000 characters').optional().nullable(),
+  propertyId: z.string().trim().max(128).optional().nullable(),
+  assetId: z.string().trim().max(128).optional().nullable(),
 });
 
 export const updateExpenseSchema = createExpenseSchema.partial();
@@ -86,22 +88,11 @@ export const updateExpenseSchema = createExpenseSchema.partial();
 // Home Asset Schema
 export const createAssetSchema = z.object({
   name: z.string().trim().min(1, 'Asset name is required').max(100, 'Asset name is too long'),
-  category: z.enum([
-    'vehicle',
-    'appliance',
-    'major_appliance',
-    'electronics',
-    'property_related',
-    'furniture',
-    'hvac',
-    'plumbing',
-    'kitchen',
-    'laundry',
-    'roofing_exterior',
-    'electrical',
-    'other',
-  ]),
+  category: z.string().trim().min(1, 'Category is required').max(100, 'Category is too long'),
   subcategory: z.string().trim().max(100).optional().nullable(),
+  customCategory: z.string().trim().max(100).optional().nullable(),
+  customType: z.string().trim().max(100).optional().nullable(),
+  assetType: z.string().trim().max(100).optional().nullable(),
   brand: z.string().trim().max(100, 'Brand is too long').optional().nullable(),
   modelNumber: z.string().trim().max(100, 'Model number is too long').optional().nullable(),
   serialNumber: z.string().trim().max(100, 'Serial number is too long').optional().nullable(),
@@ -150,6 +141,17 @@ export const createAssetSchema = z.object({
   invoiceDocumentId: z.string().trim().max(128).optional().nullable(),
   warrantyDocumentId: z.string().trim().max(128).optional().nullable(),
   supportingDocumentIds: z.array(z.string().trim().max(128)).max(20).optional().nullable(),
+  documentIds: z.array(z.string().trim().max(128)).max(50).optional().nullable(),
+  warrantyIds: z.array(z.string().trim().max(128)).max(20).optional().nullable(),
+  maintenanceTaskIds: z.array(z.string().trim().max(128)).max(50).optional().nullable(),
+  expenseIds: z.array(z.string().trim().max(128)).max(50).optional().nullable(),
+  serviceProvider: z.string().trim().max(100).optional().nullable(),
+  serviceProviderContact: z.string().trim().max(100).optional().nullable(),
+  complianceStatus: z.string().trim().max(50).optional().nullable(),
+  lifecycleStage: z.string().trim().max(50).optional().nullable(),
+  tags: z.array(z.string().trim().max(50)).max(20).optional().nullable(),
+  notes: z.string().trim().max(2000).optional().nullable(),
+  metadata: z.record(z.string(), z.any()).optional().nullable(),
 });
 
 export const updateAssetSchema = createAssetSchema.partial();
@@ -957,6 +959,118 @@ export const updateHouseholdMemorySchema = z.object({
     .optional(),
   confirmed: z.boolean().optional(),
 });
+
+// ==========================================
+// Phase 24.2: Universal Household Issues / Tickets Schemas
+// ==========================================
+export const issueIdParamSchema = idParamSchema;
+
+export const householdIssueSeveritySchema = z.enum(['critical', 'high', 'medium', 'low']);
+
+export const householdIssueStatusSchema = z.enum([
+  'reported',
+  'triaged',
+  'scheduled',
+  'in_progress',
+  'waiting_parts',
+  'resolved',
+  'verified',
+  'closed',
+  'cancelled',
+]);
+
+export const householdIssueAttachmentSchema = z.object({
+  id: z.string().trim().min(1),
+  name: z.string().trim().min(1).max(200),
+  url: z.string().trim().optional().nullable(),
+  fileType: z.string().trim().max(100).optional().nullable(),
+  size: z.number().int().nonnegative().optional().nullable(),
+  uploadedAt: z.string().optional().nullable(),
+});
+
+export const createHouseholdIssueSchema = z.object({
+  title: z.string().trim().min(1, 'Title is required').max(150, 'Title cannot exceed 150 characters'),
+  description: z.string().trim().max(3000, 'Description cannot exceed 3000 characters').optional().nullable(),
+  assetId: z.string().trim().max(128).optional().nullable(),
+  propertyId: z.string().trim().max(128).optional().nullable(),
+  roomId: z.string().trim().max(128).optional().nullable(),
+  category: z.string().trim().max(100).optional().nullable(),
+  subcategory: z.string().trim().max(100).optional().nullable(),
+  severity: householdIssueSeveritySchema.default('medium'),
+  status: householdIssueStatusSchema.default('reported'),
+  reportedAt: z.string().optional().nullable(),
+  dueDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}/, 'Due date must be in YYYY-MM-DD format')
+    .optional()
+    .nullable(),
+  scheduledDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}/, 'Scheduled date must be in YYYY-MM-DD format')
+    .optional()
+    .nullable(),
+  resolvedAt: z.string().optional().nullable(),
+  verifiedAt: z.string().optional().nullable(),
+  closedAt: z.string().optional().nullable(),
+  notes: z.string().trim().max(3000, 'Notes cannot exceed 3000 characters').optional().nullable(),
+  attachments: z.array(householdIssueAttachmentSchema).optional().nullable(),
+  warrantyId: z.string().trim().max(128).optional().nullable(),
+  maintenanceId: z.string().trim().max(128).optional().nullable(),
+  documentIds: z.array(z.string().trim().max(128)).optional().nullable(),
+  serviceProvider: z.string().trim().max(150).optional().nullable(),
+  serviceProviderContact: z.string().trim().max(150).optional().nullable(),
+  estimatedCost: z.number().min(0).max(10000000).optional().nullable(),
+  actualCost: z.number().min(0).max(10000000).optional().nullable(),
+  resolution: z.string().trim().max(2000).optional().nullable(),
+  safetyWarning: z.string().trim().max(1000).optional().nullable(),
+});
+
+export const updateHouseholdIssueSchema = createHouseholdIssueSchema.partial();
+export const createIssueSchema = createHouseholdIssueSchema;
+export const updateIssueSchema = updateHouseholdIssueSchema;
+
+export const transitionIssueStatusSchema = z.object({
+  status: householdIssueStatusSchema.optional(),
+  newStatus: householdIssueStatusSchema.optional(),
+  note: z.string().trim().max(1000, 'Note cannot exceed 1000 characters').optional(),
+  resolution: z.string().trim().max(2000, 'Resolution cannot exceed 2000 characters').optional(),
+  actualCost: z.number().min(0).max(10000000).optional(),
+}).refine((data) => data.status || data.newStatus, {
+  message: 'Either status or newStatus must be provided',
+});
+
+export const addIssueActivitySchema = z.object({
+  action: z.string().trim().min(1, 'Action description is required').max(200),
+  note: z.string().trim().max(2000).optional(),
+});
+
+export const extractIssueCandidateSchema = z.object({
+  text: z.string().trim().min(2, 'Natural language intake text is required').max(4000).optional(),
+  input: z.string().trim().min(2, 'Natural language intake text is required').max(4000).optional(),
+  contextAssetId: z.string().trim().max(128).optional().nullable(),
+}).refine((data) => data.text || data.input, {
+  message: 'Either text or input must be provided',
+});
+export const extractIssueSchema = extractIssueCandidateSchema;
+
+export const confirmIssueCandidateSchema = z.object({
+  newAsset: z
+    .object({
+      name: z.string().trim().min(1, 'Asset name is required').max(100),
+      category: z.string().trim().min(1, 'Category is required').max(100),
+      subcategory: z.string().trim().max(100).optional().nullable(),
+      customCategory: z.string().trim().max(100).optional().nullable(),
+      customType: z.string().trim().max(100).optional().nullable(),
+      brand: z.string().trim().max(100).optional().nullable(),
+      modelNumber: z.string().trim().max(100).optional().nullable(),
+      propertyId: z.string().trim().max(128).optional().nullable(),
+      roomId: z.string().trim().max(128).optional().nullable(),
+    })
+    .optional()
+    .nullable(),
+  issues: z.array(createHouseholdIssueSchema).min(1, 'At least one candidate issue must be provided'),
+});
+
 
 
 

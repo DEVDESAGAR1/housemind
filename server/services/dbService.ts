@@ -21,7 +21,25 @@ import {
   CreditCardAccount,
   HomeCommandCenterSummary,
   HouseholdMemoryItem,
+  AssetRelationships,
+  HouseholdIssue,
+  HouseholdIssueStatus,
+  HouseholdIssueSeverity,
+  HouseholdIssueActivityItem,
 } from '../../src/types';
+import { evaluateIssueSafety } from './issueSafetyService';
+
+export const VALID_ISSUE_TRANSITIONS: Record<HouseholdIssueStatus, HouseholdIssueStatus[]> = {
+  reported: ['triaged', 'scheduled', 'in_progress', 'cancelled'],
+  triaged: ['scheduled', 'in_progress', 'waiting_parts', 'cancelled'],
+  scheduled: ['in_progress', 'waiting_parts', 'resolved', 'cancelled'],
+  in_progress: ['waiting_parts', 'resolved', 'scheduled', 'cancelled'],
+  waiting_parts: ['in_progress', 'scheduled', 'resolved', 'cancelled'],
+  resolved: ['verified', 'closed', 'in_progress'],
+  verified: ['closed', 'in_progress'],
+  closed: ['reported', 'triaged'],
+  cancelled: ['reported', 'triaged'],
+};
 
 // In-Memory Multi-Tenant Master Storage (isolated strictly per userId)
 interface UserDataStore {
@@ -32,6 +50,7 @@ interface UserDataStore {
   assets: Map<string, any>;
   warranties: Map<string, any>;
   maintenances: Map<string, any>;
+  issues: Map<string, HouseholdIssue>;
   utilities: Map<string, any>;
   loans: Map<string, any>;
   creditCards: Map<string, any>;
@@ -66,6 +85,7 @@ export function getOrCreateUserStore(userId: string): UserDataStore {
       assets: new Map(),
       warranties: new Map(),
       maintenances: new Map(),
+      issues: new Map(),
       utilities: new Map(),
       loans: new Map(),
       creditCards: new Map(),
@@ -242,9 +262,13 @@ export class DatabaseService {
   }
 
   // --- EXPENSES ---
-  static async listExpenses(userId: string, userToken?: string): Promise<Expense[]> {
+  static async listExpenses(userId: string, userToken?: string, assetId?: string): Promise<Expense[]> {
     const store = getOrCreateUserStore(userId);
-    return Array.from(store.expenses.values()).sort(
+    let items = Array.from(store.expenses.values());
+    if (assetId) {
+      items = items.filter((e) => e.assetId === assetId);
+    }
+    return items.sort(
       (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
     );
   }
@@ -290,9 +314,20 @@ export class DatabaseService {
   }
 
   // --- ASSETS ---
-  static async listAssets(userId: string): Promise<Asset[]> {
+  static async listAssets(userId: string, category?: string): Promise<Asset[]> {
     const store = getOrCreateUserStore(userId);
-    return Array.from(store.assets.values()).sort(
+    let items = Array.from(store.assets.values());
+    if (category && category !== 'all') {
+      const lowerCat = category.toLowerCase().trim();
+      items = items.filter(
+        (a) =>
+          (a.category || '').toLowerCase() === lowerCat ||
+          (a.customCategory || '').toLowerCase() === lowerCat ||
+          (a.subcategory || '').toLowerCase() === lowerCat ||
+          (a.assetType || '').toLowerCase() === lowerCat
+      );
+    }
+    return items.sort(
       (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
     );
   }
@@ -335,6 +370,116 @@ export class DatabaseService {
   static async deleteAsset(userId: string, id: string): Promise<boolean> {
     const store = getOrCreateUserStore(userId);
     return store.assets.delete(id);
+  }
+
+  /**
+   * Phase 24.1: Retrieves comprehensive connected relationships for a specific asset
+   * Connects warranty, maintenance, issues/tasks, expenses, documents, calendar, and notifications
+   */
+  static async getAssetRelationships(userId: string, assetId: string): Promise<AssetRelationships | null> {
+    const store = getOrCreateUserStore(userId);
+    const asset = store.assets.get(assetId);
+    if (!asset) return null;
+
+    const property = asset.propertyId ? store.properties.get(asset.propertyId) || null : null;
+    const room = asset.roomId ? store.rooms.get(asset.roomId) || null : null;
+
+    // Connected Issues
+    const issues = Array.from(store.issues.values()).filter(
+      (i: any) => i.assetId === assetId
+    );
+
+    // Connected Warranties
+    const warranties = Array.from(store.warranties.values()).filter(
+      (w: any) =>
+        w.assetId === assetId ||
+        (Array.isArray(asset.warrantyIds) && asset.warrantyIds.includes(w.id)) ||
+        asset.warrantyDocumentId === w.id
+    );
+
+    // Connected Maintenance Tasks
+    const maintenances = Array.from(store.maintenances.values()).filter(
+      (m: any) =>
+        m.assetId === assetId ||
+        (Array.isArray(asset.maintenanceTaskIds) && asset.maintenanceTaskIds.includes(m.id))
+    );
+
+    // Connected Expenses
+    const expenses = Array.from(store.expenses.values()).filter(
+      (e: any) =>
+        e.assetId === assetId ||
+        (Array.isArray(asset.expenseIds) && asset.expenseIds.includes(e.id))
+    );
+
+    // Connected Documents
+    const documents = Array.from(store.documents.values()).filter(
+      (d: any) =>
+        d.assetId === assetId ||
+        d.id === asset.invoiceDocumentId ||
+        d.id === asset.warrantyDocumentId ||
+        (Array.isArray(asset.supportingDocumentIds) && asset.supportingDocumentIds.includes(d.id)) ||
+        (Array.isArray(asset.documentIds) && asset.documentIds.includes(d.id))
+    );
+
+    // Connected Calendar Events
+    let calendarEvents: any[] = [];
+    try {
+      const { CalendarService } = await import('./calendarService');
+      const calRes = await CalendarService.getCalendarEvents(userId);
+      const warIds = new Set(warranties.map((w: any) => w.id));
+      const maintIds = new Set(maintenances.map((m: any) => m.id));
+      const expIds = new Set(expenses.map((e: any) => e.id));
+      const docIds = new Set(documents.map((d: any) => d.id));
+
+      calendarEvents = calRes.events.filter(
+        (ev) =>
+          ev.sourceId === assetId ||
+          (ev.metadata?.assetName && ev.metadata.assetName.toLowerCase() === asset.name.toLowerCase()) ||
+          (ev.metadata?.assetId && ev.metadata.assetId === assetId) ||
+          warIds.has(ev.sourceId) ||
+          maintIds.has(ev.sourceId) ||
+          expIds.has(ev.sourceId) ||
+          docIds.has(ev.sourceId)
+      );
+    } catch {
+      calendarEvents = [];
+    }
+
+    // Connected Notifications
+    let notifications: any[] = [];
+    try {
+      const { NotificationService } = await import('./notificationService');
+      const notifRes = await NotificationService.getNotifications(userId);
+      const warIds = new Set(warranties.map((w: any) => w.id));
+      const maintIds = new Set(maintenances.map((m: any) => m.id));
+      const expIds = new Set(expenses.map((e: any) => e.id));
+      const docIds = new Set(documents.map((d: any) => d.id));
+
+      notifications = notifRes.notifications.filter(
+        (n) =>
+          n.sourceId === assetId ||
+          (n.metadata?.assetId && n.metadata.assetId === assetId) ||
+          warIds.has(n.sourceId) ||
+          maintIds.has(n.sourceId) ||
+          expIds.has(n.sourceId) ||
+          docIds.has(n.sourceId)
+      );
+    } catch {
+      notifications = [];
+    }
+
+    return {
+      asset,
+      property,
+      room,
+      issues,
+      warranties,
+      maintenances,
+      expenses,
+      documents,
+      calendarEvents,
+      notifications,
+    };
   }
 
   // --- PROPERTIES ---
@@ -577,6 +722,264 @@ export class DatabaseService {
   static async deleteMaintenance(userId: string, id: string): Promise<boolean> {
     const store = getOrCreateUserStore(userId);
     return store.maintenances.delete(id);
+  }
+
+  // --- HOUSEHOLD ISSUES / TICKETS (PHASE 24.2) ---
+  static async listIssues(
+    userId: string,
+    filters?: {
+      assetId?: string;
+      propertyId?: string;
+      roomId?: string;
+      status?: HouseholdIssueStatus;
+      severity?: HouseholdIssueSeverity;
+      category?: string;
+    }
+  ): Promise<HouseholdIssue[]> {
+    const store = getOrCreateUserStore(userId);
+    let items = Array.from(store.issues.values());
+
+    if (filters?.assetId) items = items.filter((i) => i.assetId === filters.assetId);
+    if (filters?.propertyId) items = items.filter((i) => i.propertyId === filters.propertyId);
+    if (filters?.roomId) items = items.filter((i) => i.roomId === filters.roomId);
+    if (filters?.status) items = items.filter((i) => i.status === filters.status);
+    if (filters?.severity) items = items.filter((i) => i.severity === filters.severity);
+    if (filters?.category) items = items.filter((i) => i.category === filters.category);
+
+    const severityWeight: Record<HouseholdIssueSeverity, number> = {
+      critical: 4,
+      high: 3,
+      medium: 2,
+      low: 1,
+    };
+
+    return items.sort((a, b) => {
+      // Prioritize active issues before closed/cancelled
+      const aClosed = a.status === 'closed' || a.status === 'cancelled';
+      const bClosed = b.status === 'closed' || b.status === 'cancelled';
+      if (aClosed !== bClosed) return aClosed ? 1 : -1;
+
+      // Prioritize by severity
+      const weightDiff = (severityWeight[b.severity] || 0) - (severityWeight[a.severity] || 0);
+      if (weightDiff !== 0) return weightDiff;
+
+      // Finally sort by reportedAt descending
+      return new Date(b.reportedAt || b.createdAt || 0).getTime() - new Date(a.reportedAt || a.createdAt || 0).getTime();
+    });
+  }
+
+  static async getIssue(userId: string, id: string): Promise<HouseholdIssue | null> {
+    const store = getOrCreateUserStore(userId);
+    return store.issues.get(id) || null;
+  }
+
+  static async createIssue(
+    userId: string,
+    data: any,
+    customId?: string
+  ): Promise<HouseholdIssue> {
+    const store = getOrCreateUserStore(userId);
+    const id = customId || `issue_${crypto.randomUUID()}`;
+    const timestamp = new Date().toISOString();
+
+    // Check safety rules deterministically
+    const safety = evaluateIssueSafety(data.title, data.description, data.notes);
+    let severity: HouseholdIssueSeverity = data.severity || 'medium';
+    let safetyWarning = data.safetyWarning;
+
+    if (safety.isSafetyRisk) {
+      if (safety.suggestedSeverity === 'critical' || severity !== 'critical') {
+        severity = safety.suggestedSeverity || 'high';
+      }
+      safetyWarning = safety.safetyWarning || safetyWarning;
+    }
+
+    const initialActivity: HouseholdIssueActivityItem = {
+      id: `act_${crypto.randomUUID()}`,
+      timestamp,
+      action: 'Issue Reported',
+      note: data.notes || (data.description ? `Initial report: ${data.description.slice(0, 100)}` : 'Issue opened in system.'),
+      newStatus: data.status || 'reported',
+      userId,
+    };
+
+    const issue: HouseholdIssue = {
+      id,
+      userId,
+      title: data.title,
+      description: data.description || undefined,
+      assetId: data.assetId || undefined,
+      propertyId: data.propertyId || undefined,
+      roomId: data.roomId || undefined,
+      category: data.category || 'general',
+      subcategory: data.subcategory || undefined,
+      severity,
+      status: data.status || 'reported',
+      reportedAt: data.reportedAt || timestamp,
+      dueDate: data.dueDate || undefined,
+      scheduledDate: data.scheduledDate || undefined,
+      resolvedAt: data.resolvedAt || undefined,
+      verifiedAt: data.verifiedAt || undefined,
+      closedAt: data.closedAt || undefined,
+      notes: data.notes || undefined,
+      attachments: data.attachments || [],
+      warrantyId: data.warrantyId || undefined,
+      maintenanceId: data.maintenanceId || undefined,
+      documentIds: data.documentIds || [],
+      serviceProvider: data.serviceProvider || undefined,
+      serviceProviderContact: data.serviceProviderContact || undefined,
+      estimatedCost: typeof data.estimatedCost === 'number' ? data.estimatedCost : undefined,
+      actualCost: typeof data.actualCost === 'number' ? data.actualCost : undefined,
+      resolution: data.resolution || undefined,
+      safetyWarning: safetyWarning || undefined,
+      isDemo: data.isDemo || false,
+      createdBy: data.createdBy || userId,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      activityHistory: [initialActivity],
+    };
+
+    store.issues.set(id, issue);
+    return issue;
+  }
+
+  static async updateIssue(
+    userId: string,
+    id: string,
+    data: any
+  ): Promise<HouseholdIssue | null> {
+    const store = getOrCreateUserStore(userId);
+    const existing = store.issues.get(id);
+    if (!existing) return null;
+
+    const timestamp = new Date().toISOString();
+
+    // Check safety rules if title or description updated
+    let safetyWarning = data.safetyWarning !== undefined ? data.safetyWarning : existing.safetyWarning;
+    let severity = data.severity || existing.severity;
+    if (data.title || data.description || data.notes) {
+      const safety = evaluateIssueSafety(
+        data.title || existing.title,
+        data.description || existing.description,
+        data.notes || existing.notes
+      );
+      if (safety.isSafetyRisk) {
+        if (safety.suggestedSeverity === 'critical' || severity !== 'critical') {
+          severity = safety.suggestedSeverity || 'high';
+        }
+        safetyWarning = safety.safetyWarning || safetyWarning;
+      }
+    }
+
+    const updated: HouseholdIssue = {
+      ...existing,
+      ...data,
+      id,
+      userId,
+      severity,
+      safetyWarning,
+      updatedAt: timestamp,
+    };
+
+    store.issues.set(id, updated);
+    return updated;
+  }
+
+  static async transitionIssueStatus(
+    userId: string,
+    id: string,
+    newStatus: HouseholdIssueStatus,
+    options?: {
+      note?: string;
+      resolution?: string;
+      actualCost?: number;
+    }
+  ): Promise<HouseholdIssue> {
+    const store = getOrCreateUserStore(userId);
+    const existing = store.issues.get(id);
+    if (!existing) {
+      throw new Error('Issue not found.');
+    }
+
+    const currentStatus = existing.status;
+    if (currentStatus === newStatus) {
+      return existing;
+    }
+
+    const allowed = VALID_ISSUE_TRANSITIONS[currentStatus] || [];
+    if (!allowed.includes(newStatus)) {
+      throw new Error(
+        `Invalid status transition from "${currentStatus}" to "${newStatus}". Allowed transitions: ${allowed.join(', ')}`
+      );
+    }
+
+    const timestamp = new Date().toISOString();
+    const patch: Partial<HouseholdIssue> = {
+      status: newStatus,
+      updatedAt: timestamp,
+    };
+
+    if (newStatus === 'resolved') {
+      patch.resolvedAt = timestamp;
+      if (options?.resolution) patch.resolution = options.resolution;
+      if (typeof options?.actualCost === 'number') patch.actualCost = options.actualCost;
+    } else if (newStatus === 'verified') {
+      patch.verifiedAt = timestamp;
+    } else if (newStatus === 'closed') {
+      patch.closedAt = timestamp;
+    }
+
+    const activityItem: HouseholdIssueActivityItem = {
+      id: `act_${crypto.randomUUID()}`,
+      timestamp,
+      action: `Status changed from ${currentStatus} to ${newStatus}`,
+      note: options?.note || options?.resolution || undefined,
+      previousStatus: currentStatus,
+      newStatus,
+      userId,
+    };
+
+    const updated: HouseholdIssue = {
+      ...existing,
+      ...patch,
+      activityHistory: [...(existing.activityHistory || []), activityItem],
+    };
+
+    store.issues.set(id, updated);
+    return updated;
+  }
+
+  static async addIssueActivity(
+    userId: string,
+    id: string,
+    action: string,
+    note?: string
+  ): Promise<HouseholdIssue> {
+    const store = getOrCreateUserStore(userId);
+    const existing = store.issues.get(id);
+    if (!existing) throw new Error('Issue not found.');
+
+    const activityItem: HouseholdIssueActivityItem = {
+      id: `act_${crypto.randomUUID()}`,
+      timestamp: new Date().toISOString(),
+      action,
+      note,
+      userId,
+    };
+
+    const updated: HouseholdIssue = {
+      ...existing,
+      updatedAt: new Date().toISOString(),
+      activityHistory: [...(existing.activityHistory || []), activityItem],
+    };
+
+    store.issues.set(id, updated);
+    return updated;
+  }
+
+  static async deleteIssue(userId: string, id: string): Promise<boolean> {
+    const store = getOrCreateUserStore(userId);
+    return store.issues.delete(id);
   }
 
   // --- UTILITIES ---
@@ -885,6 +1288,41 @@ export class DatabaseService {
           dueDate: w.endDate,
           severity: daysLeft <= 7 ? 'high' : 'medium',
         });
+      }
+    }
+
+    // Check open household issues / tickets requiring attention
+    const issues = Array.from(store.issues.values());
+    for (const issue of issues) {
+      if (issue.status !== 'resolved' && issue.status !== 'closed' && issue.status !== 'cancelled') {
+        if (issue.severity === 'critical') {
+          overdueCount++;
+          urgentTasks.push({
+            id: `urg_issue_${issue.id}`,
+            type: 'issue_attention',
+            title: `Critical Issue: ${issue.title}`,
+            dueDate: issue.dueDate || issue.scheduledDate,
+            severity: 'critical',
+          });
+        } else if (issue.dueDate && issue.dueDate < todayStr) {
+          overdueCount++;
+          urgentTasks.push({
+            id: `urg_issue_${issue.id}`,
+            type: 'issue_attention',
+            title: `Overdue Issue: ${issue.title}`,
+            dueDate: issue.dueDate,
+            severity: 'high',
+          });
+        } else if (issue.dueDate === todayStr || issue.scheduledDate === todayStr) {
+          dueTodayCount++;
+          urgentTasks.push({
+            id: `urg_issue_${issue.id}`,
+            type: 'issue_attention',
+            title: `Issue Action Today: ${issue.title}`,
+            dueDate: issue.dueDate || issue.scheduledDate,
+            severity: issue.severity === 'high' ? 'high' : 'medium',
+          });
+        }
       }
     }
 
@@ -2573,6 +3011,98 @@ export class DatabaseService {
 
     store.scenarios.set(demoScenario.id, demoScenario);
 
+    // 3k. Household Issues / Tickets
+    const demoIssues: HouseholdIssue[] = [
+      {
+        id: 'demo_issue_refrigerator',
+        userId,
+        title: 'Refrigerator: Ice maker dispenser low water pressure',
+        description:
+          'Water dispenser stream is intermittent and ice tray fill is delayed. Suspected filter blockage or inlet valve.',
+        assetId: 'demo_asset_fridge',
+        propertyId: 'demo_prop_primary',
+        roomId: 'demo_room_kitchen',
+        category: 'appliance',
+        severity: 'medium',
+        status: 'triaged',
+        reportedAt: new Date(Date.now() - 3 * 86400000).toISOString(),
+        dueDate: new Date(Date.now() + 5 * 86400000).toISOString().split('T')[0],
+        estimatedCost: 120,
+        serviceProvider: 'Samsung Certified Appliance Care',
+        serviceProviderContact: '1-800-726-7864',
+        warrantyId: 'demo_war_fridge',
+        notes: 'Checked water main supply; other fixtures have full pressure. Covered under active warranty.',
+        createdBy: userId,
+        isDemo: true,
+        createdAt: new Date(Date.now() - 3 * 86400000).toISOString(),
+        updatedAt: new Date(Date.now() - 1 * 86400000).toISOString(),
+        activityHistory: [
+          {
+            id: 'act_demo_1',
+            timestamp: new Date(Date.now() - 3 * 86400000).toISOString(),
+            action: 'Issue Reported',
+            note: 'Initial report by homeowner.',
+            newStatus: 'reported',
+            userId,
+          },
+          {
+            id: 'act_demo_2',
+            timestamp: new Date(Date.now() - 1 * 86400000).toISOString(),
+            action: 'Status changed from reported to triaged',
+            note: 'Triaged by HouseMind. Linked to active warranty demo_war_fridge.',
+            previousStatus: 'reported',
+            newStatus: 'triaged',
+            userId,
+          },
+        ],
+      },
+      {
+        id: 'demo_issue_hvac',
+        userId,
+        title: 'HVAC Heat Pump: Outdoor compressor vibration noise',
+        description:
+          'Vibration noise during high-heat cycle. Needs technician check on rubber isolator mounting pads.',
+        assetId: 'demo_asset_hvac',
+        propertyId: 'demo_prop_primary',
+        category: 'hvac',
+        severity: 'high',
+        status: 'scheduled',
+        reportedAt: new Date(Date.now() - 5 * 86400000).toISOString(),
+        scheduledDate: new Date(Date.now() + 2 * 86400000).toISOString().split('T')[0],
+        dueDate: new Date(Date.now() + 3 * 86400000).toISOString().split('T')[0],
+        serviceProvider: 'Carrier Certified HVAC Specialists',
+        serviceProviderContact: '555-019-4822',
+        maintenanceId: 'demo_maint_hvac',
+        estimatedCost: 180,
+        createdBy: userId,
+        isDemo: true,
+        createdAt: new Date(Date.now() - 5 * 86400000).toISOString(),
+        updatedAt: new Date(Date.now() - 2 * 86400000).toISOString(),
+        activityHistory: [
+          {
+            id: 'act_demo_3',
+            timestamp: new Date(Date.now() - 5 * 86400000).toISOString(),
+            action: 'Issue Reported',
+            newStatus: 'reported',
+            userId,
+          },
+          {
+            id: 'act_demo_4',
+            timestamp: new Date(Date.now() - 2 * 86400000).toISOString(),
+            action: 'Status changed from triaged to scheduled',
+            note: 'Scheduled diagnostic visit with technician.',
+            previousStatus: 'triaged',
+            newStatus: 'scheduled',
+            userId,
+          },
+        ],
+      },
+    ];
+
+    demoIssues.forEach((issue) => {
+      store.issues.set(issue.id, issue);
+    });
+
     return {
       profiles: 1,
       expenses: store.expenses.size,
@@ -2605,6 +3135,7 @@ export class DatabaseService {
       utilities: number;
       loans: number;
       creditCards: number;
+      issues: number;
     };
     remainingCount: number;
     userRecordsCount: number;
@@ -2625,6 +3156,7 @@ export class DatabaseService {
       utilities: 0,
       loans: 0,
       creditCards: 0,
+      issues: 0,
     };
 
     const isDemoRecord = (id: string, item?: any): boolean => {
@@ -2755,6 +3287,14 @@ export class DatabaseService {
       }
     }
 
+    // 15. Issues
+    for (const [id, iss] of Array.from(store.issues.entries())) {
+      if (isDemoRecord(id, iss)) {
+        store.issues.delete(id);
+        details.issues++;
+      }
+    }
+
     const deletedCount =
       details.expenses +
       details.assets +
@@ -2769,7 +3309,8 @@ export class DatabaseService {
       details.maintenances +
       details.utilities +
       details.loans +
-      details.creditCards;
+      details.creditCards +
+      details.issues;
 
     const remainingUserRecords =
       store.expenses.size +
@@ -2783,6 +3324,7 @@ export class DatabaseService {
       store.rooms.size +
       store.warranties.size +
       store.maintenances.size +
+      store.issues.size +
       store.utilities.size +
       store.loans.size +
       store.creditCards.size;
@@ -2840,6 +3382,7 @@ export class DatabaseService {
     const roomBreakdown = countBreakdown(store.rooms);
     const warBreakdown = countBreakdown(store.warranties);
     const maintBreakdown = countBreakdown(store.maintenances);
+    const issBreakdown = countBreakdown(store.issues);
     const utilBreakdown = countBreakdown(store.utilities);
     const loanBreakdown = countBreakdown(store.loans);
     const ccBreakdown = countBreakdown(store.creditCards);
@@ -2855,6 +3398,7 @@ export class DatabaseService {
       roomBreakdown.total +
       warBreakdown.total +
       maintBreakdown.total +
+      issBreakdown.total +
       utilBreakdown.total +
       loanBreakdown.total +
       ccBreakdown.total;
@@ -2870,6 +3414,7 @@ export class DatabaseService {
       roomBreakdown.demo +
       warBreakdown.demo +
       maintBreakdown.demo +
+      issBreakdown.demo +
       utilBreakdown.demo +
       loanBreakdown.demo +
       ccBreakdown.demo;

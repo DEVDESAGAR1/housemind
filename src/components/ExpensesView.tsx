@@ -47,8 +47,12 @@ export function ExpensesView({
   const currencySymbol = getCurrencySymbol(currency);
 
   const filteredExpenses = useMemo(() => {
-    return expenses.filter((e) => {
-      const matchesSearch = e.title.toLowerCase().includes(searchTerm.toLowerCase()) || (e.notes || '').toLowerCase().includes(searchTerm.toLowerCase());
+    return (expenses || []).filter((e) => {
+      if (!e) return false;
+      const term = (searchTerm || '').toLowerCase().trim();
+      const titleStr = typeof e.title === 'string' ? e.title.toLowerCase() : '';
+      const notesStr = typeof e.notes === 'string' ? e.notes.toLowerCase() : '';
+      const matchesSearch = !term || titleStr.includes(term) || notesStr.includes(term);
       const matchesCategory = selectedCategory === 'all' || e.category === selectedCategory;
       return matchesSearch && matchesCategory;
     });

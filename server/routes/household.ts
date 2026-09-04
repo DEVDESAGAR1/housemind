@@ -35,6 +35,11 @@ import {
   memoryIdParamSchema,
   createHouseholdMemorySchema,
   updateHouseholdMemorySchema,
+  createIssueSchema,
+  updateIssueSchema,
+  transitionIssueStatusSchema,
+  addIssueActivitySchema,
+  extractIssueSchema,
 } from '../schemas';
 import { HouseholdMemoryService } from '../services/agent/householdMemoryService';
 import {
@@ -47,6 +52,9 @@ import {
   extractEntityFromDocument,
   saveExtractedEntity,
 } from '../services/entityExtractionService';
+import { extractIssueCandidateFromNaturalLanguage } from '../services/issueExtractionService';
+import { evaluateIssueSafety } from '../services/issueSafetyService';
+import { IssueIntelligenceService } from '../services/issueIntelligenceService';
 import { searchHousehold } from '../services/searchService';
 import { CalendarService } from '../services/calendarService';
 import { NotificationService } from '../services/notificationService';
@@ -252,9 +260,10 @@ router.put('/profile', async (req: AuthenticatedRequest, res: Response): Promise
  */
 router.get('/expenses', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   const userId = req.userId!;
+  const assetId = typeof req.query.assetId === 'string' ? req.query.assetId : undefined;
 
   try {
-    const expenses = await DatabaseService.listExpenses(userId, req.userToken);
+    const expenses = await DatabaseService.listExpenses(userId, req.userToken, assetId);
     res.status(200).json({
       success: true,
       data: expenses,
@@ -476,9 +485,10 @@ router.delete('/expenses/:id', async (req: AuthenticatedRequest, res: Response):
  */
 router.get('/assets', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   const userId = req.userId!;
+  const category = typeof req.query.category === 'string' ? req.query.category : undefined;
 
   try {
-    const assets = await DatabaseService.listAssets(userId);
+    const assets = await DatabaseService.listAssets(userId, category);
     res.status(200).json({
       success: true,
       data: assets,
@@ -541,7 +551,7 @@ router.post('/assets', async (req: AuthenticatedRequest, res: Response): Promise
 
 /**
  * GET /api/household/assets/:id
- * Retrieves a single asset
+ * Retrieves a single asset with optional relationships
  */
 router.get('/assets/:id', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   const userId = req.userId!;
@@ -569,7 +579,46 @@ router.get('/assets/:id', async (req: AuthenticatedRequest, res: Response): Prom
     return;
   }
 
+  if (req.query.include === 'relationships' || req.query.include === 'true') {
+    const relationships = await DatabaseService.getAssetRelationships(userId, paramResult.data.id);
+    res.status(200).json({ success: true, data: asset, relationships });
+    return;
+  }
+
   res.status(200).json({ success: true, data: asset });
+});
+
+/**
+ * GET /api/household/assets/:id/relationships
+ * Retrieves all connected records (warranties, maintenance, expenses, documents, calendar, notifications)
+ */
+router.get('/assets/:id/relationships', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const paramResult = idParamSchema.safeParse(req.params);
+  if (!paramResult.success) {
+    res.status(400).json({
+      success: false,
+      error: {
+        code: 'INVALID_ID',
+        message: 'Invalid asset ID parameter.',
+      },
+    });
+    return;
+  }
+
+  const relationships = await DatabaseService.getAssetRelationships(userId, paramResult.data.id);
+  if (!relationships) {
+    res.status(404).json({
+      success: false,
+      error: {
+        code: 'NOT_FOUND',
+        message: 'Asset not found.',
+      },
+    });
+    return;
+  }
+
+  res.status(200).json({ success: true, data: relationships });
 });
 
 /**
@@ -1481,6 +1530,412 @@ router.delete(['/maintenances/:id', '/maintenance/:id', '/maintenance-tasks/:id'
     res.status(500).json({
       success: false,
       error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to delete maintenance task.' },
+    });
+  }
+});
+
+// ==========================================
+// 8b. UNIVERSAL HOUSEHOLD ISSUES / TICKETS (PHASE 24.2)
+// ==========================================
+
+/**
+ * GET /api/household/issues
+ */
+router.get('/issues', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const { assetId, propertyId, roomId, status, severity, category } = req.query;
+
+  try {
+    const issues = await DatabaseService.listIssues(userId, {
+      assetId: assetId as string | undefined,
+      propertyId: propertyId as string | undefined,
+      roomId: roomId as string | undefined,
+      status: status as any,
+      severity: severity as any,
+      category: category as string | undefined,
+    });
+    res.status(200).json({ success: true, data: issues, issues });
+  } catch (error: unknown) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to list household issues.' },
+    });
+  }
+});
+
+/**
+ * GET /api/household/issues/recurring-insights
+ * Aggregates recurring issue and failure patterns across the household
+ */
+router.get('/issues/recurring-insights', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  try {
+    const patterns = await IssueIntelligenceService.getHouseholdRecurringPatterns(userId);
+    res.status(200).json({ success: true, data: patterns, patterns });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'INTERNAL_SERVER_ERROR', message: error.message || 'Failed to fetch recurring insights.' },
+    });
+  }
+});
+
+/**
+ * GET /api/household/issues/:id
+ */
+router.get('/issues/:id', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const { id } = req.params;
+
+  const issue = await DatabaseService.getIssue(userId, id);
+  if (!issue) {
+    res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Household issue not found.' } });
+    return;
+  }
+  res.status(200).json({ success: true, data: issue, issue });
+});
+
+/**
+ * POST /api/household/issues
+ */
+router.post('/issues', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const parseResult = createIssueSchema.safeParse(req.body);
+  if (!parseResult.success) {
+    res.status(400).json({
+      success: false,
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Invalid household issue payload.',
+        details: parseResult.error.flatten().fieldErrors,
+      },
+    });
+    return;
+  }
+
+  try {
+    const issue = await DatabaseService.createIssue(userId, parseResult.data);
+    res.status(201).json({ success: true, data: issue, issue });
+  } catch (error: unknown) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to create household issue.' },
+    });
+  }
+});
+
+/**
+ * PUT /api/household/issues/:id
+ */
+router.put('/issues/:id', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const { id } = req.params;
+
+  const parseResult = updateIssueSchema.safeParse(req.body);
+  if (!parseResult.success) {
+    res.status(400).json({
+      success: false,
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Invalid household issue update payload.',
+        details: parseResult.error.flatten().fieldErrors,
+      },
+    });
+    return;
+  }
+
+  try {
+    const updated = await DatabaseService.updateIssue(userId, id, parseResult.data);
+    if (!updated) {
+      res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Household issue not found.' } });
+      return;
+    }
+    res.status(200).json({ success: true, data: updated, issue: updated });
+  } catch (error: unknown) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to update household issue.' },
+    });
+  }
+});
+
+/**
+ * POST /api/household/issues/:id/transition
+ */
+router.post('/issues/:id/transition', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const { id } = req.params;
+
+  const parseResult = transitionIssueStatusSchema.safeParse(req.body);
+  if (!parseResult.success) {
+    res.status(400).json({
+      success: false,
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Invalid issue status transition payload.',
+        details: parseResult.error.flatten().fieldErrors,
+      },
+    });
+    return;
+  }
+
+  try {
+    const targetStatus = (parseResult.data.newStatus || parseResult.data.status)!;
+    const updated = await DatabaseService.transitionIssueStatus(
+      userId,
+      id,
+      targetStatus,
+      {
+        note: parseResult.data.note,
+        resolution: parseResult.data.resolution,
+        actualCost: parseResult.data.actualCost,
+      }
+    );
+    res.status(200).json({ success: true, data: updated, issue: updated });
+  } catch (error: any) {
+    const isNotFound = error.message?.includes('not found');
+    const isInvalid = error.message?.includes('Invalid status transition');
+    res.status(isNotFound ? 404 : isInvalid ? 400 : 500).json({
+      success: false,
+      error: {
+        code: isNotFound ? 'NOT_FOUND' : isInvalid ? 'INVALID_TRANSITION' : 'INTERNAL_SERVER_ERROR',
+        message: error.message || 'Failed to transition issue status.',
+      },
+    });
+  }
+});
+
+/**
+ * POST /api/household/issues/:id/activity
+ */
+router.post('/issues/:id/activity', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const { id } = req.params;
+
+  const parseResult = addIssueActivitySchema.safeParse(req.body);
+  if (!parseResult.success) {
+    res.status(400).json({
+      success: false,
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Invalid activity history payload.',
+        details: parseResult.error.flatten().fieldErrors,
+      },
+    });
+    return;
+  }
+
+  try {
+    const updated = await DatabaseService.addIssueActivity(
+      userId,
+      id,
+      parseResult.data.action,
+      parseResult.data.note
+    );
+    res.status(200).json({ success: true, data: updated, issue: updated });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'INTERNAL_SERVER_ERROR', message: error.message || 'Failed to add activity.' },
+    });
+  }
+});
+
+/**
+ * DELETE /api/household/issues/:id
+ */
+router.delete('/issues/:id', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const { id } = req.params;
+
+  try {
+    const deleted = await DatabaseService.deleteIssue(userId, id);
+    if (!deleted) {
+      res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Household issue not found.' } });
+      return;
+    }
+    res.status(200).json({ success: true, data: { id, deleted: true } });
+  } catch (error: unknown) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to delete household issue.' },
+    });
+  }
+});
+
+/**
+ * GET /api/household/issues/:id/intelligence
+ * Returns rich deterministic and synthesized intelligence for a single issue
+ */
+router.get('/issues/:id/intelligence', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const { id } = req.params;
+
+  try {
+    const report = await IssueIntelligenceService.analyzeIssue(userId, id);
+    res.status(200).json({ success: true, data: report, report });
+  } catch (error: any) {
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({
+      success: false,
+      error: { code: statusCode === 404 ? 'NOT_FOUND' : 'INTERNAL_SERVER_ERROR', message: error.message || 'Failed to analyze issue.' },
+    });
+  }
+});
+
+/**
+ * POST /api/household/issues/:id/link-related
+ * Explicit user confirmation to link another issue as related/duplicate
+ */
+router.post('/issues/:id/link-related', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const { id } = req.params;
+  const { targetIssueId } = req.body;
+
+  if (!targetIssueId || typeof targetIssueId !== 'string') {
+    res.status(400).json({
+      success: false,
+      error: { code: 'VALIDATION_ERROR', message: 'targetIssueId is required.' },
+    });
+    return;
+  }
+
+  try {
+    const result = await IssueIntelligenceService.linkRelatedIssues(userId, id, targetIssueId);
+    res.status(200).json({ success: true, data: result });
+  } catch (error: any) {
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({
+      success: false,
+      error: { code: statusCode === 404 ? 'NOT_FOUND' : 'INTERNAL_SERVER_ERROR', message: error.message || 'Failed to link issues.' },
+    });
+  }
+});
+
+/**
+ * POST /api/household/issues/:id/unlink-related
+ * Explicit user confirmation to unlink a related issue
+ */
+router.post('/issues/:id/unlink-related', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const { id } = req.params;
+  const { targetIssueId } = req.body;
+
+  if (!targetIssueId || typeof targetIssueId !== 'string') {
+    res.status(400).json({
+      success: false,
+      error: { code: 'VALIDATION_ERROR', message: 'targetIssueId is required.' },
+    });
+    return;
+  }
+
+  try {
+    const result = await IssueIntelligenceService.unlinkRelatedIssue(userId, id, targetIssueId);
+    res.status(200).json({ success: true, data: result });
+  } catch (error: any) {
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({
+      success: false,
+      error: { code: statusCode === 404 ? 'NOT_FOUND' : 'INTERNAL_SERVER_ERROR', message: error.message || 'Failed to unlink issue.' },
+    });
+  }
+});
+
+/**
+ * PUT /api/household/issues/:id/checklist
+ * Updates user toggled checklist items for the issue resolution lifecycle
+ */
+router.put('/issues/:id/checklist', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const { id } = req.params;
+  const { checklist } = req.body;
+
+  if (!Array.isArray(checklist)) {
+    res.status(400).json({
+      success: false,
+      error: { code: 'VALIDATION_ERROR', message: 'Checklist array is required.' },
+    });
+    return;
+  }
+
+  try {
+    const result = await IssueIntelligenceService.updateResolutionChecklist(userId, id, checklist);
+    res.status(200).json({ success: true, data: result.checklist });
+  } catch (error: any) {
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({
+      success: false,
+      error: { code: statusCode === 404 ? 'NOT_FOUND' : 'INTERNAL_SERVER_ERROR', message: error.message || 'Failed to update checklist.' },
+    });
+  }
+});
+
+/**
+ * PUT /api/household/issues/:id/root-cause
+ * Updates the recorded root cause of the issue
+ */
+router.put('/issues/:id/root-cause', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const { id } = req.params;
+  const { rootCause } = req.body;
+
+  try {
+    const updated = await DatabaseService.updateIssue(userId, id, { rootCause: rootCause || '' });
+    if (!updated) {
+      res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Issue not found.' } });
+      return;
+    }
+    res.status(200).json({ success: true, data: updated, issue: updated });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'INTERNAL_SERVER_ERROR', message: error.message || 'Failed to update root cause.' },
+    });
+  }
+});
+
+/**
+ * POST /api/household/issues/extract
+ * Extracts a structured issue candidate from natural language input (with deterministic safety checks)
+ */
+router.post('/issues/extract', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const parseResult = extractIssueSchema.safeParse(req.body);
+  if (!parseResult.success) {
+    res.status(400).json({
+      success: false,
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Invalid extraction payload.',
+        details: parseResult.error.flatten().fieldErrors,
+      },
+    });
+    return;
+  }
+
+  try {
+    const assets = await DatabaseService.listAssets(userId);
+    const properties = await DatabaseService.listProperties(userId);
+    const rooms = await DatabaseService.listRooms(userId);
+
+    const contextAssets = assets.map((a) => ({ id: a.id, name: a.name, category: a.category }));
+    const contextProperties = properties.map((p) => ({ id: p.id, name: p.name }));
+    const contextRooms = rooms.map((r) => ({ id: r.id, name: r.name, propertyId: r.propertyId }));
+
+    const candidate = await extractIssueCandidateFromNaturalLanguage(
+      userId,
+      (parseResult.data.input || parseResult.data.text)!,
+      parseResult.data.contextAssetId
+    );
+
+    res.status(200).json({
+      success: true,
+      data: candidate,
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'INTERNAL_SERVER_ERROR', message: error.message || 'Failed to extract issue candidate.' },
     });
   }
 });

@@ -147,11 +147,17 @@ export const FinancialView: React.FC<FinancialViewProps> = ({
       if (selectedAccount !== 'ALL' && t.account !== selectedAccount) return false;
       if (searchTerm) {
         const term = searchTerm.toLowerCase();
-        const matchesDesc = t.description.toLowerCase().includes(term);
-        const matchesMerchant = t.merchant && t.merchant.toLowerCase().includes(term);
-        const matchesCat = t.category.toLowerCase().includes(term);
-        const matchesAcc = t.account && t.account.toLowerCase().includes(term);
-        const matchesRef = t.reference && t.reference.toLowerCase().includes(term);
+        const descStr = typeof t.description === 'string' ? t.description.toLowerCase() : '';
+        const merchantStr = typeof t.merchant === 'string' ? t.merchant.toLowerCase() : '';
+        const catStr = typeof t.category === 'string' ? t.category.toLowerCase() : '';
+        const accStr = typeof t.account === 'string' ? t.account.toLowerCase() : '';
+        const refStr = typeof t.reference === 'string' ? t.reference.toLowerCase() : '';
+
+        const matchesDesc = descStr.includes(term);
+        const matchesMerchant = merchantStr.includes(term);
+        const matchesCat = catStr.includes(term);
+        const matchesAcc = accStr.includes(term);
+        const matchesRef = refStr.includes(term);
         if (!matchesDesc && !matchesMerchant && !matchesCat && !matchesAcc && !matchesRef) {
           return false;
         }

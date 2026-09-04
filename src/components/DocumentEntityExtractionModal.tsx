@@ -111,6 +111,7 @@ export function DocumentEntityExtractionModal({
     property: <Home className="w-4 h-4 text-amber-600" />,
     room: <Layers className="w-4 h-4 text-purple-600" />,
     asset: <Wrench className="w-4 h-4 text-blue-600" />,
+    issue: <AlertTriangle className="w-4 h-4 text-amber-600" />,
     warranty: <ShieldCheck className="w-4 h-4 text-emerald-600" />,
     maintenance: <Calendar className="w-4 h-4 text-indigo-600" />,
     utility: <Zap className="w-4 h-4 text-amber-500" />,

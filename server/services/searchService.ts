@@ -252,9 +252,16 @@ export async function searchHousehold(
       a.name,
       [
         a.category,
+        (a as any).customCategory || '',
+        (a as any).customType || '',
+        (a as any).assetType || '',
+        a.subcategory || '',
         a.brand || '',
         a.modelNumber || '',
         a.serialNumber || '',
+        (a as any).serviceProvider || '',
+        ((a as any).tags || []).join(' '),
+        (a as any).notes || '',
         a.currentStatus || '',
         a.maintenanceNotes || '',
         parentRoom || '',
@@ -265,13 +272,14 @@ export async function searchHousehold(
     );
     if (score > 0) {
       const locationText = [parentRoom, parentProp].filter(Boolean).join(' • ');
+      const displayCategory = (a as any).customCategory || a.category || 'Asset';
       rawResults.push({
         id: `ast_${a.id}`,
         entityType: 'asset',
         category: 'assets',
         title: a.brand ? `${a.brand} ${a.name}` : a.name,
-        subtitle: `Asset • ${a.category || 'Equipment'}${locationText ? ` • ${locationText}` : ''} • Status: ${a.currentStatus || 'operational'}`,
-        badge: a.category || 'Asset',
+        subtitle: `Asset • ${displayCategory}${locationText ? ` • ${locationText}` : ''} • Status: ${a.currentStatus || 'operational'}`,
+        badge: displayCategory,
         targetTab: 'assets',
         targetId: a.id,
         score,
@@ -281,6 +289,8 @@ export async function searchHousehold(
           serialNumber: a.serialNumber,
           status: a.currentStatus,
           purchaseCost: a.purchaseCost,
+          customCategory: (a as any).customCategory,
+          serviceProvider: (a as any).serviceProvider,
         },
       });
     }

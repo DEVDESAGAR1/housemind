@@ -466,6 +466,7 @@ export function GlobalUploadModal({
 
         const tabMap: Record<HouseholdEntityType, { tab: string; label: string }> = {
           asset: { tab: 'assets', label: 'Assets' },
+          issue: { tab: 'maintenance', label: 'Issues & Tickets' },
           warranty: { tab: 'maintenance', label: 'Warranties & Maintenance' },
           maintenance: { tab: 'maintenance', label: 'Maintenance & Warranties' },
           utility: { tab: 'utilities', label: 'Utilities & Debts' },

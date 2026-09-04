@@ -44,6 +44,10 @@ import {
   AgentActivityTimelineResponse,
   HouseholdMemoryItem,
   HouseholdMemoriesResponse,
+  HouseholdIssue,
+  HouseholdIssueCandidate,
+  HouseholdIssueStatus,
+  HouseholdIssueSeverity,
 } from '../types';
 
 
@@ -217,6 +221,29 @@ export const api = {
       headers,
     });
     return handleResponse<{ id: string; deleted: boolean }>(res);
+  },
+
+  async getAssetRelationships(id: string): Promise<{
+    asset: HomeAsset;
+    warranties: any[];
+    maintenances: any[];
+    expenses: any[];
+    documents: any[];
+    calendarEvents: any[];
+  }> {
+    const headers = await getAuthHeader();
+    const res = await fetch(`/api/household/assets/${encodeURIComponent(id)}/relationships`, {
+      method: 'GET',
+      headers,
+    });
+    return handleResponse<{
+      asset: HomeAsset;
+      warranties: any[];
+      maintenances: any[];
+      expenses: any[];
+      documents: any[];
+      calendarEvents: any[];
+    }>(res);
   },
 
   // Demo Data Seeding & Cleanup
@@ -745,6 +772,104 @@ export const api = {
       headers,
     });
     return handleResponse<{ id: string; deleted: boolean }>(res);
+  },
+
+  // Household Issues / Tickets (Phase 24.2)
+  async getIssues(filters?: {
+    assetId?: string;
+    propertyId?: string;
+    roomId?: string;
+    status?: HouseholdIssueStatus;
+    severity?: HouseholdIssueSeverity;
+    category?: string;
+  }): Promise<HouseholdIssue[]> {
+    const headers = await getAuthHeader();
+    const params = new URLSearchParams();
+    if (filters?.assetId) params.append('assetId', filters.assetId);
+    if (filters?.propertyId) params.append('propertyId', filters.propertyId);
+    if (filters?.roomId) params.append('roomId', filters.roomId);
+    if (filters?.status) params.append('status', filters.status);
+    if (filters?.severity) params.append('severity', filters.severity);
+    if (filters?.category) params.append('category', filters.category);
+    const url = `/api/household/issues${params.toString() ? `?${params.toString()}` : ''}`;
+    const res = await fetch(url, { method: 'GET', headers });
+    return handleResponse<HouseholdIssue[]>(res);
+  },
+
+  async getIssue(id: string): Promise<HouseholdIssue> {
+    const headers = await getAuthHeader();
+    const res = await fetch(`/api/household/issues/${encodeURIComponent(id)}`, {
+      method: 'GET',
+      headers,
+    });
+    return handleResponse<HouseholdIssue>(res);
+  },
+
+  async createIssue(data: Partial<HouseholdIssue>): Promise<HouseholdIssue> {
+    const headers = await getAuthHeader();
+    const res = await fetch('/api/household/issues', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(data),
+    });
+    return handleResponse<HouseholdIssue>(res);
+  },
+
+  async updateIssue(id: string, data: Partial<HouseholdIssue>): Promise<HouseholdIssue> {
+    const headers = await getAuthHeader();
+    const res = await fetch(`/api/household/issues/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify(data),
+    });
+    return handleResponse<HouseholdIssue>(res);
+  },
+
+  async transitionIssueStatus(
+    id: string,
+    newStatus: HouseholdIssueStatus,
+    options?: { note?: string; resolution?: string; actualCost?: number }
+  ): Promise<HouseholdIssue> {
+    const headers = await getAuthHeader();
+    const res = await fetch(`/api/household/issues/${encodeURIComponent(id)}/transition`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ newStatus, ...options }),
+    });
+    return handleResponse<HouseholdIssue>(res);
+  },
+
+  async addIssueActivity(
+    id: string,
+    action: string,
+    note?: string
+  ): Promise<HouseholdIssue> {
+    const headers = await getAuthHeader();
+    const res = await fetch(`/api/household/issues/${encodeURIComponent(id)}/activity`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ action, note }),
+    });
+    return handleResponse<HouseholdIssue>(res);
+  },
+
+  async deleteIssue(id: string): Promise<{ id: string; deleted: boolean }> {
+    const headers = await getAuthHeader();
+    const res = await fetch(`/api/household/issues/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      headers,
+    });
+    return handleResponse<{ id: string; deleted: boolean }>(res);
+  },
+
+  async extractIssueCandidate(input: string, contextAssetId?: string): Promise<HouseholdIssueCandidate> {
+    const headers = await getAuthHeader();
+    const res = await fetch('/api/household/issues/extract', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ input, contextAssetId }),
+    });
+    return handleResponse<HouseholdIssueCandidate>(res);
   },
 
   // Utilities

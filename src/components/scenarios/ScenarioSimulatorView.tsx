@@ -164,9 +164,11 @@ export function ScenarioSimulatorView({ currency, assets = [] }: ScenarioSimulat
         }
         if (searchQuery.trim()) {
           const q = searchQuery.toLowerCase();
+          const title = (s.title || '').toLowerCase();
+          const desc = (s.description || '').toLowerCase();
           return (
-            s.title.toLowerCase().includes(q) ||
-            (s.description && s.description.toLowerCase().includes(q))
+            title.includes(q) ||
+            desc.includes(q)
           );
         }
         return true;

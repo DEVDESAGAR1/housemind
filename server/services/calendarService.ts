@@ -456,6 +456,136 @@ export class CalendarService {
       });
     }
 
+    // 8. Household Issues & Repair Schedules
+    const issues = Array.from(store.issues.values());
+    for (const issue of issues) {
+      const isResolved =
+        issue.status === 'resolved' || issue.status === 'verified' || issue.status === 'closed' || issue.status === 'cancelled';
+
+      const linkedAsset = issue.assetId ? store.assets.get(issue.assetId) : null;
+
+      // Check scheduledDate (e.g. booked technician visit)
+      if (issue.scheduledDate) {
+        const parsed = parseIsoDay(issue.scheduledDate);
+        if (parsed) {
+          const daysDiff = calculateDaysDiff(parsed.iso, todayIso);
+          let status: HouseholdCalendarEventStatus = 'upcoming';
+          let priority: HouseholdCalendarEventPriority = issue.severity === 'critical' ? 'critical' : 'important';
+
+          if (isResolved) {
+            status = 'completed';
+            priority = 'normal';
+          } else if (daysDiff < 0) {
+            status = 'overdue';
+            priority = 'critical';
+          } else if (daysDiff === 0) {
+            status = 'due_today';
+            priority = 'critical';
+          } else if (daysDiff <= 3) {
+            status = 'due_soon';
+            priority = 'important';
+          }
+
+          allEvents.push({
+            id: `cal_issue_sched_${issue.id}_${parsed.iso}`,
+            eventType: 'maintenance',
+            title: `Repair Scheduled: ${issue.title}`,
+            subtitle: `${linkedAsset?.name ? `${linkedAsset.name} • ` : ''}${issue.serviceProvider || 'Technician Visit'}`,
+            date: parsed.iso,
+            status,
+            priority,
+            sourceEntityType: 'maintenance',
+            sourceId: issue.id,
+            targetTab: 'maintenance',
+            targetSubTab: 'issues',
+            isCompleted: isResolved,
+            isPaid: false,
+            daysDiff,
+            formattedDate: formatDisplayDate(parsed.iso),
+            metadata: {
+              issueId: issue.id,
+              severity: issue.severity,
+              serviceProvider: issue.serviceProvider,
+              assetName: linkedAsset?.name,
+            },
+          });
+        }
+      }
+
+      // Check dueDate (resolution deadline) if not resolved
+      if (issue.dueDate && !isResolved) {
+        const parsed = parseIsoDay(issue.dueDate);
+        if (parsed) {
+          const daysDiff = calculateDaysDiff(parsed.iso, todayIso);
+          let status: HouseholdCalendarEventStatus = 'upcoming';
+          let priority: HouseholdCalendarEventPriority = issue.severity === 'critical' ? 'critical' : 'normal';
+
+          if (daysDiff < 0) {
+            status = 'overdue';
+            priority = 'critical';
+          } else if (daysDiff === 0) {
+            status = 'due_today';
+            priority = 'critical';
+          } else if (daysDiff <= 3) {
+            status = 'due_soon';
+            priority = 'important';
+          }
+
+          allEvents.push({
+            id: `cal_issue_due_${issue.id}_${parsed.iso}`,
+            eventType: 'maintenance',
+            title: `Resolution Due: ${issue.title}`,
+            subtitle: `${linkedAsset?.name ? `${linkedAsset.name} • ` : ''}Severity: ${issue.severity}`,
+            date: parsed.iso,
+            status,
+            priority,
+            sourceEntityType: 'maintenance',
+            sourceId: issue.id,
+            targetTab: 'maintenance',
+            targetSubTab: 'issues',
+            isCompleted: false,
+            isPaid: false,
+            daysDiff,
+            formattedDate: formatDisplayDate(parsed.iso),
+            metadata: {
+              issueId: issue.id,
+              severity: issue.severity,
+              assetName: linkedAsset?.name,
+            },
+          });
+        }
+      }
+
+      // Check followUpDate if present
+      if (issue.followUpDate) {
+        const parsed = parseIsoDay(issue.followUpDate);
+        if (parsed) {
+          const daysDiff = calculateDaysDiff(parsed.iso, todayIso);
+          allEvents.push({
+            id: `cal_issue_followup_${issue.id}_${parsed.iso}`,
+            eventType: 'maintenance',
+            title: `Repair Follow-Up: ${issue.title}`,
+            subtitle: `${linkedAsset?.name ? `${linkedAsset.name} • ` : ''}Verify operation holding`,
+            date: parsed.iso,
+            status: daysDiff < 0 ? 'overdue' : daysDiff === 0 ? 'due_today' : 'upcoming',
+            priority: 'normal',
+            sourceEntityType: 'maintenance',
+            sourceId: issue.id,
+            targetTab: 'maintenance',
+            targetSubTab: 'issues',
+            isCompleted: issue.status === 'verified',
+            isPaid: false,
+            daysDiff,
+            formattedDate: formatDisplayDate(parsed.iso),
+            metadata: {
+              issueId: issue.id,
+              assetName: linkedAsset?.name,
+            },
+          });
+        }
+      }
+    }
+
     // Filter by Date Range
     let filtered = allEvents.filter((ev) => ev.date >= filterStartDate && ev.date <= filterEndDate);
 

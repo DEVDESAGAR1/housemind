@@ -420,6 +420,18 @@ function normalizeExtractedFields(type: HouseholdEntityType, fields: Record<stri
   if (!fields.name && (type === 'property' || type === 'asset' || type === 'utility')) {
     fields.name = fileName.replace(/\.[^/.]+$/, '').replace(/[_-]/g, ' ') || 'New Household Item';
   }
+
+  if (type === 'warranty') {
+    if (!fields.providerName && fields.warrantyProvider) {
+      fields.providerName = fields.warrantyProvider;
+    }
+    if (!fields.warrantyProvider && fields.providerName) {
+      fields.warrantyProvider = fields.providerName;
+    }
+    if (!fields.title) {
+      fields.title = fields.providerName || fields.warrantyProvider || 'Warranty Policy';
+    }
+  }
 }
 
 /**

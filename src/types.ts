@@ -85,13 +85,15 @@ export interface HouseholdExpense {
   isAutoPay: boolean;
   paymentStatus: PaymentStatus;
   notes?: string;
+  propertyId?: string;
+  assetId?: string;
   isDemo?: boolean;
   sourceMetadata?: ImportedSourceMetadata;
   createdAt: string;
   updatedAt: string;
 }
 
-export type AssetCategory =
+export type KnownAssetCategory =
   | 'vehicle'
   | 'appliance'
   | 'major_appliance'
@@ -104,7 +106,15 @@ export type AssetCategory =
   | 'laundry'
   | 'roofing_exterior'
   | 'electrical'
+  | 'solar_energy'
+  | 'power_backup'
+  | 'water_system'
+  | 'smart_home'
+  | 'tools_equipment'
+  | 'custom'
   | 'other';
+
+export type AssetCategory = KnownAssetCategory | (string & {});
 
 export type AssetStatus = 'operational' | 'needs_maintenance' | 'critical' | 'replaced' | 'sold';
 
@@ -216,6 +226,22 @@ export interface HomeAsset {
   sourceMetadata?: ImportedSourceMetadata;
   createdAt: string;
   updatedAt: string;
+
+  // Phase 24.1 Universal Asset Intelligence extensions
+  customCategory?: string;
+  customType?: string;
+  assetType?: string;
+  serviceProvider?: string;
+  serviceProviderContact?: string;
+  warrantyIds?: string[];
+  maintenanceTaskIds?: string[];
+  documentIds?: string[];
+  expenseIds?: string[];
+  complianceStatus?: 'compliant' | 'review_required' | 'non_compliant' | 'exempt' | string;
+  lifecycleStage?: 'new' | 'active' | 'aging' | 'end_of_life' | 'decommissioned' | string;
+  tags?: string[];
+  notes?: string;
+  metadata?: Record<string, any>;
 }
 
 export type WarrantyStatus = 'active' | 'expiring_soon' | 'expired';
@@ -293,6 +319,230 @@ export interface MaintenanceTask {
   sourceMetadata?: ImportedSourceMetadata;
   createdAt: string;
   updatedAt: string;
+}
+
+// ==========================================
+// Phase 24.2: Universal Household Issues / Tickets
+// ==========================================
+export type HouseholdIssueSeverity = 'critical' | 'high' | 'medium' | 'low';
+
+export type HouseholdIssueStatus =
+  | 'reported'
+  | 'triaged'
+  | 'scheduled'
+  | 'in_progress'
+  | 'waiting_parts'
+  | 'resolved'
+  | 'verified'
+  | 'closed'
+  | 'cancelled';
+
+export interface HouseholdIssueAttachment {
+  id: string;
+  name: string;
+  url?: string;
+  fileType?: string;
+  size?: number;
+  uploadedAt?: string;
+}
+
+export interface HouseholdIssueActivityItem {
+  id: string;
+  timestamp: string;
+  action: string;
+  note?: string;
+  previousStatus?: HouseholdIssueStatus;
+  newStatus?: HouseholdIssueStatus;
+  fromStatus?: HouseholdIssueStatus;
+  toStatus?: HouseholdIssueStatus;
+  userId: string;
+}
+
+export interface HouseholdIssue {
+  id: string;
+  userId: string;
+  title: string;
+  description?: string;
+  assetId?: string;
+  propertyId?: string;
+  roomId?: string;
+  category?: string;
+  subcategory?: string;
+  severity: HouseholdIssueSeverity;
+  status: HouseholdIssueStatus;
+  reportedAt: string;
+  dueDate?: string;
+  scheduledDate?: string;
+  followUpDate?: string;
+  resolvedAt?: string;
+  verifiedAt?: string;
+  closedAt?: string;
+  notes?: string;
+  attachments?: HouseholdIssueAttachment[];
+  warrantyId?: string;
+  maintenanceId?: string;
+  documentIds?: string[];
+  serviceProvider?: string;
+  serviceProviderContact?: string;
+  estimatedCost?: number;
+  actualCost?: number;
+  resolution?: string;
+  rootCause?: string;
+  safetyWarning?: string;
+  resolutionChecklist?: ResolutionChecklistItem[];
+  relatedIssueIds?: string[];
+  isDemo?: boolean;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  activityHistory?: HouseholdIssueActivityItem[];
+}
+
+// Phase 24.3: Issue Intelligence & Resolution Intelligence Types
+export type WarrantyCoverageStatus =
+  | 'covered'
+  | 'possibly_covered'
+  | 'expired'
+  | 'no_warranty'
+  | 'incomplete';
+
+export interface ResolutionChecklistItem {
+  id: string;
+  label: string;
+  completed: boolean;
+  completedAt?: string;
+  autoDerived?: boolean;
+}
+
+export interface PossibleRelatedIssue {
+  id: string;
+  title: string;
+  reportedAt: string;
+  status: HouseholdIssueStatus;
+  severity: HouseholdIssueSeverity;
+  assetName?: string;
+  assetId?: string;
+  roomId?: string;
+  relationType: 'same_asset' | 'same_room' | 'same_category' | 'repeat_failure' | 'symptom_match';
+  relationReason: string;
+  similarityScore: number;
+  isLinked?: boolean;
+}
+
+export interface RecurringFailureSignal {
+  isRecurring: boolean;
+  repeatedIssueCount: number;
+  recurrenceWindowMonths: number;
+  firstReportedDate?: string;
+  lastReportedDate?: string;
+  summary: string;
+  previousResolutions?: Array<{ issueId: string; date: string; resolution?: string; cost?: number }>;
+  insufficientData: boolean;
+}
+
+export interface IssueWarrantyIntelligence {
+  status: WarrantyCoverageStatus;
+  statusLabel: string;
+  warrantyId?: string;
+  provider?: string;
+  policyNumber?: string;
+  startDate?: string;
+  endDate?: string;
+  isExpired: boolean;
+  daysUntilExpiration?: number;
+  documentId?: string;
+  documentName?: string;
+  coverageNotes?: string;
+  explanation: string;
+}
+
+export interface IssueMaintenanceIntelligence {
+  recentMaintenance?: Array<{ id: string; title: string; completedDate?: string; serviceProvider?: string }>;
+  upcomingMaintenance?: Array<{ id: string; title: string; dueDate?: string; priority?: string }>;
+  overdueMaintenance?: Array<{ id: string; title: string; dueDate?: string }>;
+  preventiveOpportunity?: string;
+  associatedMaintenanceId?: string;
+}
+
+export interface RecommendedNextStep {
+  id: string;
+  order: number;
+  title: string;
+  actionType: 'safety' | 'warranty' | 'maintenance' | 'provider' | 'document' | 'verification' | 'general';
+  priority: 'urgent' | 'high' | 'medium' | 'low';
+  guidance: string;
+  actionableTab?: string;
+}
+
+export interface StructuredResolutionSummary {
+  whatHappened: string;
+  affectedAssetAndLocation: string;
+  rootCause?: string;
+  actionTaken: string;
+  costSummary?: { estimated?: number; actual?: number; currency?: string };
+  warrantyInvolvement: string;
+  maintenanceImplications: string;
+  supportingDocuments: Array<{ id: string; name: string }>;
+  resolutionDate?: string;
+  verificationState: string;
+  recommendedPrevention: string;
+  aiGeneratedNotes?: string;
+}
+
+export interface IssueIntelligenceReport {
+  issueId: string;
+  title: string;
+  severity: HouseholdIssueSeverity;
+  status: HouseholdIssueStatus;
+  ageInDays: number;
+  isOverdue: boolean;
+  isAging: boolean;
+  whyItMatters: string;
+  safetyClassification: {
+    isSafetyRisk: boolean;
+    hazardType?: string;
+    safetyWarning?: string;
+    escalationAdvice?: string;
+  };
+  linkedAsset?: { id: string; name: string; brand?: string; model?: string; category?: string };
+  linkedProperty?: { id: string; name: string };
+  linkedRoom?: { id: string; name: string };
+  relatedIssues: PossibleRelatedIssue[];
+  recurringSignal: RecurringFailureSignal;
+  warrantyIntelligence: IssueWarrantyIntelligence;
+  maintenanceIntelligence: IssueMaintenanceIntelligence;
+  recommendedNextSteps: RecommendedNextStep[];
+  checklist: ResolutionChecklistItem[];
+  resolutionSummary?: StructuredResolutionSummary;
+  generatedAt: string;
+}
+
+export interface HouseholdIssueCandidate {
+  title: string;
+  description?: string;
+  assetName?: string;
+  assetId?: string;
+  category?: string;
+  subcategory?: string;
+  propertyId?: string;
+  roomId?: string;
+  severity: HouseholdIssueSeverity;
+  safetyWarning?: string;
+  suggestedProvider?: string;
+  estimatedCost?: number;
+}
+
+export interface NaturalLanguageIssueExtractionResult {
+  candidateAssets: Array<{
+    name: string;
+    category?: string;
+    brand?: string;
+    existingAssetId?: string;
+    isNewAsset: boolean;
+  }>;
+  candidateIssues: HouseholdIssueCandidate[];
+  safetyWarnings: string[];
+  confidence: number;
 }
 
 export type UtilityServiceType =
@@ -419,6 +669,7 @@ export type HouseholdEntityType =
   | 'property'
   | 'room'
   | 'asset'
+  | 'issue'
   | 'warranty'
   | 'maintenance'
   | 'utility'
@@ -443,7 +694,7 @@ export interface HomeCommandCenterSummary {
   today: {
     urgentTasks: Array<{
       id: string;
-      type: 'bill_due' | 'maintenance_due' | 'overdue_payment' | 'warranty_expiring';
+      type: 'bill_due' | 'maintenance_due' | 'overdue_payment' | 'warranty_expiring' | 'issue_attention';
       title: string;
       subtitle?: string;
       amount?: number;
@@ -1235,11 +1486,26 @@ export interface HouseholdDocument {
   transactionCandidates: TransactionCandidate[];
   confirmedTransactionIds?: string[];
   notes?: string;
+  propertyId?: string;
+  assetId?: string;
   uploadedAt?: string;
   isDemo?: boolean;
   sourceMetadata?: ImportedSourceMetadata;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface AssetRelationships {
+  asset: HomeAsset;
+  property?: Property | null;
+  room?: Room | null;
+  issues: HouseholdIssue[];
+  warranties: Warranty[];
+  maintenances: MaintenanceTask[];
+  expenses: HouseholdExpense[];
+  documents: HouseholdDocument[];
+  calendarEvents: HouseholdCalendarEvent[];
+  notifications: HouseholdNotification[];
 }
 
 export interface FinancialSummary {

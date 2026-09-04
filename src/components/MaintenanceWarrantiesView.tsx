@@ -27,30 +27,38 @@ import {
   Property,
   MaintenanceStatus,
   RecurrenceFrequency,
+  HouseholdIssue,
+  Room,
 } from '../types';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
 import { ContextualHelp } from './help/ContextualHelp';
+import { HouseholdIssuesTab } from './HouseholdIssuesTab';
+import { HouseholdIssueModal } from './HouseholdIssueModal';
 
 interface MaintenanceWarrantiesViewProps {
   tasks: MaintenanceTask[];
   warranties: Warranty[];
+  issues?: HouseholdIssue[];
   assets: HomeAsset[];
   properties: Property[];
-  onRefresh: () => void;
+  rooms?: Room[];
+  onRefresh: () => void | Promise<void>;
   onOpenEntityExtractor: (entityType: 'maintenance' | 'warranty') => void;
   addToast: (type: 'success' | 'error' | 'info', title: string, message?: string) => void;
   currency?: string;
-  initialSubTab?: 'maintenance' | 'warranties';
-  onSubTabChange?: (tab: 'maintenance' | 'warranties') => void;
+  initialSubTab?: 'maintenance' | 'warranties' | 'issues';
+  onSubTabChange?: (tab: 'maintenance' | 'warranties' | 'issues') => void;
   autoOpenAdd?: boolean;
   onAddModalOpened?: () => void;
 }
 
 export function MaintenanceWarrantiesView({
-  tasks,
-  warranties,
-  assets,
-  properties,
+  tasks = [],
+  warranties = [],
+  issues = [],
+  assets = [],
+  properties = [],
+  rooms = [],
   onRefresh,
   onOpenEntityExtractor,
   addToast,
@@ -60,7 +68,8 @@ export function MaintenanceWarrantiesView({
   autoOpenAdd,
   onAddModalOpened,
 }: MaintenanceWarrantiesViewProps) {
-  const [activeSubTab, setActiveSubTab] = useState<'maintenance' | 'warranties'>(initialSubTab || 'maintenance');
+  const [activeSubTab, setActiveSubTab] = useState<'maintenance' | 'warranties' | 'issues'>(initialSubTab || 'maintenance');
+  const [isTopIssueModalOpen, setIsTopIssueModalOpen] = useState(false);
 
   useEffect(() => {
     if (initialSubTab) {
@@ -68,7 +77,7 @@ export function MaintenanceWarrantiesView({
     }
   }, [initialSubTab]);
 
-  const handleSetSubTab = (tab: 'maintenance' | 'warranties') => {
+  const handleSetSubTab = (tab: 'maintenance' | 'warranties' | 'issues') => {
     setActiveSubTab(tab);
     onSubTabChange?.(tab);
   };
@@ -89,7 +98,7 @@ export function MaintenanceWarrantiesView({
     title: '',
     description: '',
     assetId: '',
-    propertyId: properties[0]?.id || '',
+    propertyId: properties?.[0]?.id || '',
     category: 'HVAC',
     frequency: 'quarterly' as RecurrenceFrequency,
     dueDate: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10),
@@ -107,7 +116,7 @@ export function MaintenanceWarrantiesView({
     providerName: '',
     policyNumber: '',
     assetId: '',
-    propertyId: properties[0]?.id || '',
+    propertyId: properties?.[0]?.id || '',
     coverageType: 'manufacturer',
     coverageDetails: '',
     startDate: new Date().toISOString().slice(0, 10),
@@ -124,8 +133,8 @@ export function MaintenanceWarrantiesView({
     setTaskForm({
       title: '',
       description: '',
-      assetId: assets[0]?.id || '',
-      propertyId: properties[0]?.id || '',
+      assetId: assets?.[0]?.id || '',
+      propertyId: properties?.[0]?.id || '',
       category: 'HVAC',
       frequency: 'quarterly',
       dueDate: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10),
@@ -216,8 +225,8 @@ export function MaintenanceWarrantiesView({
       title: '',
       providerName: '',
       policyNumber: '',
-      assetId: assets[0]?.id || '',
-      propertyId: properties[0]?.id || '',
+      assetId: assets?.[0]?.id || '',
+      propertyId: properties?.[0]?.id || '',
       coverageType: 'manufacturer',
       coverageDetails: 'Full parts and labor warranty',
       startDate: new Date().toISOString().slice(0, 10),
@@ -248,7 +257,7 @@ export function MaintenanceWarrantiesView({
       providerName: w.providerName || w.warrantyProvider || '',
       policyNumber: w.policyNumber || '',
       assetId: w.assetId || '',
-      propertyId: w.propertyId || properties[0]?.id || '',
+      propertyId: w.propertyId || properties?.[0]?.id || '',
       coverageType: w.coverageType || 'manufacturer',
       coverageDetails: w.coverageDetails || w.coverageNotes || '',
       startDate: w.startDate ? w.startDate.slice(0, 10) : '',
@@ -303,39 +312,56 @@ export function MaintenanceWarrantiesView({
   };
 
   // Filter tasks & warranties safely without assuming optional fields exist
-  const filteredTasks = tasks.filter((t) => {
-    const q = searchQuery.toLowerCase().trim();
+  const filteredTasks = (tasks || []).filter((t) => {
+    if (!t) return false;
+    const q = (searchQuery || '').toLowerCase().trim();
     const matchesAsset = !filterAssetId || t.assetId === filterAssetId;
     if (!q) return matchesAsset;
+    const title = typeof t.title === 'string' ? t.title.toLowerCase() : '';
+    const desc = typeof t.description === 'string' ? t.description.toLowerCase() : '';
+    const cat = typeof t.category === 'string' ? t.category.toLowerCase() : '';
+    const sp = typeof t.serviceProvider === 'string' ? t.serviceProvider.toLowerCase() : '';
     const matchesSearch =
-      (t.title && t.title.toLowerCase().includes(q)) ||
-      (t.description && t.description.toLowerCase().includes(q)) ||
-      (t.category && t.category.toLowerCase().includes(q)) ||
-      (t.serviceProvider && t.serviceProvider.toLowerCase().includes(q));
-    return matchesSearch && matchesAsset;
+      title.includes(q) ||
+      desc.includes(q) ||
+      cat.includes(q) ||
+      sp.includes(q);
+    return Boolean(matchesSearch && matchesAsset);
   });
 
-  const filteredWarranties = warranties.filter((w) => {
-    const q = searchQuery.toLowerCase().trim();
+  const filteredWarranties = (warranties || []).filter((w) => {
+    if (!w) return false;
+    const q = (searchQuery || '').toLowerCase().trim();
     const matchesAsset = !filterAssetId || w.assetId === filterAssetId;
     if (!q) return matchesAsset;
-    const title = w.title || '';
-    const provider = w.warrantyProvider || w.providerName || '';
-    const policy = w.policyNumber || '';
-    const coverage = w.coverageType || w.coverageDetails || w.coverageNotes || '';
+    const title = typeof w.title === 'string' ? w.title.toLowerCase() : '';
+    const provider = typeof w.warrantyProvider === 'string'
+      ? w.warrantyProvider.toLowerCase()
+      : typeof w.providerName === 'string'
+      ? w.providerName.toLowerCase()
+      : '';
+    const policy = typeof w.policyNumber === 'string' ? w.policyNumber.toLowerCase() : '';
+    const coverage = typeof w.coverageType === 'string'
+      ? w.coverageType.toLowerCase()
+      : typeof w.coverageDetails === 'string'
+      ? w.coverageDetails.toLowerCase()
+      : typeof w.coverageNotes === 'string'
+      ? w.coverageNotes.toLowerCase()
+      : '';
     const matchesSearch =
-      title.toLowerCase().includes(q) ||
-      provider.toLowerCase().includes(q) ||
-      policy.toLowerCase().includes(q) ||
-      coverage.toLowerCase().includes(q);
-    return matchesSearch && matchesAsset;
+      title.includes(q) ||
+      provider.includes(q) ||
+      policy.includes(q) ||
+      coverage.includes(q);
+    return Boolean(matchesSearch && matchesAsset);
   });
 
   const now = new Date();
-  const overdueTasks = tasks.filter(
-    (t) => t.status !== 'completed' && t.dueDate && new Date(t.dueDate) < now
+  const overdueTasks = (tasks || []).filter(
+    (t) => t && t.status !== 'completed' && t.dueDate && new Date(t.dueDate) < now
   );
-  const expiringWarranties = warranties.filter((w) => {
+  const expiringWarranties = (warranties || []).filter((w) => {
+    if (!w) return false;
     const exp = w.expiryDate || w.endDate;
     if (!exp || w.status === 'expired') return false;
     const diffDays = (new Date(exp).getTime() - now.getTime()) / (1000 * 3600 * 24);
@@ -383,13 +409,21 @@ export function MaintenanceWarrantiesView({
               <Plus className="w-4 h-4" />
               <span>Schedule Task</span>
             </button>
-          ) : (
+          ) : activeSubTab === 'warranties' ? (
             <button
               onClick={handleOpenNewWarranty}
               className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-xs shadow-emerald-600/20 transition cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               <span>Add Warranty</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => setIsTopIssueModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-amber-600 hover:bg-amber-700 rounded-xl shadow-xs shadow-amber-600/20 transition cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Report Issue</span>
             </button>
           )}
         </div>
@@ -460,36 +494,50 @@ export function MaintenanceWarrantiesView({
             <ShieldCheck className="w-4 h-4" />
             <span>Warranty Policies ({warranties.length})</span>
           </button>
+
+          <button
+            onClick={() => handleSetSubTab('issues')}
+            className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+              activeSubTab === 'issues'
+                ? 'bg-amber-600 text-white shadow-xs'
+                : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+            }`}
+          >
+            <AlertTriangle className="w-4 h-4" />
+            <span>Issues & Tickets ({issues.length})</span>
+          </button>
         </div>
 
         {/* Filter / Search */}
-        <div className="flex items-center gap-2">
-          <div className="relative">
-            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Search..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-900 focus:outline-hidden focus:ring-1 focus:ring-indigo-500 w-36 sm:w-48"
-            />
-          </div>
+        {activeSubTab !== 'issues' && (
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Search..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-900 focus:outline-hidden focus:ring-1 focus:ring-indigo-500 w-36 sm:w-48"
+              />
+            </div>
 
-          {assets.length > 0 && (
-            <select
-              value={filterAssetId}
-              onChange={(e) => setFilterAssetId(e.target.value)}
-              className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-700 focus:outline-hidden"
-            >
-              <option value="">All Equipment</option>
-              {assets.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
-                </option>
-              ))}
-            </select>
-          )}
-        </div>
+            {assets.length > 0 && (
+              <select
+                value={filterAssetId}
+                onChange={(e) => setFilterAssetId(e.target.value)}
+                className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-700 focus:outline-hidden"
+              >
+                <option value="">All Equipment</option>
+                {assets.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Sub-Tab 1: Maintenance Tasks List */}
@@ -762,6 +810,40 @@ export function MaintenanceWarrantiesView({
             </div>
           )}
         </div>
+      )}
+
+      {/* Household Issues / Tickets Sub-Tab */}
+      {activeSubTab === 'issues' && (
+        <HouseholdIssuesTab
+          issues={issues}
+          assets={assets}
+          properties={properties}
+          rooms={rooms}
+          warranties={warranties}
+          currency={currency}
+          onRefresh={async () => {
+            await onRefresh();
+          }}
+          addToast={addToast}
+        />
+      )}
+
+      {/* Top Level Issue Modal Trigger */}
+      {isTopIssueModalOpen && (
+        <HouseholdIssueModal
+          isOpen={isTopIssueModalOpen}
+          onClose={() => setIsTopIssueModalOpen(false)}
+          onSaved={async () => {
+            await onRefresh();
+          }}
+          editingIssue={null}
+          assets={assets}
+          properties={properties}
+          rooms={rooms}
+          warranties={warranties}
+          currency={currency}
+          addToast={addToast}
+        />
       )}
 
       {/* Task Modal */}

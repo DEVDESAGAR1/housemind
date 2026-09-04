@@ -892,10 +892,10 @@ Adding your HVAC, water heater, and appliance protection plans will activate aut
     }
 
     const assetList = context.assets
-      .slice(0, 5)
+      .slice(0, 6)
       .map(
         (a) =>
-          `• **${a.name}** (${a.category}): Brand: ${a.brand || 'N/A'} | Status: *${a.currentStatus || 'operational'}* | Install Date: ${a.installDate || 'N/A'}`
+          `• **${a.name}** (${a.customCategory || a.category || 'Asset'}): ${a.brand ? `Brand: ${a.brand} | ` : ''}${a.assetType || a.subcategory ? `Type: ${a.assetType || a.subcategory} | ` : ''}Status: *${a.currentStatus || 'operational'}* | Install Date: ${a.installDate || 'N/A'}${a.serviceProvider ? ` | Provider: ${a.serviceProvider}` : ''}`
       )
       .join('\n');
 

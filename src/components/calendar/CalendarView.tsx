@@ -139,13 +139,20 @@ export function CalendarView({
 
     // Filter Search
     if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase().trim();
+      const q = (searchQuery || '').toLowerCase().trim();
       list = list.filter(
-        (e) =>
-          e.title.toLowerCase().includes(q) ||
-          e.subtitle?.toLowerCase().includes(q) ||
-          e.eventType.toLowerCase().includes(q) ||
-          (e.amount && `$${e.amount}`.includes(q))
+        (e) => {
+          if (!e) return false;
+          const title = typeof e.title === 'string' ? e.title.toLowerCase() : '';
+          const subtitle = typeof e.subtitle === 'string' ? e.subtitle.toLowerCase() : '';
+          const eventType = typeof e.eventType === 'string' ? e.eventType.toLowerCase() : '';
+          return (
+            title.includes(q) ||
+            subtitle.includes(q) ||
+            eventType.includes(q) ||
+            (e.amount != null && `$${e.amount}`.includes(q))
+          );
+        }
       );
     }
 
