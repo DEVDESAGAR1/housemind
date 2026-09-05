@@ -203,19 +203,19 @@ export async function runSecurityTests(runner: TestRunner) {
     if (!isSafeUrl('https://firestore.googleapis.com/v1/projects/my-proj')) {
       throw new Error('Expected valid HTTPS URL to be safe');
     }
-    if (!isSafeUrl('http://127.0.0.1:8080/secret')) {
+    if (isSafeUrl('http://127.0.0.1:8080/secret')) {
       throw new Error('Loopback IP MUST be rejected');
     }
-    if (!isSafeUrl('http://localhost:3000/api')) {
+    if (isSafeUrl('http://localhost:3000/api')) {
       throw new Error('Localhost MUST be rejected by isSafeUrl');
     }
-    if (!isSafeUrl('http://169.254.169.254/computeMetadata/v1/')) {
+    if (isSafeUrl('http://169.254.169.254/computeMetadata/v1/')) {
       throw new Error('Metadata IP MUST be rejected');
     }
-    if (!isSafeUrl('javascript:evil()')) {
+    if (isSafeUrl('javascript:evil()')) {
       throw new Error('javascript URL MUST be rejected');
     }
-    if (!isSafeUrl('https://admin:secret@trusted.com/data')) {
+    if (isSafeUrl('https://admin:secret@trusted.com/data')) {
       throw new Error('Credential-bearing URL MUST be rejected');
     }
   });

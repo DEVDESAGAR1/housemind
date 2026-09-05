@@ -229,11 +229,14 @@ export class HouseholdAgentOrchestrator {
     const isDeleteIntent =
       lower.startsWith('delete ') ||
       lower.startsWith('wipe ') ||
+      lower.startsWith('reset ') ||
       lower.includes('delete my') ||
       lower.includes('delete all') ||
       lower.includes('wipe all') ||
       lower.includes('drop database') ||
-      lower.includes('erase all');
+      lower.includes('erase all') ||
+      lower.includes('delete household') ||
+      lower.includes('reset household');
     const isPaymentIntent =
       lower.startsWith('pay ') ||
       lower.includes('pay my ') ||
@@ -242,9 +245,14 @@ export class HouseholdAgentOrchestrator {
       lower.includes('transfer funds') ||
       lower.includes('transfer $') ||
       lower.includes('transfer money') ||
+      lower.startsWith('transfer ') ||
       lower.includes('send $') ||
+      lower.includes('send ₹') ||
+      lower.startsWith('send ') ||
       lower.includes('send money') ||
       lower.includes('wire money') ||
+      lower.includes('change my emi') ||
+      lower.includes('change emi') ||
       lower.includes('execute payment') ||
       lower.includes('make payment') ||
       lower.includes('process payment');

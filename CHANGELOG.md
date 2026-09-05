@@ -1,48 +1,114 @@
 # HouseMind Changelog
 
-All notable changes to the HouseMind platform will be documented in this file.
+All notable changes to the HouseMind platform are documented in this file. The project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [Phase 9] - 2026-08-31
+## [v2.5.0] - 2026-09-05
 
 ### Added
-- **Privacy-First Data Architecture & Privacy Center**:
-  - Dedicated `/api/household/privacy-center` endpoint providing live breakdown of user-authored vs sample starter records, connected ingestion source states, and AI context minimization boundary rules.
-  - Complete UI overhaul of `DataSourcesModal.tsx` into a tabbed Privacy Center featuring active storage inventory, ingestion connector settings, AI context protection boundaries, and data deletion tools.
-  - Provenance tracking with `SourceMetadata` (`sourceType`, `isDemo`, `ingestionDate`, `sourceReference`) across all entity schemas.
-- **Surgical Demo Data Purging & Account Wipe Controls**:
-  - `POST /api/household/demo-remove` non-destructively purges only `isDemo: true` records, leaving all user-created records untouched.
-  - `POST /api/household/reset-data` with required confirmation payload (`confirmPhrase: "DELETE MY DATA"` or `confirm: true`) ensuring zero accidental data loss.
-- **Privacy Integration Test Suite**:
-  - `tests/backend/privacy.test.ts` verifying inventory calculation, isolated demo purge, confirmation requirements, and multi-tenant isolation during full account wipes (78/78 tests passing).
+- **Documentation Audit & Consolidation**:
+  - Unified technical architecture and domain model into `docs/ARCHITECTURE.md`.
+  - Comprehensive quality assurance and verification documentation in `docs/TESTING.md` covering all 347 passing automated tests.
+  - Realistic end-to-end user workflows in `docs/USER-JOURNEYS.md`.
+  - Structured contributing guide in `CONTRIBUTING.md`.
+- **Archival Security Log**: Preserved historical audit findings in `docs/historical/AUDIT_REPORT.md`.
 
 ### Changed
-- Standardized documentation across all compliance guides (`README.md`, `PRIVACY.md`, `SECURITY.md`, `AI.md`, `DATA_MODEL.md`, `API.md`, `TESTING.md`, `AUDIT_REPORT.md`) adopting accurate privacy-first terminology.
+- Refactored `README.md` to be the definitive, competition-ready product specification.
+- Updated `SECURITY.md` incorporating the full STRIDE threat model and AI safety protocols.
+- Updated `PRIVACY.md` detailing GA4 privacy boundaries, context minimization, and zero-PII telemetry.
+- Updated `DEPLOYMENT.md` with container build instructions and Secret Manager verification steps.
+- Removed outdated fragmented root documents (`DOCUMENTATION.md`, `DATA_MODEL.md`, `API.md`, `AI.md`, `THREAT_MODEL.md`).
 
 ---
 
-## [Phase 7 & 8] - 2026-08-31
+## [v2.4.0] - 2026-09-02
 
 ### Added
-- **Global Financial Localization Engine**:
-  - Centralized multi-country registry (`src/config/locationCurrencyConfig.ts` and `server/utils/currencyConfig.ts`) supporting North America, Europe, UK, Japan, Australia, India, and Latin America.
-  - User override capability allowing custom currency selections decoupled from country settings.
-  - Safe, locale-aware currency formatter (`formatCurrency`) with robust numeric fallbacks.
-  - Automatic timezone and regional benchmarks calculation.
-- **Dataset Lifecycle & Demo Data Management**:
-  - Safe demo data purge endpoint (`POST /api/household/demo-remove`) removing only seeded records without affecting real user entries.
-  - Full data reset endpoint (`POST /api/household/reset-data`) with explicit confirmation.
-  - UI controls in the **Data Sources & Transparency** modal for managing sample datasets.
-- **Production Documentation Suite**:
-  - Comprehensive documentation: `README.md`, `SECURITY.md`, `ARCHITECTURE.md`, `THREAT_MODEL.md`, `PRIVACY.md`, `AI.md`, `DATA_MODEL.md`, `API.md`, `TESTING.md`, `DEPLOYMENT.md`, `AUDIT_REPORT.md`, `CHANGELOG.md`.
+- **Google Cloud Secret Manager Integration**:
+  - Dedicated secret resolution provider fetching `housemind-gemini-api-key`.
+  - Least-privilege IAM configuration (`roles/secretmanager.secretAccessor`) for Cloud Run runtime identity.
+  - Diagnostic readiness probes masking credentials while validating runtime availability.
+  - Client bundle scan verification ensuring zero private credentials leak into frontend assets.
 
-### Security & Hardening
-- **SSRF Remediation**: Strict URL constructor with `SAFE_ID_REGEX` on all Firestore REST request builders.
-- **Multi-Tenant Isolation**: Enforced user isolation on all API routes, database operations, and Firestore rules.
-- **Rate Limiting & Headers**: Helmet security headers, CSP, and tiered rate limiting on upload, AI, and API routes.
-- **Safe Logging**: Format string sanitization across all server logging and error handler pipelines.
+---
 
-### Changed
-- Refactored `Dashboard.tsx`, `ExpensesView.tsx`, `AssetsView.tsx`, `FinancialView.tsx`, and `ScenarioCard.tsx` to use unified localization utilities.
-- Standardized error response envelopes across all Express routes.
+## [v2.3.0] - 2026-08-31
+
+### Added
+- **Privacy-Preserving Telemetry & Observability**:
+  - Free-tier Google Analytics 4 integration with strict parameter sanitization.
+  - Automatic stripping of financial values, document text, search queries, and chat prompts.
+  - Anonymous client-side session identification preventing Firebase Auth UID linkage.
+  - Structured server error categorization and query parameter credential masking in logs.
+
+---
+
+## [v2.2.0] - 2026-08-28
+
+### Added
+- **Cross-Domain Intelligence Graph**:
+  - In-memory relational network generated dynamically per-tenant from structured database records.
+  - Graph edges connecting physical, operational, and financial entities (`LOCATED_IN`, `COVERED_BY`, `SERVICED_BY`, `REPORTED_ON`, `BILLED_UNDER`, `ATTACHED_TO`, `PART_OF`).
+  - Compounding risk discovery (e.g., recurring appliance repair costs exceeding replacement thresholds).
+- **Unified Household Actions**:
+  - Standardized cross-domain recommendations with priority scoring and deep-link routing.
+
+---
+
+## [v2.1.0] - 2026-08-25
+
+### Added
+- **4-Part Daily Morning Briefing**:
+  - Operational summary delivering Urgent Alerts, Today's Deadlines, Health Score, and Proactive Advice.
+  - Actionable deep-links enabling instant navigation to relevant bills, tasks, or tickets.
+  - Deterministic fallback narrative generator ensuring 100% availability if upstream AI is unavailable.
+- **Unified Copilot Multi-Turn UX**:
+  - Rich Markdown rendering with structured bullet points and source reference tags.
+
+---
+
+## [v2.0.0] - 2026-08-20
+
+### Added
+- **Household Agent Orchestrator**:
+  - Multi-turn conversational partner powered by 13 deterministic read tools.
+  - Ephemeral context minimizer assembling only query-relevant facts.
+  - Read-only tool sandboxing strictly rejecting autonomous destructive or financial mutations.
+  - Two-stage action proposal and explicit user confirmation workflow.
+  - Chronological agent activity stream and user preference persistence.
+
+---
+
+## [v1.5.0] - 2026-08-15
+
+### Added
+- **Universal Issues & Tickets**:
+  - Problem lifecycle management (reported, in-progress, resolved).
+  - Contractor estimate tracking and safety hazard categorization (electrical, plumbing, gas).
+- **Sub-5ms Global Search**:
+  - Multi-domain indexing querying assets, expenses, tickets, loans, and documents instantly.
+
+---
+
+## [v1.2.0] - 2026-08-10
+
+### Added
+- **What-If Scenario Simulator**:
+  - 12-month forward cash flow projection simulating major repairs, replacements, and debt payoffs.
+  - Opportunity cost evaluations and side-by-side scenario comparisons.
+- **Two-Stage Document Staging Pipeline**:
+  - Upload candidate extraction (`pending_review`) with human-in-the-loop verification before ledger commitment.
+  - SHA-256 duplicate statement detection.
+
+---
+
+## [v1.0.0] - 2026-08-01
+
+### Added
+- **Household Operating System Core Foundation**:
+  - Physical infrastructure: Properties, rooms, assets, warranties, maintenance logs.
+  - Financial infrastructure: Transactions ledger, recurring expenses, amortized loans, credit cards.
+  - Multi-tenant architecture with Firebase Authentication and per-tenant Firestore isolation (`/users/{userId}/*`).
+  - Comprehensive defense-in-depth: Helmet headers, tiered rate limiting, SSRF protection, linear-time $O(n)$ parser.

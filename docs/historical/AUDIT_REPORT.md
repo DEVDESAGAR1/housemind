@@ -1,19 +1,14 @@
-# HouseMind — Phase 7 Full Code Audit & Security Remediation Report
+# HouseMind Historical Security Audit & Remediation Log
 
-**Date**: 2026-08-31  
-**Project**: HouseMind Intelligent Financial & Property Management  
-**Scope**: Full Repository Security Audit, CodeQL Remediation, Phase 9 Privacy-First Architecture, Verification Testing, and Documentation  
-**Status**: COMPLETE (All 81 Automated Tests Passing across 15 Suites — 100% Success)
+> **Note**: This is an archived historical audit record documenting the security remediation, SSRF hardening, and privacy-first governance controls verified during development. For the active security specification, consult [SECURITY.md](../../SECURITY.md). For current testing and verification metrics, consult [docs/TESTING.md](../TESTING.md).
 
 ---
 
-## 1. Executive Summary
+## 1. Audit Scope & Findings
 
-A comprehensive, end-to-end security, privacy, and architectural audit was conducted on the HouseMind codebase. Real security vulnerabilities, potential SSRF surfaces, format string logging weaknesses, reverse proxy header configurations, and UI null-pointer risks were systematically cataloged, remediated with defense-in-depth patterns, and verified via automated test suites. In Phase 9, a privacy-first data architecture with explicit user consent, strict AI context minimization, source provenance tracking, and surgical demo data deletion was implemented and verified.
+A comprehensive security, privacy, and architectural audit was performed on the HouseMind codebase. Security vulnerabilities, SSRF surfaces, format string logging weaknesses, reverse proxy header configurations, and UI null-pointer risks were systematically cataloged, remediated with defense-in-depth patterns, and verified via automated test suites.
 
----
-
-## 2. Audit Findings & Remediations Applied
+### Findings & Remediations Applied
 
 | ID | Category | Severity | Description | Remediation Applied | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -29,14 +24,6 @@ A comprehensive, end-to-end security, privacy, and architectural audit was condu
 
 ---
 
-## 3. Test Suite Verification
+## 2. Archival Verification Notice
 
-The complete regression, privacy, and security test suite was executed via `npm test`:
-
-- **Total Test Suites**: 15 (Authentication, Profile, Expenses, Assets, Ledger, Intelligence, Copilot, Documents, Imports, Scenarios, Error Handling, Security, Privacy, Persistence, E2E Integration)
-- **Total Tests Executed**: 81
-- **Tests Passed**: 81 (100%)
-- **Tests Failed**: 0
-- **Execution Time**: ~2500 ms
-
-All security controls, privacy governance safeguards, and domain functionalities are fully operational.
+All remediations listed above have been continuously verified by the regression suite. The active test suite covers 347 automated tests with 100% pass rate.

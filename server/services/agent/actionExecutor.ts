@@ -138,7 +138,7 @@ export class ActionExecutor {
 
     // Check expiry
     if (new Date(proposal.expiresAt).getTime() < Date.now() && proposal.status === 'pending_approval') {
-      proposal.status = 'failed';
+      proposal.status = 'denied';
     }
 
     return proposal;
@@ -199,6 +199,25 @@ export class ActionExecutor {
         verification: {
           verified: false,
           checkedCondition: 'Proposal existence and tenant authorization check',
+        },
+      };
+    }
+
+    // Check expiry
+    if (new Date(proposal.expiresAt).getTime() < Date.now()) {
+      if (proposal.status === 'pending_approval') {
+        proposal.status = 'denied';
+      }
+      return {
+        actionId,
+        actionType: proposal.actionType,
+        status: 'denied',
+        success: false,
+        message: `Action proposal '${actionId}' has expired and cannot be executed.`,
+        executedAt,
+        verification: {
+          verified: false,
+          checkedCondition: 'Proposal expiration validation gate',
         },
       };
     }

@@ -1,20 +1,26 @@
 # HouseMind Production Deployment & Operations Guide
 
-HouseMind is designed to run in containerized serverless environments (such as Google Cloud Run) backed by Firebase Authentication, Cloud Firestore, and Google Cloud Secret Manager.
+> **Target Platform:** Google Cloud Run (Serverless Container)  
+> **Runtime Security:** Google Cloud Secret Manager (`roles/secretmanager.secretAccessor`)  
+> **Container Base:** Node.js 20 Alpine / Debian Slim on Port 3000
 
 ---
 
-## 1. Build & Packaging
+## 1. Build & Packaging Architecture
 
-HouseMind uses a unified build pipeline that produces:
-1. Static client assets via Vite into `dist/`
-2. Bundled Node.js backend server via esbuild into `dist/server.cjs`
+HouseMind compiles both the client-side SPA and server-side backend into a production-optimized, self-contained distribution:
 
 ```bash
-# Production Build Command
+# 1. Single-Command Production Build
 npm run build
+```
 
-# Starts the compiled full-stack server
+This execution runs:
+- `vite build`: Bundles the React 19 client application, stylesheets, and assets into static files in `dist/`.
+- `esbuild server.ts`: Bundles the Express TypeScript backend into CommonJS format at `dist/server.cjs` with external package references, eliminating runtime ESM loader resolution overhead.
+
+To launch the compiled server locally or inside a container:
+```bash
 node dist/server.cjs
 ```
 
@@ -22,37 +28,45 @@ node dist/server.cjs
 
 ## 2. Configuration & Secret Inventory
 
-| Configuration Name | Type | Sensitive? | Production Storage / Injection Mechanism |
+| Variable / Resource | Sensitivity | Purpose | Production Injection Mechanism |
 | :--- | :--- | :--- | :--- |
-| `PORT` | Public Runtime | No | Cloud Run standard environment (default: `3000`) |
-| `NODE_ENV` | Public Runtime | No | Cloud Run environment (`production`) |
-| `ALLOWED_ORIGINS` | Public Runtime | No | Optional comma-separated CORS allowed origins |
-| `GEMINI_MODEL` | Server Config | No | Optional model override (default: `gemini-2.5-flash`) |
-| `Firebase Web Config` | Public Web Config | No | `firebase-applet-config.json` (Required by Firebase Web SDK) |
-| `GEMINI_API_KEY` | **True Server Secret** | **Yes** | **Google Cloud Secret Manager** (`housemind-gemini-api-key`) |
-| `Firebase Admin ADC` | Server Identity | **Yes** | Cloud Run Attached Service Account IAM |
+| `PORT` | Public | HTTP port for incoming ingress | Cloud Run standard environment (default: `3000`) |
+| `NODE_ENV` | Public | Environment indicator | Cloud Run environment variable (`production`) |
+| `ALLOWED_ORIGINS` | Public | Comma-separated list of trusted CORS domains | Optional Cloud Run environment variable |
+| `GEMINI_MODEL` | Public | Target Gemini model alias | Cloud Run environment variable (default: `gemini-2.5-flash`) |
+| `GA4 Measurement ID` | Public | Anonymous client-side telemetry ID | Optional Vite public variable (`VITE_GA4_MEASUREMENT_ID`) |
+| `Firebase Web Config` | Public Web | Web client configuration for Firebase Auth | `firebase-applet-config.json` |
+| `GEMINI_API_KEY` | **Confidential Secret** | Server-side Gemini API key | **Google Cloud Secret Manager** (`housemind-gemini-api-key`) |
+| `Firebase Admin ADC` | IAM Credential | Server-side Firebase token validation | Attached Cloud Run Service Account IAM |
 
 ---
 
-## 3. Google Cloud Secret Manager Setup
+## 3. Google Cloud Secret Manager Provisioning
 
 ### Step 1: Create the Secret in Secret Manager
 ```bash
 # Set your active Google Cloud project
 gcloud config set project YOUR_PROJECT_ID
 
+# Enable required Google Cloud APIs
+gcloud services enable run.googleapis.com secretmanager.googleapis.com
+
 # Create the secret container
 gcloud secrets create housemind-gemini-api-key \
   --replication-policy="automatic" \
   --labels=app=housemind,tier=production
 
-# Add the secret version payload (do NOT echo secret in shell history)
-gcloud secrets versions add housemind-gemini-api-key --data-file=-
+# Add the secret version payload securely (pipes secret directly from stdin)
+echo -n "YOUR_ACTUAL_GEMINI_API_KEY" | gcloud secrets versions add housemind-gemini-api-key --data-file=-
 ```
 
-### Step 2: Grant Least-Privilege IAM to Cloud Run
-Grant `roles/secretmanager.secretAccessor` strictly to the Cloud Run runtime service account:
+### Step 2: Provision Cloud Run Runtime Service Account
+Create a dedicated least-privilege runtime service account:
 ```bash
+gcloud iam service-accounts create housemind-runtime \
+  --display-name="HouseMind Cloud Run Runtime Identity"
+
+# Grant ONLY secretAccessor on the specific secret
 gcloud secrets add-iam-policy-binding housemind-gemini-api-key \
   --member="serviceAccount:housemind-runtime@YOUR_PROJECT_ID.iam.gserviceaccount.com" \
   --role="roles/secretmanager.secretAccessor"
@@ -60,15 +74,33 @@ gcloud secrets add-iam-policy-binding housemind-gemini-api-key \
 
 ---
 
-## 4. Cloud Run Deployment
+## 4. Docker Container Build & Local Execution
 
-Deploy HouseMind with native Secret Manager environment variable binding:
+HouseMind includes a production `Dockerfile`:
 
 ```bash
-# Build & submit container image
+# Build the Docker image locally
+docker build -t housemind:latest .
+
+# Run container locally with Secret Manager simulation
+docker run -p 3000:3000 \
+  -e NODE_ENV=production \
+  -e PORT=3000 \
+  -e GEMINI_API_KEY="YOUR_API_KEY" \
+  housemind:latest
+```
+
+---
+
+## 5. Google Cloud Run Deployment
+
+Deploy the container to Cloud Run with native Secret Manager environment variable binding:
+
+```bash
+# 1. Build and submit container image to Google Container Registry / Artifact Registry
 gcloud builds submit --tag gcr.io/YOUR_PROJECT_ID/housemind:latest
 
-# Deploy to Cloud Run with Secret Manager injection
+# 2. Deploy to Cloud Run
 gcloud run deploy housemind \
   --image gcr.io/YOUR_PROJECT_ID/housemind:latest \
   --region us-central1 \
@@ -78,37 +110,56 @@ gcloud run deploy housemind \
   --set-secrets="GEMINI_API_KEY=housemind-gemini-api-key:latest" \
   --set-env-vars="NODE_ENV=production,PORT=3000" \
   --memory=1Gi \
-  --cpu=1
+  --cpu=1 \
+  --min-instances=0 \
+  --max-instances=10
 ```
 
 ---
 
-## 5. Secret Rotation Procedure
+## 6. Post-Deployment Verification & Health Probing
+
+After deployment, verify system readiness:
+
+```bash
+# 1. Probe the public health endpoint
+curl -sS -i https://housemind-YOUR_HASH-uc.a.run.app/api/health
+
+# Expected HTTP 200 JSON Response:
+# {
+#   "status": "healthy",
+#   "service": "housemind",
+#   "timestamp": "...",
+#   "secrets": {
+#     "geminiKeyConfigured": true
+#   }
+# }
+```
+
+### Checking Cloud Run Application Logs
+```bash
+# Stream production logs in real time
+gcloud run services logs tail housemind --region us-central1
+```
+
+---
+
+## 7. Zero-Downtime Secret Rotation
 
 When rotating the Gemini API key:
-1. **Create New Secret Version**:
+1. **Add New Secret Version**:
    ```bash
-   gcloud secrets versions add housemind-gemini-api-key --data-file=-
+   echo -n "NEW_GEMINI_API_KEY" | gcloud secrets versions add housemind-gemini-api-key --data-file=-
    ```
-2. **Deploy Service Revision** (or let `:latest` resolve on next container instance start):
+2. **Update Service Secret Binding**:
    ```bash
    gcloud run services update housemind \
      --region us-central1 \
      --update-secrets="GEMINI_API_KEY=housemind-gemini-api-key:latest"
    ```
-3. **Verify Health & Inference**:
-   Verify `/api/health` returns `healthy` and Copilot queries function accurately.
-4. **Disable & Destroy Old Version**:
+3. **Verify Operational Health**:
+   Verify `/api/health` reports `"geminiKeyConfigured": true` and test a Copilot query.
+4. **Disable Previous Version**:
    ```bash
-   gcloud secrets versions disable OLD_VERSION_NUMBER --secret=housemind-gemini-api-key
-   gcloud secrets versions destroy OLD_VERSION_NUMBER --secret=housemind-gemini-api-key
+   gcloud secrets versions disable PREVIOUS_VERSION_NUMBER --secret=housemind-gemini-api-key
    ```
-
----
-
-## 6. Reverse Proxy & Security Settings
-
-- **Port & Host**: Bind to `0.0.0.0:3000`.
-- **Trust Proxy**: Configured via `app.set('trust proxy', 1)` to accurately resolve client IP addresses through ingress load balancers.
-- **Security Headers**: Managed automatically by Helmet (HSTS, Content-Security-Policy, X-Content-Type-Options, Referrer-Policy).
-- **Graceful Shutdown**: SIGTERM and SIGINT listeners flush connections cleanly before container termination.
