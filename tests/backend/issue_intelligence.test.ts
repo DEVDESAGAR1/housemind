@@ -4,7 +4,7 @@ import { IssueIntelligenceService } from '../../server/services/issueIntelligenc
 import { ToolExecutor } from '../../server/services/agent/toolExecutor';
 
 export async function runIssueIntelligenceTests(runner: TestRunner) {
-  runner.setSuite('Phase 24.3: Issue Intelligence & Resolution Intelligence');
+  runner.setSuite('Household Issue Lifecycle & Resolution Intelligence');
 
   const token1 = 'test-token-issue-intel-user1';
   const token2 = 'test-token-issue-intel-user2';
@@ -15,7 +15,7 @@ export async function runIssueIntelligenceTests(runner: TestRunner) {
   let issue2Id = '';
 
   // 1. Setup Base Household Asset & Warranty
-  await runner.test('Setup: Create asset and active warranty for user 1', async () => {
+  await runner.test('creates asset and active warranty for user 1', async () => {
     const assetRes = await apiRequest('/api/household/assets', {
       method: 'POST',
       token: token1,
@@ -62,7 +62,7 @@ export async function runIssueIntelligenceTests(runner: TestRunner) {
   });
 
   // 2. Safety Detection Service Unit Validation
-  await runner.test('Safety Engine: Classifies electrical hazards and provides safe escalation advice', async () => {
+  await runner.test('classifies electrical hazards and provides safe escalation advice', async () => {
     const hazard = IssueSafetyService.detectSafetyHazards(
       'Electric Shock Risk',
       'The breaker tripped and there is exposed live electrical wiring near the kitchen appliance.'
@@ -82,7 +82,7 @@ export async function runIssueIntelligenceTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Safety Engine: Identifies gas leak risks and structural hazards without false positives on benign issues', async () => {
+  await runner.test('identifies gas leak risks and structural hazards without false positives on benign issues', async () => {
     const gasRisk = IssueSafetyService.detectSafetyHazards('Smell gas near stove', 'Strong gas leak odor in kitchen');
     if (!gasRisk.isSafetyRisk || !gasRisk.hazardType?.includes('Gas')) {
       throw new Error(`Expected gas leak detection, got: ${JSON.stringify(gasRisk)}`);
@@ -95,7 +95,7 @@ export async function runIssueIntelligenceTests(runner: TestRunner) {
   });
 
   // 3. Natural Language Issue Extraction Endpoint
-  await runner.test('Extraction API: Extracts candidate issue and severity from natural language description', async () => {
+  await runner.test('extracts candidate issue and severity from natural language description', async () => {
     const res = await apiRequest('/api/household/issues/extract', {
       method: 'POST',
       token: token1,
@@ -114,7 +114,7 @@ export async function runIssueIntelligenceTests(runner: TestRunner) {
   });
 
   // 4. Issue Creation with Automatic Safety Tagging
-  await runner.test('Issue Creation: Creates critical ticket with automatic safety detection and default checklist', async () => {
+  await runner.test('creates critical ticket with automatic safety detection and default checklist', async () => {
     const res = await apiRequest('/api/household/issues', {
       method: 'POST',
       token: token1,
@@ -140,7 +140,7 @@ export async function runIssueIntelligenceTests(runner: TestRunner) {
   });
 
   // 5. Create Second Related Issue for Duplicate & Recurrence Testing
-  await runner.test('Issue Creation: Creates second issue on same asset to test recurrence and relationship intelligence', async () => {
+  await runner.test('creates second issue on same asset to test recurrence and relationship intelligence', async () => {
     const res = await apiRequest('/api/household/issues', {
       method: 'POST',
       token: token1,
@@ -161,7 +161,7 @@ export async function runIssueIntelligenceTests(runner: TestRunner) {
   });
 
   // 6. Comprehensive Issue Intelligence Analysis
-  await runner.test('Intelligence Engine: Generates grounded multi-pillar intelligence report', async () => {
+  await runner.test('generates grounded multi-pillar intelligence report', async () => {
     const res = await apiRequest(`/api/household/issues/${issue1Id}/intelligence`, {
       method: 'GET',
       token: token1,
@@ -220,7 +220,7 @@ export async function runIssueIntelligenceTests(runner: TestRunner) {
   });
 
   // 7. Explicit User Linking of Related Issues
-  await runner.test('Related Issues: Explicitly links two related tickets with user confirmation', async () => {
+  await runner.test('explicitly links two related tickets with user confirmation', async () => {
     const res = await apiRequest(`/api/household/issues/${issue1Id}/link-related`, {
       method: 'POST',
       token: token1,
@@ -241,7 +241,7 @@ export async function runIssueIntelligenceTests(runner: TestRunner) {
   });
 
   // 8. Resolution Checklist Toggle & Persistence
-  await runner.test('Checklist: Updates and persists interactive checklist completion state', async () => {
+  await runner.test('updates and persists interactive checklist completion state', async () => {
     const res = await apiRequest(`/api/household/issues/${issue1Id}/checklist`, {
       method: 'PUT',
       token: token1,
@@ -269,7 +269,7 @@ export async function runIssueIntelligenceTests(runner: TestRunner) {
   });
 
   // 9. Root Cause Diagnostic Update
-  await runner.test('Root Cause: Saves technician root cause diagnostic', async () => {
+  await runner.test('saves technician root cause diagnostic', async () => {
     const res = await apiRequest(`/api/household/issues/${issue1Id}/root-cause`, {
       method: 'PUT',
       token: token1,
@@ -288,7 +288,7 @@ export async function runIssueIntelligenceTests(runner: TestRunner) {
   });
 
   // 10. Lifecycle Status Transitions: Reported -> Triaged -> In Progress -> Resolved
-  await runner.test('Lifecycle: Transitions ticket through triage, work in progress, and resolution', async () => {
+  await runner.test('transitions ticket through triage, work in progress, and resolution', async () => {
     // Step 1: Triage
     const triageRes = await apiRequest(`/api/household/issues/${issue1Id}/transition`, {
       method: 'POST',
@@ -356,7 +356,7 @@ export async function runIssueIntelligenceTests(runner: TestRunner) {
   });
 
   // 11. Unlink Related Issue
-  await runner.test('Related Issues: Explicitly unlinks previously connected tickets', async () => {
+  await runner.test('explicitly unlinks previously connected tickets', async () => {
     const res = await apiRequest(`/api/household/issues/${issue1Id}/unlink-related`, {
       method: 'POST',
       token: token1,
@@ -375,7 +375,7 @@ export async function runIssueIntelligenceTests(runner: TestRunner) {
   });
 
   // 12. Household-wide Recurring Failure Insights
-  await runner.test('Recurring Insights: Surfaces household-wide repeat failure assets and counts', async () => {
+  await runner.test('surfaces household-wide repeat failure assets and counts', async () => {
     const res = await apiRequest('/api/household/issues/recurring-insights', {
       method: 'GET',
       token: token1,
@@ -400,7 +400,7 @@ export async function runIssueIntelligenceTests(runner: TestRunner) {
   });
 
   // 13. Controlled Copilot Agent Tool Integration
-  await runner.test('Agent Tools: getHouseholdIssues allowlisted tool executes safely with strict tenant isolation', async () => {
+  await runner.test('executes getHouseholdIssues allowlisted tool safely with strict tenant isolation', async () => {
     const execRes = await ToolExecutor.executeTool(
       'test-user-issue-intel-1',
       'getHouseholdIssues',
@@ -416,7 +416,7 @@ export async function runIssueIntelligenceTests(runner: TestRunner) {
   });
 
   // 14. Multi-Tenant Isolation Negative Security Tests
-  await runner.test('Security: User 2 cannot access, transition, or link User 1 household tickets', async () => {
+  await runner.test('prevents cross-tenant access, transition, or linking of household tickets', async () => {
     // Attempt GET User 1 issue from User 2
     const getRes = await apiRequest(`/api/household/issues/${issue1Id}`, {
       method: 'GET',

@@ -43,6 +43,8 @@ interface UtilitiesDebtsViewProps {
   onTabChange?: (tab: 'utilities' | 'loans' | 'cards') => void;
   autoOpenAddType?: 'utility' | 'loan' | 'card' | null;
   onAddModalOpened?: () => void;
+  targetedEntityId?: string | null;
+  onClearTargetedEntity?: () => void;
 }
 
 export function UtilitiesDebtsView({
@@ -58,6 +60,8 @@ export function UtilitiesDebtsView({
   onTabChange,
   autoOpenAddType,
   onAddModalOpened,
+  targetedEntityId,
+  onClearTargetedEntity,
 }: UtilitiesDebtsViewProps) {
   const [activeTab, setActiveTab] = useState<'utilities' | 'loans' | 'cards'>(initialTab || 'utilities');
 
@@ -357,6 +361,34 @@ export function UtilitiesDebtsView({
     });
     setIsCardModalOpen(true);
   };
+
+  useEffect(() => {
+    if (!targetedEntityId) return;
+
+    const matchUtil = utilities.find((u) => u.id === targetedEntityId);
+    if (matchUtil) {
+      setActiveTab('utilities');
+      handleOpenEditUtility(matchUtil);
+      onClearTargetedEntity?.();
+      return;
+    }
+
+    const matchLoan = loans.find((l) => l.id === targetedEntityId);
+    if (matchLoan) {
+      setActiveTab('loans');
+      handleOpenEditLoan(matchLoan);
+      onClearTargetedEntity?.();
+      return;
+    }
+
+    const matchCard = creditCards.find((c) => c.id === targetedEntityId);
+    if (matchCard) {
+      setActiveTab('cards');
+      handleOpenEditCard(matchCard);
+      onClearTargetedEntity?.();
+      return;
+    }
+  }, [targetedEntityId, utilities, loans, creditCards]);
 
   const handleSaveCard = async (e: React.FormEvent) => {
     e.preventDefault();

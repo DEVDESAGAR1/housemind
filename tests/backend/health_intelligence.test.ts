@@ -1,11 +1,11 @@
 import { apiRequest, TestRunner } from '../test-helper';
 
 export async function runHealthIntelligenceTests(runner: TestRunner) {
-  runner.setSuite('Phase 3: Household Health Intelligence');
+  runner.setSuite('Household Health Scoring & Risk Signal Evaluation');
 
   const token = 'test-token-health-user-p3';
 
-  await runner.test('GET /api/intelligence/health on fresh account returns provisional report', async () => {
+  await runner.test('returns provisional health report on newly registered account', async () => {
     const res = await apiRequest('/api/intelligence/health', { token });
     if (res.status !== 200) {
       throw new Error(`Expected 200 OK, got ${res.status}: ${JSON.stringify(res.body)}`);
@@ -31,7 +31,7 @@ export async function runHealthIntelligenceTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('GET /api/household/health route alias functions identically', async () => {
+  await runner.test('serves identical health scoring payloads via household alias route', async () => {
     const res = await apiRequest('/api/household/health', { token });
     if (res.status !== 200) {
       throw new Error(`Expected 200 OK, got ${res.status}: ${JSON.stringify(res.body)}`);
@@ -42,7 +42,7 @@ export async function runHealthIntelligenceTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Seed property, asset, and expense fixtures for health evaluation', async () => {
+  await runner.test('seeds multi-domain property, asset, warranty, and expense fixtures for health evaluation', async () => {
     // 1. Add Property
     const propRes = await apiRequest('/api/household/properties', {
       method: 'POST',
@@ -119,7 +119,7 @@ export async function runHealthIntelligenceTests(runner: TestRunner) {
     });
   });
 
-  await runner.test('Health score reflects registered assets, properties, and active warranty', async () => {
+  await runner.test('evaluates categorical health scores and completeness across assets and warranties', async () => {
     const res = await apiRequest('/api/intelligence/health', { token });
     if (res.status !== 200) {
       throw new Error(`Expected 200 OK, got ${res.status}`);
@@ -141,7 +141,7 @@ export async function runHealthIntelligenceTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Critical equipment failure deterministically penalizes asset health', async () => {
+  await runner.test('penalizes overall asset health score upon detection of critical failing equipment', async () => {
     // Add critical failing asset
     await apiRequest('/api/household/assets', {
       method: 'POST',
@@ -165,7 +165,7 @@ export async function runHealthIntelligenceTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('POST /api/intelligence/health/explain returns structured AI explanation', async () => {
+  await runner.test('returns structured health intelligence reasoning explanation and risk factors', async () => {
     const res = await apiRequest('/api/intelligence/health/explain', {
       method: 'POST',
       token,

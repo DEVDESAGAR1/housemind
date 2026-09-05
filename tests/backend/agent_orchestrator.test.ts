@@ -10,7 +10,7 @@ import { HouseholdAgentOrchestrator } from '../../server/services/agent/househol
 import { DatabaseService } from '../../server/services/dbService';
 
 export async function runAgentOrchestratorTests(runner: TestRunner) {
-  runner.setSuite('Phase 15A: Household Agent & Orchestrator Foundation');
+  runner.setSuite('Agent Intent Detection & Context Assembly');
 
   const tokenUserA = 'test-token-agent-user-a';
   const tokenUserB = 'test-token-agent-user-b';
@@ -18,7 +18,7 @@ export async function runAgentOrchestratorTests(runner: TestRunner) {
   const userIdB = 'agent-user-b';
 
   // 1. Intent Detection Unit Tests
-  await runner.test('Agent Intent: Correctly classifies user intents across all domains', async () => {
+  await runner.test('classifies user intents accurately across greetings, attention, health, maintenance, finances, documents, calendar, and alerts', async () => {
     // Greetings
     if (detectAgentIntent('Hello there!') !== 'GREETING') throw new Error('Expected GREETING for hello');
     if (detectAgentIntent('Hi') !== 'GREETING') throw new Error('Expected GREETING for hi');
@@ -76,7 +76,7 @@ export async function runAgentOrchestratorTests(runner: TestRunner) {
   });
 
   // 2. Selective Context Builder (Minimal Domain Retrieval)
-  await runner.test('Selective Context: Only queries relevant domains for specific intents', async () => {
+  await runner.test('queries only relevant household domains dynamically based on classified intent', async () => {
     // Greeting only queries profile
     const greetingContext = await buildSelectiveHouseholdContext(userIdA, 'GREETING');
     if (!greetingContext.domainsConsulted.includes('profile')) {
@@ -107,7 +107,7 @@ export async function runAgentOrchestratorTests(runner: TestRunner) {
   });
 
   // 3. Deterministic Facts Extraction & Math Normalization
-  await runner.test('Deterministic Facts: Accurately computes burn rate, debt totals, and overdue items', async () => {
+  await runner.test('computes normalized burn rates, debt totals, and overdue priority item rankings', async () => {
     // Test frequency normalizer
     if (toMonthlyAmount(1200, 'annual') !== 100) throw new Error('Annual 1200 should be 100/mo');
     if (toMonthlyAmount(300, 'quarterly') !== 100) throw new Error('Quarterly 300 should be 100/mo');
@@ -165,7 +165,7 @@ export async function runAgentOrchestratorTests(runner: TestRunner) {
   });
 
   // 4. Clean / Provisional Profile Health Score UX
-  await runner.test('Provisional Health: Empty profile formats as Unrated (Setup Required)', async () => {
+  await runner.test('formats empty profile health status cleanly as Unrated with onboarding guidance', async () => {
     const emptyContext: any = {
       userId: 'empty-user',
       intent: 'HOUSEHOLD_HEALTH',
@@ -202,7 +202,7 @@ export async function runAgentOrchestratorTests(runner: TestRunner) {
   });
 
   // 5. Setup User A Real Seed Data
-  await runner.test('Seed User A household domain records', async () => {
+  await runner.test('seeds multi-domain household records for agent orchestration testing', async () => {
     // 1. Profile
     await apiRequest('/api/household/profile', {
       method: 'PUT',
@@ -304,7 +304,7 @@ export async function runAgentOrchestratorTests(runner: TestRunner) {
   });
 
   // 6. Integration: Copilot Chat with "What needs my attention?"
-  await runner.test('Orchestrator: "What needs my attention?" ranks overdue maintenance and high card utilization', async () => {
+  await runner.test('ranks overdue maintenance and high credit card utilization in attention queries', async () => {
     const res = await apiRequest('/api/copilot/chat', {
       method: 'POST',
       token: tokenUserA,
@@ -342,7 +342,7 @@ export async function runAgentOrchestratorTests(runner: TestRunner) {
   });
 
   // 7. Integration: Copilot Chat with "How is my household doing?"
-  await runner.test('Orchestrator: "How is my household doing?" grounds in health and real records', async () => {
+  await runner.test('grounds household diagnostic queries in real records and health scores', async () => {
     const res = await apiRequest('/api/copilot/chat', {
       method: 'POST',
       token: tokenUserA,
@@ -367,7 +367,7 @@ export async function runAgentOrchestratorTests(runner: TestRunner) {
   });
 
   // 8. Integration: Specific Domain Query (Finances & Debts)
-  await runner.test('Orchestrator: Inquires about debts and calculates loan and card balances', async () => {
+  await runner.test('calculates loan and credit card balances accurately for financial inquiries', async () => {
     const res = await apiRequest('/api/copilot/chat', {
       method: 'POST',
       token: tokenUserA,
@@ -390,7 +390,7 @@ export async function runAgentOrchestratorTests(runner: TestRunner) {
   });
 
   // 9. Integration: Specific Domain Query (Assets & Appliances)
-  await runner.test('Orchestrator: Inquires about home equipment and answers with Carrier Heat Pump', async () => {
+  await runner.test('identifies registered heating and cooling equipment accurately for asset queries', async () => {
     const res = await apiRequest('/api/copilot/chat', {
       method: 'POST',
       token: tokenUserA,
@@ -412,7 +412,7 @@ export async function runAgentOrchestratorTests(runner: TestRunner) {
   });
 
   // 10. Anti-Hallucination: Missing Data Query
-  await runner.test('Anti-Hallucination: Non-existent items are acknowledged as not recorded', async () => {
+  await runner.test('acknowledges untracked equipment truthfully preventing hallucination', async () => {
     const res = await apiRequest('/api/copilot/chat', {
       method: 'POST',
       token: tokenUserA,
@@ -435,7 +435,7 @@ export async function runAgentOrchestratorTests(runner: TestRunner) {
   });
 
   // 11. Multi-Tenant Cross-User IDOR Isolation
-  await runner.test('Multi-Tenant Isolation: User B cannot see User A household data via Copilot', async () => {
+  await runner.test('prevents cross-tenant data leakage in conversational agent grounding', async () => {
     // User B asks about Carrier Heat Pump or Chase Mortgage
     const res = await apiRequest('/api/copilot/chat', {
       method: 'POST',

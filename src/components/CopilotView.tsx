@@ -31,7 +31,7 @@ export interface CopilotViewProps {
   profile: HouseholdProfile | null;
   expenses: HouseholdExpense[];
   assets: HomeAsset[];
-  onNavigateTab: (tab: string) => void;
+  onNavigateTab: (tab: string, subTab?: string, entityId?: string) => void;
   initialPrompt?: string;
   initialDomain?: string;
 }
@@ -275,6 +275,25 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
     }, 0)
     .toFixed(0);
 
+  const handleNavigateFromCopilot = (tab: string, subTab?: string, entityIdentifier?: string) => {
+    let resolvedEntityId = entityIdentifier;
+    if (entityIdentifier) {
+      const lower = entityIdentifier.toLowerCase();
+      if (tab === 'assets') {
+        const match = assets.find(
+          (a) => a.id === entityIdentifier || a.name.toLowerCase().includes(lower) || (a.brand && lower.includes(a.brand.toLowerCase()))
+        );
+        if (match) resolvedEntityId = match.id;
+      } else if (tab === 'expenses') {
+        const match = expenses.find(
+          (e) => e.id === entityIdentifier || e.title.toLowerCase().includes(lower)
+        );
+        if (match) resolvedEntityId = match.id;
+      }
+    }
+    onNavigateTab(tab, subTab, resolvedEntityId);
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in duration-150">
       {/* 1. Header & Grounding Context Bar */}
@@ -437,7 +456,7 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
             onSendMessage={handleSendMessage}
             onApproveAction={handleApproveAction}
             onCancelAction={handleCancelAction}
-            onNavigateTab={onNavigateTab}
+            onNavigateTab={handleNavigateFromCopilot}
             isCompact={false}
             executingActionId={executingActionId}
             placeholder="Ask HouseMind Copilot about bills, maintenance, appliances, or savings..."

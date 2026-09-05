@@ -50,6 +50,8 @@ interface MaintenanceWarrantiesViewProps {
   onSubTabChange?: (tab: 'maintenance' | 'warranties' | 'issues') => void;
   autoOpenAdd?: boolean;
   onAddModalOpened?: () => void;
+  targetedEntityId?: string | null;
+  onClearTargetedEntity?: () => void;
 }
 
 export function MaintenanceWarrantiesView({
@@ -67,6 +69,8 @@ export function MaintenanceWarrantiesView({
   onSubTabChange,
   autoOpenAdd,
   onAddModalOpened,
+  targetedEntityId,
+  onClearTargetedEntity,
 }: MaintenanceWarrantiesViewProps) {
   const [activeSubTab, setActiveSubTab] = useState<'maintenance' | 'warranties' | 'issues'>(initialSubTab || 'maintenance');
   const [isTopIssueModalOpen, setIsTopIssueModalOpen] = useState(false);
@@ -249,6 +253,53 @@ export function MaintenanceWarrantiesView({
       onAddModalOpened?.();
     }
   }, [autoOpenAdd]);
+
+  // Handle deep-link targeting for specific maintenance tasks or warranties
+  useEffect(() => {
+    if (!targetedEntityId) return;
+
+    // Check tasks first if subTab is maintenance or auto-detect
+    if (activeSubTab === 'maintenance' || !activeSubTab) {
+      const matchTask = tasks.find((t) => t.id === targetedEntityId);
+      if (matchTask) {
+        handleOpenEditTask(matchTask);
+        onClearTargetedEntity?.();
+        return;
+      }
+    }
+
+    // Check warranties
+    if (activeSubTab === 'warranties') {
+      const matchWarranty = warranties.find((w) => w.id === targetedEntityId);
+      if (matchWarranty) {
+        handleOpenEditWarranty(matchWarranty);
+        onClearTargetedEntity?.();
+        return;
+      }
+    }
+
+    // Fallback: check if targetedEntityId matches warranty when in maintenance tab or vice-versa
+    const matchWarrantyFallback = warranties.find((w) => w.id === targetedEntityId);
+    if (matchWarrantyFallback) {
+      setActiveSubTab('warranties');
+      handleOpenEditWarranty(matchWarrantyFallback);
+      onClearTargetedEntity?.();
+      return;
+    }
+
+    const matchTaskFallback = tasks.find((t) => t.id === targetedEntityId);
+    if (matchTaskFallback) {
+      setActiveSubTab('maintenance');
+      handleOpenEditTask(matchTaskFallback);
+      onClearTargetedEntity?.();
+      return;
+    }
+
+    const matchIssueFallback = issues.find((i) => i.id === targetedEntityId);
+    if (matchIssueFallback) {
+      setActiveSubTab('issues');
+    }
+  }, [targetedEntityId, tasks, warranties, issues, activeSubTab]);
 
   const handleOpenEditWarranty = (w: Warranty) => {
     setEditingWarranty(w);
@@ -825,6 +876,8 @@ export function MaintenanceWarrantiesView({
             await onRefresh();
           }}
           addToast={addToast}
+          initialIssueId={targetedEntityId}
+          onClearInitialIssue={onClearTargetedEntity}
         />
       )}
 

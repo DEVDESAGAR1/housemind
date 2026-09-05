@@ -7,7 +7,7 @@ import { NotificationService } from '../../server/services/notificationService';
 import { AgentActionType } from '../../src/types';
 
 export async function runAgentActionApprovalTests(runner: TestRunner) {
-  runner.setSuite('Phase 18: Human Approval + Safe Action Execution');
+  runner.setSuite('Agent Human-in-the-Loop Action Approval & Execution');
 
   const tokenUserA = 'test-token-action-user-a';
   const tokenUserB = 'test-token-action-user-b';
@@ -15,7 +15,7 @@ export async function runAgentActionApprovalTests(runner: TestRunner) {
   const userIdB = 'action-user-b';
 
   // 1. Permission Engine & Safe Action Allowlist
-  await runner.test('Permission Engine: Safe action category requires explicit human approval', async () => {
+  await runner.test('requires explicit human approval for safe action category', async () => {
     const decision = PermissionEngine.evaluateAction('SAFE_ACTION');
     if (!decision.allowed || decision.policy !== 'ALLOW') {
       throw new Error(`Expected SAFE_ACTION category to be ALLOW, got: ${JSON.stringify(decision)}`);
@@ -25,7 +25,7 @@ export async function runAgentActionApprovalTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Permission Engine: All safe action types in allowlist are valid and require approval', async () => {
+  await runner.test('validates that all safe action types in allowlist require human approval', async () => {
     const safeActions: AgentActionType[] = [
       'markNotificationRead',
       'markAllNotificationsRead',
@@ -47,7 +47,7 @@ export async function runAgentActionApprovalTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Permission Engine: Non-allowlisted or destructive actions are denied', async () => {
+  await runner.test('rejects non-allowlisted and destructive action categories', async () => {
     const unlistedAction = 'transferMoney' as AgentActionType;
     const isAllowed = PermissionEngine.isActionAllowed(unlistedAction);
     if (isAllowed) {
@@ -61,7 +61,7 @@ export async function runAgentActionApprovalTests(runner: TestRunner) {
   });
 
   // 2. Proposal Lifecycle: Propose, Retrieve, and Cancel
-  await runner.test('ActionExecutor: Creates proposal in pending_approval state with expiry', async () => {
+  await runner.test('creates action proposal in pending_approval state with expiry timestamp', async () => {
     const proposal = await ActionExecutor.proposeAction(userIdA, 'navigateTab', {
       title: 'Navigate to Maintenance',
       targetEntityName: 'maintenance',
@@ -85,7 +85,7 @@ export async function runAgentActionApprovalTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('ActionExecutor: Cross-user tenant isolation on proposals', async () => {
+  await runner.test('enforces cross-user tenant isolation on action proposals', async () => {
     const proposal = await ActionExecutor.proposeAction(userIdA, 'dismissInsight', {
       targetEntityId: 'insight-123',
     });
@@ -102,7 +102,7 @@ export async function runAgentActionApprovalTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('ActionExecutor: Proposal cancellation transitions status and prevents execution', async () => {
+  await runner.test('transitions proposal to cancelled and prevents subsequent execution', async () => {
     const proposal = await ActionExecutor.proposeAction(userIdA, 'navigateTab', {
       targetEntityName: 'finances',
     });
@@ -120,7 +120,7 @@ export async function runAgentActionApprovalTests(runner: TestRunner) {
   });
 
   // 3. Approved Execution & Verification: Notifications
-  await runner.test('ActionExecutor: markNotificationRead executes and verifies post-state', async () => {
+  await runner.test('executes and verifies post-state when markNotificationRead is approved', async () => {
     // Seed an expense due today to trigger an unread notification for User A
     await DatabaseService.createExpense(userIdA, {
       name: 'HVAC Seasonal Filter Payment',
@@ -166,7 +166,7 @@ export async function runAgentActionApprovalTests(runner: TestRunner) {
   });
 
   // 4. Approved Execution & Verification: Maintenance Task
-  await runner.test('ActionExecutor: completeMaintenanceTask executes, verifies status, and updates completedDate', async () => {
+  await runner.test('executes and verifies completed status and date for completeMaintenanceTask', async () => {
     // Seed a maintenance task for User A
     const createdTask = await DatabaseService.createMaintenance(userIdA, {
       title: 'Water Heater Flush',
@@ -204,7 +204,7 @@ export async function runAgentActionApprovalTests(runner: TestRunner) {
   });
 
   // 5. Target Entity Ownership & Security Verification
-  await runner.test('ActionExecutor: Rejects execution if target entity belongs to another tenant', async () => {
+  await runner.test('rejects action execution when target entity belongs to another tenant', async () => {
     // Create maintenance task for User B
     const userBTask = await DatabaseService.createMaintenance(userIdB, {
       title: 'User B Private Roof Inspection',
@@ -230,7 +230,7 @@ export async function runAgentActionApprovalTests(runner: TestRunner) {
   });
 
   // 6. Agent Orchestrator Intent Handling & Approval Proposal Flow
-  await runner.test('HouseholdAgentOrchestrator: Generates approval proposal for actionable intent without auto-executing', async () => {
+  await runner.test('generates approval proposal for actionable intent without auto-executing', async () => {
     // Seed an unread notification via expense
     await DatabaseService.createExpense(userIdA, {
       name: 'Quarterly Water Utility Bill',
@@ -265,7 +265,7 @@ export async function runAgentActionApprovalTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('HouseholdAgentOrchestrator: Blocks autonomous payments/destructive actions with security explanation', async () => {
+  await runner.test('blocks autonomous payments and destructive actions with security explanation', async () => {
     const paymentQueries = [
       'Pay my electric bill of $140 immediately',
       'Transfer $500 to my savings account',
@@ -294,7 +294,7 @@ export async function runAgentActionApprovalTests(runner: TestRunner) {
   });
 
   // 7. REST API Endpoints: Proposal, Approval, Cancellation
-  await runner.test('REST API: GET /api/copilot/actions/:actionId retrieves proposal', async () => {
+  await runner.test('retrieves action proposal from GET /api/copilot/actions/:actionId', async () => {
     const proposal = await ActionExecutor.proposeAction(userIdA, 'navigateTab', {
       title: 'Navigate to Documents',
       targetEntityName: 'documents',
@@ -314,7 +314,7 @@ export async function runAgentActionApprovalTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('REST API: POST /api/copilot/actions/:actionId/approve executes and returns verification', async () => {
+  await runner.test('executes and returns verification from POST /api/copilot/actions/:actionId/approve', async () => {
     await DatabaseService.createExpense(userIdA, {
       name: 'Microwave Extended Warranty Renewal',
       amount: 30,
@@ -345,7 +345,7 @@ export async function runAgentActionApprovalTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('REST API: POST /api/copilot/actions/:actionId/cancel cancels proposal', async () => {
+  await runner.test('cancels action proposal from POST /api/copilot/actions/:actionId/cancel', async () => {
     const proposal = await ActionExecutor.proposeAction(userIdA, 'dismissInsight', {
       targetEntityId: 'ins-cancel-test',
     });
@@ -363,7 +363,7 @@ export async function runAgentActionApprovalTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('REST API: Returns 404 for non-existent action proposal', async () => {
+  await runner.test('returns 404 for non-existent action proposal', async () => {
     const res = await apiRequest('/api/copilot/actions/act_non_existent_id', {
       method: 'GET',
       token: tokenUserA,

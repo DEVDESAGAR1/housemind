@@ -10,14 +10,19 @@ import {
   Building2,
   MessageSquare,
   Layers,
+  RotateCcw,
+  Clock,
+  HelpCircle,
 } from 'lucide-react';
-import { HouseholdMorningBrief } from '../types';
+import { HouseholdMorningBrief, MorningBriefItem } from '../types';
+import { WhyAmISeeingThisModal, WhyEvidencePayload } from './WhyAmISeeingThisModal';
 
 interface MorningBriefModalProps {
   isOpen: boolean;
   onClose: () => void;
   brief: HouseholdMorningBrief | null;
   isLoading?: boolean;
+  onRefresh?: () => Promise<any>;
   onNavigateTab: (tab: any, subTab?: string, entityId?: string) => void;
   onAskCopilot: (prompt: string, initialDomain?: string) => void;
   onDismissToday?: () => Promise<void>;
@@ -29,6 +34,7 @@ export function MorningBriefModal({
   onClose,
   brief,
   isLoading = false,
+  onRefresh,
   onNavigateTab,
   onAskCopilot,
   onDismissToday,
@@ -36,6 +42,8 @@ export function MorningBriefModal({
   const [showEvidence, setShowEvidence] = useState(false);
   const [dontShowTodayChecked, setDontShowTodayChecked] = useState(false);
   const [isDismissing, setIsDismissing] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [activeWhyEvidence, setActiveWhyEvidence] = useState<WhyEvidencePayload | null>(null);
   const modalRef = useRef<HTMLDivElement>(null);
 
   // Close on Escape key
@@ -81,6 +89,17 @@ export function MorningBriefModal({
     onAskCopilot(prompt, domain);
   };
 
+  const handleManualRefresh = async () => {
+    if (onRefresh && !isRefreshing) {
+      try {
+        setIsRefreshing(true);
+        await onRefresh();
+      } finally {
+        setIsRefreshing(false);
+      }
+    }
+  };
+
   // Compute greeting based on time of day
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
@@ -92,10 +111,47 @@ export function MorningBriefModal({
     year: 'numeric',
   });
 
+  const updatedAtFormatted = brief?.generatedAt
+    ? new Date(brief.generatedAt).toLocaleTimeString(undefined, {
+        hour: 'numeric',
+        minute: '2-digit',
+      })
+    : new Date().toLocaleTimeString(undefined, {
+        hour: 'numeric',
+        minute: '2-digit',
+      });
+
   const isSetupRequired = brief?.overallStatus === 'setup_required' || !brief?.healthScore;
   const attentionItems = brief?.itemsNeedingAttention?.slice(0, 3) || [];
   const meaningfulChanges = brief?.meaningfulChanges || [];
   const topAction = brief?.topAction;
+
+  const handleOpenWhyForItem = (item: MorningBriefItem) => {
+    setActiveWhyEvidence({
+      title: item.title,
+      category: item.category,
+      badge: { label: item.urgency.toUpperCase(), variant: item.urgency as any },
+      whatDetected: item.reason || item.title,
+      detectedSignals: [
+        `Category: ${item.category}`,
+        `Urgency: ${item.urgency}`,
+        ...(item.dueDate ? [`Due date: ${item.dueDate}`] : []),
+        ...(item.amount ? [`Amount: ${item.currency || ''} ${item.amount}`] : []),
+      ],
+      relevantDate: item.dueDate,
+      severityOrPriority: item.urgency,
+      whyItMatters:
+        item.reason || 'This item requires household attention to maintain home health and avoid late fees or disruptions.',
+      whatToDoNext: item.actionLabel ? `Click ${item.actionLabel} to resolve this item.` : 'Review this item in your household records.',
+      sources: item.entityId
+        ? [{ title: item.title, domain: item.category, route: item.actionTab, subTab: item.subTab, entityId: item.entityId }]
+        : [],
+      primaryAction: {
+        label: item.actionLabel || 'View Record',
+        onExecute: () => handleActionClick(item.actionTab || 'dashboard', item.subTab, item.entityId),
+      },
+    });
+  };
 
   return (
     <div
@@ -108,15 +164,20 @@ export function MorningBriefModal({
         ref={modalRef}
         className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden text-slate-900 dark:text-slate-100"
       >
-        {/* 1. Modal Header */}
+        {/* 1. Modal Header with Live State Timestamp */}
         <div className="relative bg-gradient-to-br from-amber-600 via-amber-500 to-indigo-700 text-white p-6 sm:p-7 shrink-0">
           <div className="flex items-start justify-between gap-4">
             <div className="space-y-1.5">
-              <div className="flex items-center gap-2 text-amber-100 text-xs font-semibold tracking-wide uppercase">
+              <div className="flex flex-wrap items-center gap-2 text-amber-100 text-xs font-semibold tracking-wide uppercase">
                 <Sun className="w-4 h-4 text-amber-200 animate-spin-slow" />
                 <span>Morning Brief</span>
                 <span className="opacity-60">•</span>
                 <span>{todayFormatted}</span>
+                <span className="opacity-60">•</span>
+                <span className="inline-flex items-center gap-1 bg-black/20 px-2 py-0.5 rounded-md font-mono text-[10.5px]">
+                  <Clock className="w-3 h-3 text-amber-200" />
+                  Updated {updatedAtFormatted}
+                </span>
               </div>
               <h2 id="morning-brief-title" className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
                 🌅 {isSetupRequired ? 'Welcome to HouseMind' : `${greeting}`}
@@ -128,15 +189,31 @@ export function MorningBriefModal({
               </p>
             </div>
 
-            <button
-              id="morning-brief-close-btn"
-              type="button"
-              onClick={handleClose}
-              aria-label="Close Morning Brief"
-              className="p-2 rounded-full bg-black/20 hover:bg-black/40 text-white transition cursor-pointer shrink-0"
-            >
-              <X className="w-5 h-5" />
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              {onRefresh && (
+                <button
+                  type="button"
+                  id="morning-brief-refresh-btn"
+                  onClick={handleManualRefresh}
+                  disabled={isRefreshing || isLoading}
+                  aria-label="Refresh Morning Brief"
+                  title="Re-evaluate live household state"
+                  className="p-2 rounded-full bg-black/20 hover:bg-black/40 text-white transition cursor-pointer disabled:opacity-50"
+                >
+                  <RotateCcw className={`w-4 h-4 ${isRefreshing || isLoading ? 'animate-spin' : ''}`} />
+                </button>
+              )}
+
+              <button
+                id="morning-brief-close-btn"
+                type="button"
+                onClick={handleClose}
+                aria-label="Close Morning Brief"
+                className="p-2 rounded-full bg-black/20 hover:bg-black/40 text-white transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -145,7 +222,7 @@ export function MorningBriefModal({
           {isLoading ? (
             <div className="py-12 flex flex-col items-center justify-center space-y-3 text-slate-400">
               <Sun className="w-8 h-8 text-amber-500 animate-spin" />
-              <p className="text-xs font-medium">Synthesizing today's household briefing...</p>
+              <p className="text-xs font-medium">Synthesizing latest household state & briefing...</p>
             </div>
           ) : isSetupRequired ? (
             /* EMPTY / ONBOARDING BRIEF */
@@ -249,10 +326,10 @@ export function MorningBriefModal({
                               : 'bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800'
                           }`}
                         >
-                          <div className="space-y-1">
+                          <div className="space-y-1 min-w-0 flex-1">
                             <div className="flex items-center gap-2">
                               <span className="text-xs font-bold text-slate-500">{idx + 1}.</span>
-                              <span className="text-xs font-bold text-slate-900 dark:text-slate-100">
+                              <span className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
                                 {item.title}
                               </span>
                               <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider ${
@@ -264,20 +341,31 @@ export function MorningBriefModal({
                                 {item.urgency.replace('_', ' ')}
                               </span>
                             </div>
-                            <p className="text-xs text-slate-600 dark:text-slate-400 pl-4">
+                            <p className="text-xs text-slate-600 dark:text-slate-400 pl-4 leading-relaxed">
                               {item.reason}
                             </p>
                           </div>
 
-                          <button
-                            id={`mb-action-btn-${idx}`}
-                            type="button"
-                            onClick={() => handleActionClick(item.actionTab || 'dashboard', item.subTab, item.entityId)}
-                            className="self-start sm:self-center inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 rounded-xl transition cursor-pointer shrink-0"
-                          >
-                            <span>{item.actionLabel || 'View Record'}</span>
-                            <ArrowRight className="w-3 h-3" />
-                          </button>
+                          <div className="flex items-center gap-2 shrink-0 self-start sm:self-center">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenWhyForItem(item)}
+                              className="p-1.5 rounded-lg text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-800 transition cursor-pointer"
+                              title="Why am I seeing this?"
+                            >
+                              <HelpCircle className="w-3.5 h-3.5 text-indigo-500" />
+                            </button>
+
+                            <button
+                              id={`mb-action-btn-${idx}`}
+                              type="button"
+                              onClick={() => handleActionClick(item.actionTab || 'dashboard', item.subTab, item.entityId)}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 rounded-xl transition cursor-pointer"
+                            >
+                              <span>{item.actionLabel || 'View Record'}</span>
+                              <ArrowRight className="w-3 h-3" />
+                            </button>
+                          </div>
                         </div>
                       );
                     })}
@@ -408,6 +496,14 @@ export function MorningBriefModal({
           </button>
         </div>
       </div>
+
+      {/* Grounded Why Am I Seeing This Modal */}
+      <WhyAmISeeingThisModal
+        isOpen={!!activeWhyEvidence}
+        onClose={() => setActiveWhyEvidence(null)}
+        evidence={activeWhyEvidence}
+        onNavigate={onNavigateTab}
+      />
     </div>
   );
 }

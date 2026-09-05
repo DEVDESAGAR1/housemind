@@ -165,6 +165,7 @@ export async function searchHousehold(
     loans,
     creditCards,
     documents,
+    issues,
   ] = await Promise.all([
     DatabaseService.listProperties(userId),
     DatabaseService.listRooms(userId),
@@ -177,6 +178,7 @@ export async function searchHousehold(
     DatabaseService.listLoans(userId),
     DatabaseService.listCreditCards(userId),
     DatabaseService.listDocuments(userId),
+    DatabaseService.listIssues(userId),
   ]);
 
   const propertyMap = new Map(properties.map((p) => [p.id, p.name]));
@@ -323,7 +325,7 @@ export async function searchHousehold(
         subtitle: `Maintenance • ${context ? context + ' • ' : ''}Due: ${m.dueDate || m.serviceDate || 'Scheduled'} • ${m.status || 'pending'}`,
         badge: m.status === 'completed' ? 'Completed' : 'Maintenance',
         targetTab: 'maintenance',
-        targetSubTab: 'tasks',
+        targetSubTab: 'maintenance',
         targetId: m.id,
         score,
         metadata: {
@@ -331,6 +333,44 @@ export async function searchHousehold(
           status: m.status,
           dueDate: m.dueDate || m.serviceDate,
           cost: m.estimatedCost || m.actualCost || m.cost,
+        },
+      });
+    }
+  }
+
+  // 4.5. Household Issues / Tickets
+  for (const issue of (issues || [])) {
+    const assetName = issue.assetId ? assetMap.get(issue.assetId) : undefined;
+    const score = calculateScore(
+      issue.title,
+      [
+        issue.description || '',
+        issue.category || '',
+        issue.status || '',
+        issue.severity || '',
+        issue.serviceProvider || '',
+        assetName || '',
+      ],
+      normalizedQuery,
+      tokens
+    );
+    if (score > 0) {
+      rawResults.push({
+        id: `issue_${issue.id}`,
+        entityType: 'maintenance' as any,
+        category: 'maintenance',
+        title: issue.title,
+        subtitle: `Issue • ${issue.severity || 'Normal'} • ${issue.status || 'Reported'}${assetName ? ` • ${assetName}` : ''}`,
+        badge: issue.severity === 'critical' ? 'Critical Issue' : 'Issue',
+        targetTab: 'maintenance',
+        targetSubTab: 'issues',
+        targetId: issue.id,
+        score: score + (issue.severity === 'critical' ? 10 : 0),
+        metadata: {
+          severity: issue.severity,
+          status: issue.status,
+          assetId: issue.assetId,
+          dueDate: issue.dueDate,
         },
       });
     }

@@ -12,6 +12,8 @@ interface ExpensesViewProps {
   onDeleteExpense: (id: string) => Promise<void>;
   autoOpenAdd?: boolean;
   onAddModalOpened?: () => void;
+  targetedExpenseId?: string | null;
+  onClearTargetedExpense?: () => void;
 }
 
 export function ExpensesView({
@@ -23,6 +25,8 @@ export function ExpensesView({
   onDeleteExpense,
   autoOpenAdd,
   onAddModalOpened,
+  targetedExpenseId,
+  onClearTargetedExpense,
 }: ExpensesViewProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -78,6 +82,16 @@ export function ExpensesView({
       onAddModalOpened?.();
     }
   }, [autoOpenAdd]);
+
+  useEffect(() => {
+    if (targetedExpenseId && expenses.length > 0) {
+      const match = expenses.find((e) => e.id === targetedExpenseId);
+      if (match) {
+        openEditModal(match);
+      }
+      onClearTargetedExpense?.();
+    }
+  }, [targetedExpenseId, expenses]);
 
   const openEditModal = (exp: HouseholdExpense) => {
     setEditingExpense(exp);

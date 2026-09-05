@@ -1,12 +1,12 @@
 import { apiRequest, TestRunner } from '../test-helper';
 
 export async function runGlobalSearchTests(runner: TestRunner) {
-  runner.setSuite('Phase 5: Global Search & Discovery');
+  runner.setSuite('Global Instant Search & Multi-Domain Discovery');
 
   const token = 'test-token-search-' + Date.now();
   const otherToken = 'test-token-other-search-' + Date.now();
 
-  await runner.test('Global Search: Querying empty database returns empty results', async () => {
+  await runner.test('returns zero matches cleanly when querying empty database', async () => {
     const res = await apiRequest('/api/search?q=dishwasher', { token });
 
     if (res.status !== 200) {
@@ -21,7 +21,7 @@ export async function runGlobalSearchTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Global Search: Indexes across multi-domain household entities', async () => {
+  await runner.test('indexes and discovers records across multi-domain household entities', async () => {
     // 1. Create Property
     await apiRequest('/api/household/properties', {
       method: 'POST',
@@ -110,7 +110,7 @@ export async function runGlobalSearchTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Global Search: Category filtering restricts result set accurately', async () => {
+  await runner.test('restricts result sets accurately when applying category filters', async () => {
     // Search with category filter = 'assets'
     const res = await apiRequest('/api/search?q=e&category=assets', { token });
 
@@ -123,7 +123,7 @@ export async function runGlobalSearchTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Global Search: Multi-tenant isolation prevents cross-account discovery', async () => {
+  await runner.test('prevents cross-tenant discovery in search index', async () => {
     // Search other user with the same query
     const res = await apiRequest('/api/search?q=Bosch', { token: otherToken });
 

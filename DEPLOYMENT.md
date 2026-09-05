@@ -2,7 +2,7 @@
 
 > **Target Platform:** Google Cloud Run (Serverless Container)  
 > **Runtime Security:** Google Cloud Secret Manager (`roles/secretmanager.secretAccessor`)  
-> **Container Base:** Node.js 20 Alpine / Debian Slim on Port 3000
+> **Container Base:** Node.js 22 Alpine on Port 3000
 
 ---
 

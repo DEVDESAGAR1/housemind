@@ -5,7 +5,7 @@ import { ToolExecutor } from '../../server/services/agent/toolExecutor';
 import { AgentActionCategory, AgentToolName } from '../../src/types';
 
 export async function runAgentToolsPermissionsTests(runner: TestRunner) {
-  runner.setSuite('Phase 16: Controlled Agent Tools & Permission Engine');
+  runner.setSuite('Agent Tool Execution & Autonomous Mutation Permissions');
 
   const tokenUserA = 'test-token-tools-user-a';
   const tokenUserB = 'test-token-tools-user-b';
@@ -13,7 +13,7 @@ export async function runAgentToolsPermissionsTests(runner: TestRunner) {
   const userIdB = 'tools-user-b';
 
   // 1. Permission Engine Policy Matrix Verification
-  await runner.test('Permission Engine: Evaluates explicit policy matrix correctly', async () => {
+  await runner.test('evaluates explicit policy matrix correctly for allowed and denied categories', async () => {
     // Allowed categories
     const allowedCategories: AgentActionCategory[] = ['READ', 'RECOMMEND', 'NAVIGATE'];
     for (const cat of allowedCategories) {
@@ -45,7 +45,7 @@ export async function runAgentToolsPermissionsTests(runner: TestRunner) {
   });
 
   // 2. Allowlisted Read-Only Tools Verification
-  await runner.test('Permission Engine: Allowlisted read tools are approved; unlisted tools are denied', async () => {
+  await runner.test('approves allowlisted read tools and rejects unlisted tools', async () => {
     const readToolNames: AgentToolName[] = [
       'getHouseholdHealth',
       'getUpcomingObligations',
@@ -84,7 +84,7 @@ export async function runAgentToolsPermissionsTests(runner: TestRunner) {
   });
 
   // 3. Seed User A Records for Tool Execution Tests
-  await runner.test('Seed User A household records for tool execution', async () => {
+  await runner.test('seeds test household records for tool execution verification', async () => {
     // Profile
     await apiRequest('/api/household/profile', {
       method: 'PUT',
@@ -185,7 +185,7 @@ export async function runAgentToolsPermissionsTests(runner: TestRunner) {
   });
 
   // 4. Test Tool Execution via ToolExecutor for Each Read Tool
-  await runner.test('Tool Execution: getHouseholdHealth returns valid health structure', async () => {
+  await runner.test('returns valid health score structure from getHouseholdHealth', async () => {
     const result = await ToolExecutor.executeTool(userIdA, 'getHouseholdHealth');
     if (result.status !== 'success' || !result.data) {
       throw new Error(`getHouseholdHealth execution failed: ${result.error}`);
@@ -198,7 +198,7 @@ export async function runAgentToolsPermissionsTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Tool Execution: getUpcomingObligations returns calendar deadlines', async () => {
+  await runner.test('returns calendar deadlines from getUpcomingObligations', async () => {
     const result = await ToolExecutor.executeTool(userIdA, 'getUpcomingObligations', { days: 60 });
     if (result.status !== 'success' || !result.data) {
       throw new Error(`getUpcomingObligations execution failed: ${result.error}`);
@@ -211,7 +211,7 @@ export async function runAgentToolsPermissionsTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Tool Execution: getOverdueMaintenance returns overdue Dryer Vent task', async () => {
+  await runner.test('returns overdue maintenance tasks from getOverdueMaintenance', async () => {
     const result = await ToolExecutor.executeTool(userIdA, 'getOverdueMaintenance');
     if (result.status !== 'success' || !result.data) {
       throw new Error(`getOverdueMaintenance execution failed: ${result.error}`);
@@ -225,7 +225,7 @@ export async function runAgentToolsPermissionsTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Tool Execution: getFinancialSummary computes burn rate and loan/card totals', async () => {
+  await runner.test('computes burn rate and loan and card totals from getFinancialSummary', async () => {
     const result = await ToolExecutor.executeTool(userIdA, 'getFinancialSummary');
     if (result.status !== 'success' || !result.data) {
       throw new Error(`getFinancialSummary execution failed: ${result.error}`);
@@ -240,7 +240,7 @@ export async function runAgentToolsPermissionsTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Tool Execution: getExpiringWarrantiesAndDocuments finds SquareTrade warranty', async () => {
+  await runner.test('locates expiring warranties from getExpiringWarrantiesAndDocuments', async () => {
     const result = await ToolExecutor.executeTool(userIdA, 'getExpiringWarrantiesAndDocuments', { daysAhead: 60 });
     if (result.status !== 'success' || !result.data) {
       throw new Error(`getExpiringWarrantiesAndDocuments execution failed: ${result.error}`);
@@ -254,7 +254,7 @@ export async function runAgentToolsPermissionsTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Tool Execution: getRecentNotifications retrieves notifications cleanly', async () => {
+  await runner.test('retrieves unread notifications cleanly from getRecentNotifications', async () => {
     const result = await ToolExecutor.executeTool(userIdA, 'getRecentNotifications');
     if (result.status !== 'success' || !result.data) {
       throw new Error(`getRecentNotifications execution failed: ${result.error}`);
@@ -265,7 +265,7 @@ export async function runAgentToolsPermissionsTests(runner: TestRunner) {
   });
 
   // 5. Malformed Parameters & Denied Tool Handling in ToolExecutor
-  await runner.test('Tool Executor: Rejects malformed parameters with clean error audit', async () => {
+  await runner.test('rejects malformed parameters with clean error audit in ToolExecutor', async () => {
     const result = await ToolExecutor.executeTool(userIdA, 'getUpcomingObligations', { days: -5 });
     if (result.status !== 'error') {
       throw new Error(`Expected status error for negative days, got ${result.status}`);
@@ -278,7 +278,7 @@ export async function runAgentToolsPermissionsTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Tool Executor: Rejects unauthorized write/delete tools with denied audit', async () => {
+  await runner.test('rejects unauthorized write and delete tools with denied audit in ToolExecutor', async () => {
     const result = await ToolExecutor.executeTool(userIdA, 'deleteHouseholdDatabase');
     if (result.status !== 'denied') {
       throw new Error(`Expected status denied for delete tool, got ${result.status}`);
@@ -292,7 +292,7 @@ export async function runAgentToolsPermissionsTests(runner: TestRunner) {
   });
 
   // 6. Cross-Tenant IDOR Isolation Verification
-  await runner.test('Tenant Isolation: User B tool execution never returns User A household data', async () => {
+  await runner.test('prevents cross-tenant data leakage during tool execution', async () => {
     // User B calls getOverdueMaintenance and getFinancialSummary
     const maintB = await ToolExecutor.executeTool(userIdB, 'getOverdueMaintenance');
     const finB = await ToolExecutor.executeTool(userIdB, 'getFinancialSummary');
@@ -306,7 +306,7 @@ export async function runAgentToolsPermissionsTests(runner: TestRunner) {
   });
 
   // 7. End-to-End Chat with Agent Tool Execution & Audit Verification
-  await runner.test('Copilot Chat: Returns structured agentAudit with toolsInvoked and tenant scope', async () => {
+  await runner.test('returns structured agentAudit with toolsInvoked and tenant scope in Copilot Chat', async () => {
     const res = await apiRequest('/api/copilot/chat', {
       method: 'POST',
       token: tokenUserA,
@@ -345,7 +345,7 @@ export async function runAgentToolsPermissionsTests(runner: TestRunner) {
   });
 
   // 8. Adversarial Chat: Denied Tool Audit Record Capture
-  await runner.test('Copilot Chat: Captures DENIED audit record when user requests deletion', async () => {
+  await runner.test('captures denied audit record when user requests destructive action in Copilot Chat', async () => {
     const res = await apiRequest('/api/copilot/chat', {
       method: 'POST',
       token: tokenUserA,

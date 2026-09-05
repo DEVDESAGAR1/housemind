@@ -38,7 +38,7 @@ export const helmetMiddleware = helmet({
         "ws://127.0.0.1:*",
       ],
       frameSrc: ["'self'", "https://*.firebaseapp.com", "https://accounts.google.com"],
-      frameAncestors: ["'self'", "https://*.google.com", "https://*.googleusercontent.com", "https://*.ai.studio", "https://ai.studio", "*"],
+      frameAncestors: ["'self'", "https://*.google.com", "https://*.googleusercontent.com", "https://*.ai.studio", "https://ai.studio"],
       objectSrc: ["'none'"],
       baseUri: ["'self'"],
       formAction: ["'self'"],

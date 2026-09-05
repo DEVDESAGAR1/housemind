@@ -61,6 +61,8 @@ interface AssetsViewProps {
   onDeleteAsset: (id: string) => Promise<void>;
   autoOpenAdd?: boolean;
   onAddModalOpened?: () => void;
+  targetedEntityId?: string | null;
+  onClearTargetedEntity?: () => void;
 }
 
 export function AssetsView({
@@ -72,6 +74,8 @@ export function AssetsView({
   onDeleteAsset,
   autoOpenAdd,
   onAddModalOpened,
+  targetedEntityId,
+  onClearTargetedEntity,
 }: AssetsViewProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -195,6 +199,16 @@ export function AssetsView({
       onAddModalOpened?.();
     }
   }, [autoOpenAdd]);
+
+  useEffect(() => {
+    if (targetedEntityId && assets.length > 0) {
+      const match = assets.find((a) => a.id === targetedEntityId);
+      if (match) {
+        openRelationshipsModal(match);
+      }
+      onClearTargetedEntity?.();
+    }
+  }, [targetedEntityId, assets]);
 
   const openEditModal = (asset: HomeAsset) => {
     setEditingAsset(asset);

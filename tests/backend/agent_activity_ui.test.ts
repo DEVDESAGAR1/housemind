@@ -6,7 +6,7 @@ import { DatabaseService } from '../../server/services/dbService';
 import { NotificationService } from '../../server/services/notificationService';
 
 export async function runAgentActivityUITests(runner: TestRunner) {
-  runner.setSuite('Phase 19: Agent Activity Timeline + Copilot UI Polish');
+  runner.setSuite('Agent Activity Timeline & Event Auditing');
 
   const tokenUserA = 'test-token-activity-user-a';
   const tokenUserB = 'test-token-activity-user-b';
@@ -17,7 +17,7 @@ export async function runAgentActivityUITests(runner: TestRunner) {
   AgentActivityService.clearActivityForTest();
 
   // 1. Conversational Greeting Fast-Path
-  await runner.test('Copilot Greeting: Simple greetings return instant conversational reply without full DB dump', async () => {
+  await runner.test('returns instant conversational reply for simple greetings without full DB dump', async () => {
     const greetings = ['hi', 'hello', 'hey', 'good morning', 'thanks'];
 
     for (const g of greetings) {
@@ -44,7 +44,7 @@ export async function runAgentActivityUITests(runner: TestRunner) {
   });
 
   // 2. Empty Activity State
-  await runner.test('Agent Activity: Returns empty list cleanly on fresh account', async () => {
+  await runner.test('returns empty list cleanly on fresh account', async () => {
     const res = await apiRequest('/api/copilot/activity', {
       method: 'GET',
       token: tokenUserA,
@@ -60,7 +60,7 @@ export async function runAgentActivityUITests(runner: TestRunner) {
   });
 
   // 3. Action Proposal Records Activity Timeline Event
-  await runner.test('Agent Activity: Action proposal automatically logs ACTION_PROPOSED & APPROVAL_REQUESTED', async () => {
+  await runner.test('records ACTION_PROPOSED and APPROVAL_REQUESTED events on action proposal', async () => {
     const proposal = await ActionExecutor.proposeAction(userIdA, 'navigateTab', {
       title: 'Navigate to Maintenance Tab',
       targetEntityName: 'maintenance',
@@ -90,7 +90,7 @@ export async function runAgentActivityUITests(runner: TestRunner) {
   });
 
   // 4. Action Cancellation Records Activity Event
-  await runner.test('Agent Activity: Action cancellation logs ACTION_CANCELLED event', async () => {
+  await runner.test('records ACTION_CANCELLED event on proposal cancellation', async () => {
     const proposal = await ActionExecutor.proposeAction(userIdA, 'dismissInsight', {
       targetEntityId: 'ins-test-cancel',
     });
@@ -111,7 +111,7 @@ export async function runAgentActivityUITests(runner: TestRunner) {
   });
 
   // 5. Approved Execution & Verification Succeeded Activity
-  await runner.test('Agent Activity: Approved execution logs ACTION_APPROVED, ACTION_EXECUTED & VERIFICATION_PASSED', async () => {
+  await runner.test('records ACTION_APPROVED, ACTION_EXECUTED, and VERIFICATION_PASSED events on approved execution', async () => {
     // Seed maintenance task
     const task = await DatabaseService.createMaintenance(userIdA, {
       title: 'Smoke Detector Battery Test',
@@ -150,7 +150,7 @@ export async function runAgentActivityUITests(runner: TestRunner) {
   });
 
   // 6. Security Policy Denials Logged in Activity
-  await runner.test('Agent Activity: Forbidden payment/deletion queries log ACTION_DENIED event', async () => {
+  await runner.test('records ACTION_DENIED events for forbidden payment and deletion queries', async () => {
     await HouseholdAgentOrchestrator.handleChat(userIdA, 'Delete my entire property record now');
     await HouseholdAgentOrchestrator.handleChat(userIdA, 'Transfer $500 to my bank account');
 
@@ -168,7 +168,7 @@ export async function runAgentActivityUITests(runner: TestRunner) {
   });
 
   // 7. Tenant Isolation for Agent Activity
-  await runner.test('Agent Activity: Strict tenant isolation (User B cannot see User A activity)', async () => {
+  await runner.test('enforces strict tenant isolation for agent activity timeline', async () => {
     // User A has multiple activities logged above
     const resA = await apiRequest('/api/copilot/activity', {
       method: 'GET',
@@ -191,7 +191,7 @@ export async function runAgentActivityUITests(runner: TestRunner) {
   });
 
   // 8. Bounded Pagination / Limits
-  await runner.test('Agent Activity: Honors limit and offset query parameters', async () => {
+  await runner.test('honors limit and offset pagination query parameters', async () => {
     const resLimit = await apiRequest('/api/copilot/activity?limit=2&offset=0', {
       method: 'GET',
       token: tokenUserA,
@@ -207,7 +207,7 @@ export async function runAgentActivityUITests(runner: TestRunner) {
   });
 
   // 9. Structured Response & Morning Brief Extraction
-  await runner.test('Copilot Response: Morning Brief queries return structured morningBrief with priority items', async () => {
+  await runner.test('returns structured morning brief with prioritized attention items on request', async () => {
     const res = await apiRequest('/api/copilot/chat', {
       method: 'POST',
       token: tokenUserA,

@@ -44,6 +44,7 @@ interface HelpCenterViewProps {
   onOpenSearch?: () => void;
   onOpenNotifications?: () => void;
   onOpenNotificationPreferences?: () => void;
+  onOpenTour?: (tourId: string) => void;
 }
 
 export function HelpCenterView({
@@ -53,6 +54,7 @@ export function HelpCenterView({
   onOpenSearch,
   onOpenNotifications,
   onOpenNotificationPreferences,
+  onOpenTour,
 }: HelpCenterViewProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<HelpCategoryId | 'all'>('all');
@@ -77,7 +79,9 @@ export function HelpCenterView({
   const handleActionClick = (action: HelpArticle['actionLink']) => {
     if (!action) return;
 
-    if (action.targetTab) {
+    if (action.tourId && onOpenTour) {
+      onOpenTour(action.tourId);
+    } else if (action.targetTab) {
       onNavigateTab(action.targetTab);
     } else if (action.modalAction) {
       switch (action.modalAction) {

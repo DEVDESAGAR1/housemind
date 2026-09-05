@@ -27,8 +27,9 @@ import {
   ChevronRight,
   Clock,
   Home,
-  CheckCircle,
 } from 'lucide-react';
+import { Footer } from './Footer';
+import { LegalPoliciesModal, PolicyTab } from './legal/LegalPoliciesModal';
 
 interface LandingPageProps {
   onSignIn: () => void;
@@ -38,6 +39,13 @@ interface LandingPageProps {
 
 export function LandingPage({ onSignIn, isAuthenticating, authError }: LandingPageProps) {
   const [activePreviewTab, setActivePreviewTab] = useState<'brief' | 'graph' | 'copilot'>('brief');
+  const [isLegalModalOpen, setIsLegalModalOpen] = useState(false);
+  const [legalModalTab, setLegalModalTab] = useState<PolicyTab>('privacy');
+
+  const handleOpenPolicy = (tab: PolicyTab = 'privacy') => {
+    setLegalModalTab(tab);
+    setIsLegalModalOpen(true);
+  };
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between selection:bg-indigo-500 selection:text-white relative overflow-hidden">
@@ -574,18 +582,19 @@ export function LandingPage({ onSignIn, isAuthenticating, authError }: LandingPa
         </div>
       </main>
 
-      {/* ========================================================= */}
-      {/* 8. FOOTER                                                 */}
-      {/* ========================================================= */}
-      <footer className="w-full border-t border-slate-800/80 py-8 px-4 sm:px-6 text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between max-w-7xl mx-auto relative z-10 gap-4">
-        <div className="flex items-center gap-2">
-          <ShieldCheck className="w-4 h-4 text-emerald-500" />
-          <span>Production-grade security deployed on Google Cloud Run</span>
-        </div>
-        <div className="text-slate-500">
-          HouseMind &copy; {new Date().getFullYear()} — Built for Cloud Run AI Challenge
-        </div>
-      </footer>
+      {/* Professional Product & Public Footer */}
+      <Footer
+        isAuthenticated={false}
+        onSignIn={onSignIn}
+        onOpenPolicy={handleOpenPolicy}
+      />
+
+      {/* Trust, Privacy & Legal Policies Modal */}
+      <LegalPoliciesModal
+        isOpen={isLegalModalOpen}
+        onClose={() => setIsLegalModalOpen(false)}
+        initialTab={legalModalTab}
+      />
     </div>
   );
 }

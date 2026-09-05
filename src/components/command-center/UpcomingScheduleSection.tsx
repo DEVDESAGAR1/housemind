@@ -34,6 +34,8 @@ export interface UpcomingObligation {
   amount?: number;
   isAutoPay?: boolean;
   actionTab: string;
+  subTab?: string;
+  entityId?: string;
   actionLabel: string;
 }
 
@@ -46,7 +48,7 @@ interface UpcomingScheduleSectionProps {
   warranties: WarrantyPolicy[];
   currencyCode: string;
   locale?: string;
-  onNavigate: (tab: string) => void;
+  onNavigate: (tab: string, subTab?: string, entityId?: string) => void;
 }
 
 export function UpcomingScheduleSection({
@@ -89,6 +91,7 @@ export function UpcomingScheduleSection({
             amount: exp.amount,
             isAutoPay: exp.isAutoPay,
             actionTab: 'expenses',
+            entityId: exp.id,
             actionLabel: 'View Bill',
           });
         }
@@ -113,6 +116,8 @@ export function UpcomingScheduleSection({
               dateBadgeLabel: ds.label,
               amount: m.cost,
               actionTab: 'maintenance',
+              subTab: 'maintenance',
+              entityId: m.id,
               actionLabel: 'View Task',
             });
           }
@@ -137,7 +142,9 @@ export function UpcomingScheduleSection({
             dateBadgeLabel: ds.label,
             amount: u.latestBillAmount || u.typicalAmount,
             isAutoPay: u.isAutoPay,
-            actionTab: 'debts',
+            actionTab: 'utilities',
+            subTab: 'utilities',
+            entityId: u.id,
             actionLabel: 'View Utility',
           });
         }
@@ -166,7 +173,9 @@ export function UpcomingScheduleSection({
             formattedDate: ds.formattedDate,
             dateBadgeLabel: ds.label,
             amount: l.emiAmount,
-            actionTab: 'debts',
+            actionTab: 'utilities',
+            subTab: 'loans',
+            entityId: l.id,
             actionLabel: 'View Loan',
           });
         }
@@ -189,7 +198,9 @@ export function UpcomingScheduleSection({
             dateBadgeLabel: ds.label,
             amount: cc.outstandingAmount,
             isAutoPay: cc.isAutoPay,
-            actionTab: 'debts',
+            actionTab: 'utilities',
+            subTab: 'cards',
+            entityId: cc.id,
             actionLabel: 'Manage Card',
           });
         }
@@ -211,6 +222,8 @@ export function UpcomingScheduleSection({
             formattedDate: ds.formattedDate,
             dateBadgeLabel: ds.label,
             actionTab: 'maintenance',
+            subTab: 'warranties',
+            entityId: w.id,
             actionLabel: 'View Warranty',
           });
         }
@@ -423,7 +436,7 @@ export function UpcomingScheduleSection({
 
                 <button
                   id={`btn-view-${item.id}`}
-                  onClick={() => onNavigate(item.actionTab)}
+                  onClick={() => onNavigate(item.actionTab, item.subTab, item.entityId)}
                   className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition cursor-pointer"
                   title={item.actionLabel}
                 >

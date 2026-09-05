@@ -4,7 +4,7 @@ import { ActionExecutor } from '../../server/services/agent/actionExecutor';
 import { AgentActivityService } from '../../server/services/agent/agentActivityService';
 
 export async function runUnifiedCopilotUXTests(runner: TestRunner) {
-  runner.setSuite('Phase 22: Unified Agentic Copilot UX Across the Entire Application');
+  runner.setSuite('Unified Copilot Context Grounding & Multi-Domain Chat');
 
   const tokenUserA = 'test-token-copilot-ux-user-a';
   const tokenUserB = 'test-token-copilot-ux-user-b';
@@ -121,7 +121,7 @@ export async function runUnifiedCopilotUXTests(runner: TestRunner) {
   } as any);
 
   // 1. Every Copilot Entry Point verification
-  await runner.test('1. Unified Copilot Chat API endpoint handles conversation payload', async () => {
+  await runner.test('handles unified conversation payload via copilot chat API endpoint', async () => {
     const res = await apiRequest('/api/copilot/chat', {
       method: 'POST',
       token: tokenUserA,
@@ -136,7 +136,7 @@ export async function runUnifiedCopilotUXTests(runner: TestRunner) {
   });
 
   // 2. Shared Chat UI Data Structure
-  await runner.test('2. Response returns structured fields for UI cards (suggested questions, audit, grounding)', async () => {
+  await runner.test('returns structured fields for UI cards and grounding metadata', async () => {
     const res = await apiRequest('/api/copilot/chat', {
       method: 'POST',
       token: tokenUserA,
@@ -151,7 +151,7 @@ export async function runUnifiedCopilotUXTests(runner: TestRunner) {
   });
 
   // 3. Lightweight Greetings
-  await runner.test('3. Greetings remain lightweight without invoking heavy domain retrieval tools', async () => {
+  await runner.test('processes lightweight greetings without executing heavy domain retrieval tools', async () => {
     const res = await apiRequest('/api/copilot/chat', {
       method: 'POST',
       token: tokenUserA,
@@ -170,7 +170,7 @@ export async function runUnifiedCopilotUXTests(runner: TestRunner) {
   });
 
   // 4. Conversation Continuity
-  await runner.test('4. Conversation continuity: Messages persist across turns in the same conversation', async () => {
+  await runner.test('preserves message history and continuity across multi-turn conversations', async () => {
     const res1 = await apiRequest('/api/copilot/chat', {
       method: 'POST',
       token: tokenUserA,
@@ -198,7 +198,7 @@ export async function runUnifiedCopilotUXTests(runner: TestRunner) {
   });
 
   // 5. Follow-Up Questions Reasoning
-  await runner.test('5. Follow-up questions maintain context without resetting to generic overview', async () => {
+  await runner.test('maintains context in follow-up questions without resetting to generic overview', async () => {
     const conv = await DatabaseService.saveConversation(userIdA, {
       id: 'conv_multi_turn_01',
       userId: userIdA,
@@ -223,7 +223,7 @@ export async function runUnifiedCopilotUXTests(runner: TestRunner) {
   });
 
   // 6. "I Don't Know" Handling
-  await runner.test('6. Missing household data returns truthful missing-data explanation without hallucination', async () => {
+  await runner.test('returns truthful missing-data explanation without hallucinating unrecorded entities', async () => {
     const res = await apiRequest('/api/copilot/chat', {
       method: 'POST',
       token: tokenUserA,
@@ -244,7 +244,7 @@ export async function runUnifiedCopilotUXTests(runner: TestRunner) {
   });
 
   // 7. Markdown Formatting Integrity
-  await runner.test('7. Markdown formatting integrity: Outputs clean markdown with bullets and no raw JSON dumps', async () => {
+  await runner.test('outputs clean markdown with structured lists and no raw JSON dumps', async () => {
     const res = await apiRequest('/api/copilot/chat', {
       method: 'POST',
       token: tokenUserA,
@@ -258,7 +258,7 @@ export async function runUnifiedCopilotUXTests(runner: TestRunner) {
   });
 
   // 8. Health Intelligence Grounding
-  await runner.test('8. Health response: Reflects authoritative calculated health score and metrics', async () => {
+  await runner.test('reflects authoritative calculated health score and metrics in health responses', async () => {
     const res = await apiRequest('/api/copilot/chat', {
       method: 'POST',
       token: tokenUserA,
@@ -270,7 +270,7 @@ export async function runUnifiedCopilotUXTests(runner: TestRunner) {
   });
 
   // 9. Financial Summary Grounding
-  await runner.test('9. Financial response: Reflects deterministic burn rate and debt service', async () => {
+  await runner.test('reflects deterministic burn rate and debt service in financial responses', async () => {
     const res = await apiRequest('/api/copilot/chat', {
       method: 'POST',
       token: tokenUserA,
@@ -282,7 +282,7 @@ export async function runUnifiedCopilotUXTests(runner: TestRunner) {
   });
 
   // 10. Bills & Upcoming Obligations
-  await runner.test('10. Bills grounding: Accurately identifies tracked utility bills', async () => {
+  await runner.test('accurately identifies tracked utility bills for bills grounding queries', async () => {
     const res = await apiRequest('/api/copilot/chat', {
       method: 'POST',
       token: tokenUserA,
@@ -294,7 +294,7 @@ export async function runUnifiedCopilotUXTests(runner: TestRunner) {
   });
 
   // 11. Maintenance Tasks Grounding
-  await runner.test('11. Maintenance grounding: Accurately lists scheduled upkeep tasks', async () => {
+  await runner.test('accurately lists scheduled upkeep tasks for maintenance grounding queries', async () => {
     const res = await apiRequest('/api/copilot/chat', {
       method: 'POST',
       token: tokenUserA,
@@ -306,7 +306,7 @@ export async function runUnifiedCopilotUXTests(runner: TestRunner) {
   });
 
   // 12. Warranties Grounding
-  await runner.test('12. Warranty grounding: Accurately identifies active protection policies', async () => {
+  await runner.test('accurately identifies active protection policies for warranty grounding queries', async () => {
     const res = await apiRequest('/api/copilot/chat', {
       method: 'POST',
       token: tokenUserA,
@@ -318,7 +318,7 @@ export async function runUnifiedCopilotUXTests(runner: TestRunner) {
   });
 
   // 13. Document Ingestion Inventory
-  await runner.test('13. Document grounding: Reflects confirmed vs pending document candidates', async () => {
+  await runner.test('reflects confirmed and pending document status for vault inventory queries', async () => {
     const res = await apiRequest('/api/copilot/chat', {
       method: 'POST',
       token: tokenUserA,
@@ -330,7 +330,7 @@ export async function runUnifiedCopilotUXTests(runner: TestRunner) {
   });
 
   // 14. Asset & Equipment Inventory
-  await runner.test('14. Asset grounding: Identifies monitored appliances and brands', async () => {
+  await runner.test('identifies monitored home appliances and equipment for asset grounding queries', async () => {
     const res = await apiRequest('/api/copilot/chat', {
       method: 'POST',
       token: tokenUserA,
@@ -342,7 +342,7 @@ export async function runUnifiedCopilotUXTests(runner: TestRunner) {
   });
 
   // 15. Calendar Schedule
-  await runner.test('15. Calendar grounding: Returns chronological obligations timeline', async () => {
+  await runner.test('returns chronological obligations timeline for calendar schedule queries', async () => {
     const res = await apiRequest('/api/copilot/chat', {
       method: 'POST',
       token: tokenUserA,
@@ -354,7 +354,7 @@ export async function runUnifiedCopilotUXTests(runner: TestRunner) {
   });
 
   // 16. Notifications & Alert Triage
-  await runner.test('16. Notifications grounding: Explains active alert context', async () => {
+  await runner.test('explains active alert context for notification grounding queries', async () => {
     const res = await apiRequest('/api/copilot/chat', {
       method: 'POST',
       token: tokenUserA,
@@ -366,7 +366,7 @@ export async function runUnifiedCopilotUXTests(runner: TestRunner) {
   });
 
   // 17. Morning Brief Workflow
-  await runner.test('17. Morning Brief: Produces structured morningBrief card object with priority items', async () => {
+  await runner.test('produces structured morning brief card object with prioritized items', async () => {
     const res = await apiRequest('/api/copilot/chat', {
       method: 'POST',
       token: tokenUserA,
@@ -381,7 +381,7 @@ export async function runUnifiedCopilotUXTests(runner: TestRunner) {
   });
 
   // 18. Action Proposal Structure
-  await runner.test('18. Action proposal: Proposes low-risk action with structured risk & target fields', async () => {
+  await runner.test('proposes low-risk action with structured risk and target fields', async () => {
     const res = await apiRequest('/api/copilot/chat', {
       method: 'POST',
       token: tokenUserA,
@@ -396,7 +396,7 @@ export async function runUnifiedCopilotUXTests(runner: TestRunner) {
   });
 
   // 19. Action Cancellation
-  await runner.test('19. Action cancellation: Cancelling an action prevents execution and updates state', async () => {
+  await runner.test('cancels action proposal cleanly and prevents subsequent execution', async () => {
     const proposal = await ActionExecutor.proposeAction(userIdA, 'completeMaintenanceTask', {
       title: 'Test Cancel Action',
       description: 'Testing cancellation',
@@ -422,7 +422,7 @@ export async function runUnifiedCopilotUXTests(runner: TestRunner) {
   });
 
   // 20. Action Approval & Safe Execution
-  await runner.test('20. Action approval: Approving safe action mutates state through approval gate', async () => {
+  await runner.test('approves and safely executes low-risk action through approval gate', async () => {
     const testTask = await DatabaseService.createMaintenance(userIdA, {
       title: 'Inspect smoke detectors',
       status: 'scheduled',
@@ -446,7 +446,7 @@ export async function runUnifiedCopilotUXTests(runner: TestRunner) {
   });
 
   // 21. State Verification
-  await runner.test('21. State verification: Verifier ensures underlying database record was mutated', async () => {
+  await runner.test('verifies that underlying database record is mutated upon action approval', async () => {
     const testTask = await DatabaseService.createMaintenance(userIdA, {
       title: 'Water filter replacement',
       status: 'scheduled',
@@ -470,7 +470,7 @@ export async function runUnifiedCopilotUXTests(runner: TestRunner) {
   });
 
   // 22. Agent Activity Audit Timeline
-  await runner.test('22. Agent Activity Timeline: Immutable audit trail records investigation and execution lifecycle', async () => {
+  await runner.test('records investigation and execution lifecycle in immutable agent activity timeline', async () => {
     const actRes = await apiRequest('/api/copilot/activity', {
       method: 'GET',
       token: tokenUserA,
@@ -481,7 +481,7 @@ export async function runUnifiedCopilotUXTests(runner: TestRunner) {
   });
 
   // 23. Help Center -> Copilot Integration
-  await runner.test('23. Help Center query routing: Returns grounded answers explaining privacy & data governance', async () => {
+  await runner.test('returns grounded answers explaining privacy and data governance for help queries', async () => {
     const res = await apiRequest('/api/copilot/chat', {
       method: 'POST',
       token: tokenUserA,
@@ -496,7 +496,7 @@ export async function runUnifiedCopilotUXTests(runner: TestRunner) {
   });
 
   // 24. Contextual Domain Routing
-  await runner.test('24. Contextual Copilot: Domain-focused questions retrieve only relevant context', async () => {
+  await runner.test('retrieves only relevant context for domain-specific queries', async () => {
     const res = await apiRequest('/api/copilot/chat', {
       method: 'POST',
       token: tokenUserA,
@@ -508,7 +508,7 @@ export async function runUnifiedCopilotUXTests(runner: TestRunner) {
   });
 
   // 25. Demo Household Exploratory Flows
-  await runner.test('25. Demo exploratory queries: Handles complex multi-domain inquiry without errors', async () => {
+  await runner.test('handles complex multi-domain inquiry without errors in exploratory flows', async () => {
     const res = await apiRequest('/api/copilot/chat', {
       method: 'POST',
       token: tokenUserA,
@@ -520,7 +520,7 @@ export async function runUnifiedCopilotUXTests(runner: TestRunner) {
   });
 
   // 26. Compact / Floating Launcher Configuration
-  await runner.test('26. Floating widget compact mode compatibility: Validates conversation listing', async () => {
+  await runner.test('validates conversation listing compatibility for floating launcher widget', async () => {
     const convsRes = await apiRequest('/api/copilot/conversations', {
       method: 'GET',
       token: tokenUserA,
@@ -531,7 +531,7 @@ export async function runUnifiedCopilotUXTests(runner: TestRunner) {
   });
 
   // 27. Long Response Resilience
-  await runner.test('27. Long responses: Sustains structured multi-item outputs without truncation or JSON leaks', async () => {
+  await runner.test('sustains structured multi-item outputs for long responses without truncation', async () => {
     const res = await apiRequest('/api/copilot/chat', {
       method: 'POST',
       token: tokenUserA,
@@ -543,7 +543,7 @@ export async function runUnifiedCopilotUXTests(runner: TestRunner) {
   });
 
   // 28. Error Handling & Recovery
-  await runner.test('28. Error handling: Rejects invalid or empty messages gracefully with 400 status', async () => {
+  await runner.test('rejects invalid or empty messages gracefully with 400 validation error', async () => {
     const res = await apiRequest('/api/copilot/chat', {
       method: 'POST',
       token: tokenUserA,
@@ -555,7 +555,7 @@ export async function runUnifiedCopilotUXTests(runner: TestRunner) {
   });
 
   // 29. Strict Tenant Isolation
-  await runner.test('29. Strict tenant isolation: User B cannot access User A conversations or proposals', async () => {
+  await runner.test('prevents cross-tenant access to conversations and proposals', async () => {
     const resA = await apiRequest('/api/copilot/chat', {
       method: 'POST',
       token: tokenUserA,
@@ -581,7 +581,7 @@ export async function runUnifiedCopilotUXTests(runner: TestRunner) {
   });
 
   // 30. Unauthorized / Destructive Action Rejection
-  await runner.test('30. Security: Destructive actions (delete records, payment execution) are rejected by policy', async () => {
+  await runner.test('rejects destructive deletion and payment execution requests by security policy', async () => {
     const deleteRes = await apiRequest('/api/copilot/chat', {
       method: 'POST',
       token: tokenUserA,

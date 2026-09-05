@@ -3,7 +3,7 @@ import { HouseholdMorningBriefService } from '../../server/services/agent/househ
 import { HouseholdMorningBrief } from '../../src/types';
 
 export async function runMorningBriefTests(runner: TestRunner) {
-  runner.setSuite('Phase 17: Household Morning Brief / Killer Agent Workflow');
+  runner.setSuite('Morning Brief Daily Operational Synthesis');
 
   const tokenUserA = 'test-token-mb-user-a';
   const tokenUserB = 'test-token-mb-user-b';
@@ -16,7 +16,7 @@ export async function runMorningBriefTests(runner: TestRunner) {
   const userIdPartial = 'mb-user-partial';
 
   // 1. Seed User A with rich multi-domain household records
-  await runner.test('Morning Brief: Seed User A multi-domain household records', async () => {
+  await runner.test('seeds test household records for morning brief synthesis', async () => {
     // Profile
     const profileRes = await apiRequest('/api/household/profile', {
       method: 'PUT',
@@ -126,7 +126,7 @@ export async function runMorningBriefTests(runner: TestRunner) {
   });
 
   // 2. Multi-Domain Morning Brief Generation & Content Verification
-  await runner.test('Morning Brief: Combines all household domains into structured brief', async () => {
+  await runner.test('combines all household domains into structured morning brief', async () => {
     const brief: HouseholdMorningBrief = await HouseholdMorningBriefService.generateMorningBrief(userIdA);
 
     if (!brief) throw new Error('Morning brief must be defined');
@@ -148,7 +148,7 @@ export async function runMorningBriefTests(runner: TestRunner) {
   });
 
   // 3. Priority Ordering & Urgency Classification
-  await runner.test('Morning Brief: Correctly prioritizes Critical > Overdue > Due Today > Warning > Due Soon', async () => {
+  await runner.test('prioritizes tasks and obligations by urgency and impact', async () => {
     const brief = await HouseholdMorningBriefService.generateMorningBrief(userIdA);
 
     // Urgent maintenance should be classified as critical
@@ -185,7 +185,7 @@ export async function runMorningBriefTests(runner: TestRunner) {
   });
 
   // 4. Deterministic Financial Math
-  await runner.test('Morning Brief: Computes authoritative financial burn rate and debt balances', async () => {
+  await runner.test('computes authoritative financial burn rate and debt balances', async () => {
     const brief = await HouseholdMorningBriefService.generateMorningBrief(userIdA);
 
     // Monthly burn rate = typical utilities (95) + loan EMI (2580) = 2675
@@ -199,7 +199,7 @@ export async function runMorningBriefTests(runner: TestRunner) {
   });
 
   // 5. No-Data / Fresh Household Handling
-  await runner.test('Morning Brief: Produces non-alarming, welcoming setup brief on empty accounts', async () => {
+  await runner.test('produces non-alarming welcoming setup brief on empty accounts', async () => {
     const brief = await HouseholdMorningBriefService.generateMorningBrief(userIdEmpty);
 
     if (!brief) throw new Error('Brief must generate for empty household');
@@ -221,7 +221,7 @@ export async function runMorningBriefTests(runner: TestRunner) {
   });
 
   // 6. Partial / Missing Single Domain Data Resilience
-  await runner.test('Morning Brief: Operates cleanly when specific domains have zero records', async () => {
+  await runner.test('operates cleanly when specific domains have zero records', async () => {
     await apiRequest('/api/household/profile', {
       method: 'PUT',
       token: tokenUserPartial,
@@ -241,7 +241,7 @@ export async function runMorningBriefTests(runner: TestRunner) {
   });
 
   // 7. Deterministic Fallback & Anti-Hallucination
-  await runner.test('Morning Brief: Deterministic fallback narrative avoids hallucinated entities', async () => {
+  await runner.test('generates deterministic fallback narrative without hallucinated entities', async () => {
     const brief = await HouseholdMorningBriefService.generateMorningBrief(userIdA);
 
     if (brief.synthesizedNarrative.length < 50) throw new Error('Narrative must be substantial');
@@ -252,7 +252,7 @@ export async function runMorningBriefTests(runner: TestRunner) {
   });
 
   // 8. Multi-Tenant Cross-User Isolation
-  await runner.test('Morning Brief: User B morning brief is isolated from User A data', async () => {
+  await runner.test('prevents cross-tenant morning brief data leakage', async () => {
     const briefB = await HouseholdMorningBriefService.generateMorningBrief(userIdB);
 
     if (briefB.homeName === 'Pine Crest Residence') throw new Error('User B must not see User A home name');
@@ -262,7 +262,7 @@ export async function runMorningBriefTests(runner: TestRunner) {
   });
 
   // 9. Stability & Idempotence on Repeated Calls
-  await runner.test('Morning Brief: Repeated brief generations produce stable deterministic facts', async () => {
+  await runner.test('produces stable deterministic facts across repeated generations', async () => {
     const brief1 = await HouseholdMorningBriefService.generateMorningBrief(userIdA);
     const brief2 = await HouseholdMorningBriefService.generateMorningBrief(userIdA);
 
@@ -280,7 +280,7 @@ export async function runMorningBriefTests(runner: TestRunner) {
   });
 
   // 10. Copilot Chat Integration with Morning Brief Query
-  await runner.test('Morning Brief: Copilot handles "Give me my morning brief" and returns structured brief', async () => {
+  await runner.test('returns structured morning brief when queried via Copilot chat', async () => {
     const chatRes = await apiRequest('/api/copilot/chat', {
       method: 'POST',
       token: tokenUserA,
@@ -298,7 +298,7 @@ export async function runMorningBriefTests(runner: TestRunner) {
   });
 
   // 11. Security Denial on Mutation Queries during Brief
-  await runner.test('Morning Brief: Denies autonomous mutations if user attempts delete during brief', async () => {
+  await runner.test('denies autonomous mutations when user requests destructive actions during brief', async () => {
     const chatRes = await apiRequest('/api/copilot/chat', {
       method: 'POST',
       token: tokenUserA,
@@ -314,7 +314,7 @@ export async function runMorningBriefTests(runner: TestRunner) {
   });
 
   // 12. Direct API Endpoint GET /api/copilot/morning-brief
-  await runner.test('Morning Brief: GET /api/copilot/morning-brief returns 200 with valid morning brief', async () => {
+  await runner.test('returns 200 with valid morning brief from GET /api/copilot/morning-brief', async () => {
     const endpointRes = await apiRequest('/api/copilot/morning-brief', {
       method: 'GET',
       token: tokenUserA,

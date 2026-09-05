@@ -28,6 +28,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { ChatMessage } from '../../types';
+import { api } from '../../lib/api';
 
 export interface CopilotChatContainerProps {
   messages: ChatMessage[];
@@ -37,7 +38,7 @@ export interface CopilotChatContainerProps {
   onSendMessage: (text: string) => Promise<void> | void;
   onApproveAction?: (msgIndex: number, actionId: string) => Promise<void> | void;
   onCancelAction?: (msgIndex: number, actionId: string) => Promise<void> | void;
-  onNavigateTab: (tab: string) => void;
+  onNavigateTab: (tab: string, subTab?: string, entityId?: string) => void;
   isCompact?: boolean;
   executingActionId?: string | null;
   placeholder?: string;
@@ -168,8 +169,27 @@ export const CopilotChatContainer: React.FC<CopilotChatContainerProps> = ({
 }) => {
   const [inputText, setInputText] = useState('');
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+  const [aiStatus, setAiStatus] = useState<{
+    status: 'available' | 'unavailable' | 'not_configured';
+    model: string;
+    fallbackMode: string;
+  } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement | HTMLInputElement>(null);
+
+  useEffect(() => {
+    api.getAiStatus().then((res) => {
+      if (res?.status) {
+        setAiStatus(res);
+      }
+    }).catch(() => {
+      setAiStatus({
+        status: 'unavailable',
+        model: 'gemini-2.5-flash',
+        fallbackMode: 'deterministic_household_intelligence',
+      });
+    });
+  }, []);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -201,6 +221,32 @@ export const CopilotChatContainer: React.FC<CopilotChatContainerProps> = ({
 
   return (
     <div className={`flex flex-col h-full overflow-hidden bg-white ${className}`}>
+      {/* AI Assistant Live Capability Status Banner */}
+      <div className="px-4 py-1.5 border-b border-slate-200/80 bg-slate-50 flex items-center justify-between text-[11px] text-slate-500">
+        <div className="flex items-center gap-1.5">
+          <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
+          <span>Assistant Engine:</span>
+          {aiStatus?.status === 'available' ? (
+            <span className="font-semibold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-full text-[10px] flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              AI Active ({aiStatus.model})
+            </span>
+          ) : aiStatus?.status === 'not_configured' ? (
+            <span className="font-semibold text-slate-600 bg-slate-200 px-2 py-0.5 rounded-full text-[10px]">
+              Deterministic Logic Mode
+            </span>
+          ) : (
+            <span className="font-semibold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full text-[10px]">
+              Fallback Mode Active
+            </span>
+          )}
+        </div>
+        <div className="hidden sm:flex items-center gap-1 text-[10px] text-slate-400">
+          <ShieldCheck className="w-3 h-3 text-emerald-500" />
+          <span>Zero Model Training</span>
+        </div>
+      </div>
+
       {/* Scrollable Messages Area */}
       <div className={`flex-1 overflow-y-auto space-y-4 ${isCompact ? 'p-3.5 text-xs bg-slate-50/60' : 'p-5 space-y-5 bg-slate-50/40'}`}>
         {messages.length === 0 ? (
@@ -557,7 +603,7 @@ export const CopilotChatContainer: React.FC<CopilotChatContainerProps> = ({
                                   <button
                                     key={sIdx}
                                     type="button"
-                                    onClick={() => onNavigateTab(src.targetTab)}
+                                    onClick={() => onNavigateTab(src.targetTab, src.subTab, src.label)}
                                     className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-50/80 hover:bg-indigo-100 text-indigo-700 text-[11px] font-medium border border-indigo-200/60 transition cursor-pointer shadow-2xs"
                                   >
                                     <span>{src.icon}</span>

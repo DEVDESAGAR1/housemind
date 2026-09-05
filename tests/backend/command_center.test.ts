@@ -1,11 +1,11 @@
 import { apiRequest, TestRunner } from '../test-helper';
 
 export async function runCommandCenterTests(runner: TestRunner) {
-  runner.setSuite('Phase 4: Household Command Center Intelligence');
+  runner.setSuite('Command Center Operational Summary & Obligations Matrix');
 
   const token = 'test-token-cmd-center-p4';
 
-  await runner.test('GET /api/household/command-center on new account returns clean initial structure', async () => {
+  await runner.test('returns initial empty summary structure for new household account', async () => {
     const res = await apiRequest('/api/household/command-center', { token });
     if (res.status !== 200) {
       throw new Error(`Expected 200 OK, got ${res.status}: ${JSON.stringify(res.body)}`);
@@ -27,7 +27,7 @@ export async function runCommandCenterTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('GET /api/home/command-center-summary route alias operates identically', async () => {
+  await runner.test('serves identical operational summary payloads via home alias route', async () => {
     const res = await apiRequest('/api/home/command-center-summary', { token });
     if (res.status !== 200) {
       throw new Error(`Expected 200 OK, got ${res.status}: ${JSON.stringify(res.body)}`);
@@ -38,7 +38,7 @@ export async function runCommandCenterTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Seed multi-domain records to test Command Center aggregation', async () => {
+  await runner.test('seeds multi-domain properties, assets, loans, cards, and expense fixtures', async () => {
     // 1. Add Property
     await apiRequest('/api/household/properties', {
       method: 'POST',
@@ -119,7 +119,7 @@ export async function runCommandCenterTests(runner: TestRunner) {
     });
   });
 
-  await runner.test('Verify Command Center aggregates data accurately across all domains', async () => {
+  await runner.test('aggregates operational summary metrics accurately across all household domains', async () => {
     const res = await apiRequest('/api/household/command-center', { token });
     if (res.status !== 200) {
       throw new Error(`Expected 200 OK, got ${res.status}`);
@@ -153,7 +153,7 @@ export async function runCommandCenterTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Command Center maintains strict multi-tenant isolation', async () => {
+  await runner.test('preserves strict multi-tenant isolation in command center queries', async () => {
     const otherToken = 'test-token-cmd-center-other-user';
     const res = await apiRequest('/api/household/command-center', { token: otherToken });
     if (res.status !== 200) {

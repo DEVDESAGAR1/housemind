@@ -21,6 +21,7 @@ import intelligenceRouter from './server/routes/intelligence';
 import { documentsRouter, importsRouter } from './server/routes/documents';
 import { transactionsRouter } from './server/routes/transactions';
 import { scenariosRouter } from './server/routes/scenarios';
+import systemRouter from './server/routes/systemRoutes';
 
 export function buildExpressApp(): Express {
   const app = express();
@@ -72,6 +73,7 @@ export function buildExpressApp(): Express {
   app.use('/api/imports', uploadLimiter, importsRouter);
   app.use('/api/transactions', transactionsRouter);
   app.use('/api/scenarios', scenariosRouter);
+  app.use('/api/system', systemRouter);
 
   // 4. API Error Handler
   app.use('/api', errorHandler);

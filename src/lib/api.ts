@@ -1482,6 +1482,32 @@ export const api = {
     });
     return handleResponse<{ success: boolean; completedAt: string; message: string }>(res);
   },
+
+  async getAiStatus(): Promise<{
+    status: 'available' | 'unavailable' | 'not_configured';
+    model: string;
+    fallbackMode: string;
+    timestamp: string;
+  }> {
+    try {
+      const headers = await getAuthHeader();
+      const res = await fetch('/api/system/ai-status', { headers });
+      const data = await handleResponse<{
+        status: 'available' | 'unavailable' | 'not_configured';
+        model: string;
+        fallbackMode: string;
+        timestamp: string;
+      }>(res);
+      return data;
+    } catch {
+      return {
+        status: 'unavailable',
+        model: 'gemini-2.5-flash',
+        fallbackMode: 'deterministic_household_intelligence',
+        timestamp: new Date().toISOString(),
+      };
+    }
+  },
 };
 
 

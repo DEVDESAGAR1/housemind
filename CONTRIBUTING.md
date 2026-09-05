@@ -24,7 +24,7 @@ HouseMind is a full-stack household operating system and intelligence platform. 
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/your-username/housemind.git
+git clone https://github.com/DEVDESAGAR1/housemind.git
 cd housemind
 
 # 2. Install dependencies
@@ -46,10 +46,13 @@ Before submitting any pull request or pushing changes, ensure all quality gates 
 # 1. Static Type Checking (TypeScript 5.8)
 npm run lint
 
-# 2. Complete Automated Test Suite (347 tests across 38 suites)
+# 2. Complete Automated Test Suite (394 tests across 46 suites)
 npm test
 
-# 3. Production Build Compilation (Client SPA + Bundled Server)
+# 3. Playwright Browser User Journeys (25 journeys)
+npm run test:browser
+
+# 4. Production Build Compilation (Client SPA + Bundled Server)
 npm run build
 ```
 

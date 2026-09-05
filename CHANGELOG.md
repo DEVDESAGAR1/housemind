@@ -2,6 +2,22 @@
 
 All notable changes to the HouseMind platform are documented in this file. The project adheres to [Semantic Versioning](https://semver.org/).
 
+Repository: [https://github.com/DEVDESAGAR1/housemind](https://github.com/DEVDESAGAR1/housemind)
+
+---
+
+## [v2.6.0] - 2026-09-06
+
+### Added
+- **Full Browser User-Journey Certification (Phase 29B)**:
+  - 25 interactive Playwright browser user journeys certifying all 11 Guided Tours, multi-turn Copilot reasoning, state freshness after mutations, untrusted document upload, and responsive viewports (2560px down to 320px with zero horizontal overflow).
+- **Security Hardening & Adversarial Red-Team Certification (Phase 30)**:
+  - Comprehensive 7-layer test suite architecture with 394 passing automated tests across 46 suites.
+  - Multi-tenant IDOR defense across all 24 household domains.
+  - Hardened Content Security Policy (`frameAncestors` without wildcards).
+  - Bounded linear-time delimited line parser defending against ReDoS.
+  - Zero-trust untrusted OCR text intake and prompt injection immunity.
+
 ---
 
 ## [v2.5.0] - 2026-09-05
@@ -9,7 +25,7 @@ All notable changes to the HouseMind platform are documented in this file. The p
 ### Added
 - **Documentation Audit & Consolidation**:
   - Unified technical architecture and domain model into `docs/ARCHITECTURE.md`.
-  - Comprehensive quality assurance and verification documentation in `docs/TESTING.md` covering all 347 passing automated tests.
+  - Comprehensive quality assurance and verification documentation in `docs/TESTING.md` covering all 394 passing automated tests and 25 Playwright journeys.
   - Realistic end-to-end user workflows in `docs/USER-JOURNEYS.md`.
   - Structured contributing guide in `CONTRIBUTING.md`.
 - **Archival Security Log**: Preserved historical audit findings in `docs/historical/AUDIT_REPORT.md`.
@@ -23,7 +39,7 @@ All notable changes to the HouseMind platform are documented in this file. The p
 
 ---
 
-## [v2.4.0] - 2026-09-02
+## [v2.4.0] - 2026-09-04
 
 ### Added
 - **Google Cloud Secret Manager Integration**:
@@ -34,7 +50,7 @@ All notable changes to the HouseMind platform are documented in this file. The p
 
 ---
 
-## [v2.3.0] - 2026-08-31
+## [v2.3.0] - 2026-09-03
 
 ### Added
 - **Privacy-Preserving Telemetry & Observability**:
@@ -45,7 +61,7 @@ All notable changes to the HouseMind platform are documented in this file. The p
 
 ---
 
-## [v2.2.0] - 2026-08-28
+## [v2.2.0] - 2026-09-03
 
 ### Added
 - **Cross-Domain Intelligence Graph**:
@@ -57,7 +73,7 @@ All notable changes to the HouseMind platform are documented in this file. The p
 
 ---
 
-## [v2.1.0] - 2026-08-25
+## [v2.1.0] - 2026-09-02
 
 ### Added
 - **4-Part Daily Morning Briefing**:
@@ -69,7 +85,7 @@ All notable changes to the HouseMind platform are documented in this file. The p
 
 ---
 
-## [v2.0.0] - 2026-08-20
+## [v2.0.0] - 2026-09-02
 
 ### Added
 - **Household Agent Orchestrator**:
@@ -81,7 +97,7 @@ All notable changes to the HouseMind platform are documented in this file. The p
 
 ---
 
-## [v1.5.0] - 2026-08-15
+## [v1.5.0] - 2026-09-01
 
 ### Added
 - **Universal Issues & Tickets**:
@@ -92,7 +108,7 @@ All notable changes to the HouseMind platform are documented in this file. The p
 
 ---
 
-## [v1.2.0] - 2026-08-10
+## [v1.2.0] - 2026-08-31
 
 ### Added
 - **What-If Scenario Simulator**:
@@ -104,7 +120,7 @@ All notable changes to the HouseMind platform are documented in this file. The p
 
 ---
 
-## [v1.0.0] - 2026-08-01
+## [v1.0.0] - 2026-08-30
 
 ### Added
 - **Household Operating System Core Foundation**:

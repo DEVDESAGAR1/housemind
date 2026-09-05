@@ -390,7 +390,7 @@ export class NotificationService {
               sourceEntityType: 'maintenance',
               sourceId: m.id,
               targetTab: 'maintenance',
-              targetSubTab: 'tasks',
+              targetSubTab: 'maintenance',
               actionLabel: 'View Task',
               isRead: savedState?.isRead || false,
               readAt: savedState?.readAt,

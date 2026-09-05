@@ -18,9 +18,10 @@ import { CopilotChatContainer } from '../copilot/CopilotChatContainer';
 interface FloatingHelpWidgetProps {
   onNavigate: (tab: NavigationTab) => void;
   activeTab?: NavigationTab;
+  onOpenTour?: (tourId: string) => void;
 }
 
-export function FloatingHelpWidget({ onNavigate, activeTab }: FloatingHelpWidgetProps) {
+export function FloatingHelpWidget({ onNavigate, activeTab, onOpenTour }: FloatingHelpWidgetProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [activeMode, setActiveMode] = useState<'copilot' | 'help'>('copilot');
 
@@ -288,6 +289,21 @@ export function FloatingHelpWidget({ onNavigate, activeTab }: FloatingHelpWidget
               </div>
 
               <div className="flex-1 p-3 overflow-y-auto space-y-2">
+                {onOpenTour && (
+                  <div
+                    onClick={() => {
+                      setIsOpen(false);
+                      onOpenTour('overview');
+                    }}
+                    className="p-3 bg-gradient-to-r from-purple-500/10 via-indigo-500/10 to-indigo-500/5 rounded-2xl border border-purple-200 hover:border-purple-300 transition cursor-pointer flex items-center justify-between text-xs"
+                  >
+                    <div className="flex items-center gap-2 text-purple-900 font-bold">
+                      <Sparkles className="w-4 h-4 text-purple-600" />
+                      <span>Take an Interactive Guided Tour</span>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-purple-500" />
+                  </div>
+                )}
                 {filteredArticles.map((article) => (
                   <div
                     key={article.id}

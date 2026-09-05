@@ -49,6 +49,7 @@ export interface HelpArticle {
     label: string;
     targetTab?: NavigationTab;
     modalAction?: 'upload' | 'profile' | 'search' | 'notifications' | 'preferences';
+    tourId?: string;
   };
 }
 
@@ -721,6 +722,66 @@ export const HELP_ARTICLES: HelpArticle[] = [
     actionLink: {
       label: 'Open Command Center',
       targetTab: 'dashboard',
+    },
+  },
+
+  // 16. AI Architecture & Transparency
+  {
+    id: 'how-housemind-ai-works',
+    category: 'copilot',
+    title: 'How does HouseMind AI work?',
+    shortDescription: 'Transparent explanation of server-side Gemini processing, deterministic guardrails, and privacy boundaries.',
+    readTime: '3 min read',
+    iconName: 'Sparkles',
+    keywords: ['gemini', 'ai', 'copilot', 'model', 'deterministic', 'privacy', 'training', 'fallback', 'llm'],
+    contentSections: [
+      {
+        heading: 'Grounded Intelligence with Authoritative Facts',
+        body: 'HouseMind combines structured household records with Google Gemini server-side processing. Core financial sums, health scores, and due dates are calculated using deterministic mathematical engines to guarantee 100% precision.',
+        points: [
+          'Calculations (health score, days until due, burn rate) are deterministic and never hallucinated.',
+          'Gemini provides natural language summarization, OCR entity extraction, and conversational synthesis.',
+          'Every AI recommendation clearly displays its grounded source records.',
+        ],
+      },
+      {
+        heading: 'Zero Foundation Model Training',
+        body: 'Your household data, financial amounts, and scanned documents are never stored or used to train public foundation models.',
+      },
+      {
+        heading: 'Graceful Offline & Fallback Operation',
+        body: 'If Gemini AI is temporarily unavailable or unconfigured, HouseMind automatically activates local deterministic fallback engines, ensuring your household records and calculations remain fully operational.',
+      },
+    ],
+    actionLink: {
+      label: 'Open Copilot Assistant',
+      targetTab: 'copilot',
+    },
+  },
+
+  // 17. Interactive Guided Tours
+  {
+    id: 'guided-tours-overview',
+    category: 'getting-started',
+    title: 'Interactive Guided Tours',
+    shortDescription: 'Step-by-step visual walkthroughs explaining every section and intelligence flow in HouseMind.',
+    readTime: '2 min read',
+    iconName: 'Sparkles',
+    keywords: ['tour', 'walkthrough', 'guide', 'interactive', 'tutorial', 'steps', 'onboarding'],
+    contentSections: [
+      {
+        heading: 'On-Demand Visual Guidance',
+        body: 'Launch interactive walkthroughs at any time from the Help Center or footer. Each tour features a spotlight overlay highlighting real UI elements with Next, Prev, and Skip controls.',
+      },
+      {
+        heading: 'Available Walkthroughs',
+        body: 'Explore complete tours for Command Center, Household Health, Upload & Scan, Assets & Issues, Finances, Calendar & Notifications, Unified Actions, and Copilot.',
+      },
+    ],
+    actionLink: {
+      label: 'Start Complete Overview Tour',
+      targetTab: 'dashboard',
+      tourId: 'overview',
     },
   },
 ];

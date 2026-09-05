@@ -47,6 +47,10 @@ import { MorningBriefModal } from './components/MorningBriefModal';
 import { LandingPage } from './components/LandingPage';
 import { HelpCenterView } from './components/help/HelpCenterView';
 import { FloatingHelpWidget } from './components/help/FloatingHelpWidget';
+import { GuidedTourModal } from './components/tours/GuidedTourModal';
+import { HOUSEMIND_TOURS, GuidedTour } from './components/tours/tourDefinitions';
+import { LegalPoliciesModal, PolicyTab } from './components/legal/LegalPoliciesModal';
+import { Footer } from './components/Footer';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ToastContainer, ToastMessage } from './components/Toast';
 import { initializeAnalytics, trackEvent, trackPageView } from './lib/analytics';
@@ -125,8 +129,31 @@ export default function App() {
   const [maintenanceSubTab, setMaintenanceSubTab] = useState<'maintenance' | 'warranties' | 'issues'>('maintenance');
   const [utilitiesSubTab, setUtilitiesSubTab] = useState<'utilities' | 'loans' | 'cards'>('utilities');
   const [autoOpenTarget, setAutoOpenTarget] = useState<'property' | 'asset' | 'maintenance' | 'warranty' | 'issue' | 'utility' | 'loan' | 'card' | 'expense' | null>(null);
+  const [targetedEntityId, setTargetedEntityId] = useState<string | null>(null);
 
-  const handleNavigateSubTab = (tab: NavigationTab, subTab?: string) => {
+  // Phase 3: Guided Tours & Legal Policies Modals
+  const [activeTour, setActiveTour] = useState<GuidedTour | null>(null);
+  const [isLegalModalOpen, setIsLegalModalOpen] = useState(false);
+  const [legalModalTab, setLegalModalTab] = useState<PolicyTab>('privacy');
+
+  const handleStartTour = (tourId: string = 'overview') => {
+    const tour = HOUSEMIND_TOURS[tourId] || HOUSEMIND_TOURS['overview'];
+    setActiveTour(tour);
+    trackEvent('guided_tour_started', { category: tour.id });
+  };
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      (window as any).__HOUSEMIND_START_TOUR__ = handleStartTour;
+    }
+  }, []);
+
+  const handleOpenPolicy = (tab: PolicyTab = 'privacy') => {
+    setLegalModalTab(tab);
+    setIsLegalModalOpen(true);
+  };
+
+  const handleNavigateSubTab = (tab: NavigationTab, subTab?: string, entityId?: string) => {
     if (tab === 'maintenance') {
       if (subTab === 'warranties') {
         setMaintenanceSubTab('warranties');
@@ -144,6 +171,7 @@ export default function App() {
         setUtilitiesSubTab('utilities');
       }
     }
+    setTargetedEntityId(entityId || null);
     setActiveTab(tab);
   };
 
@@ -326,9 +354,7 @@ export default function App() {
   const handleOpenMorningBrief = async () => {
     trackEvent('morning_brief_viewed');
     setIsMorningBriefOpen(true);
-    if (!morningBrief) {
-      await loadMorningBrief();
-    }
+    await loadMorningBrief();
   };
 
   const handleDismissMorningBriefToday = async () => {
@@ -732,7 +758,7 @@ export default function App() {
               assets={assets}
               insights={insights}
               isLoadingInsights={isLoadingInsights}
-              onNavigate={(tab) => setActiveTab(tab as NavigationTab)}
+              onNavigate={(tab, subTab, entityId) => handleNavigateSubTab(tab as NavigationTab, subTab, entityId)}
               onOpenAddExpense={() => setActiveTab('expenses')}
               onOpenAddAsset={() => setActiveTab('assets')}
               onOpenProfile={() => setIsProfileModalOpen(true)}
@@ -771,7 +797,7 @@ export default function App() {
           {activeTab === 'calendar' && (
             <CalendarView
               onNavigateTab={(tab, subTab, entityId) => {
-                setActiveTab(tab as NavigationTab);
+                handleNavigateSubTab(tab as NavigationTab, subTab, entityId);
               }}
               onOpenNotifications={() => setIsNotificationsOpen(true)}
               onOpenNotificationPreferences={() => setIsNotificationPreferencesOpen(true)}
@@ -803,6 +829,8 @@ export default function App() {
               onDeleteAsset={handleDeleteAsset}
               autoOpenAdd={autoOpenTarget === 'asset'}
               onAddModalOpened={() => setAutoOpenTarget(null)}
+              targetedEntityId={targetedEntityId}
+              onClearTargetedEntity={() => setTargetedEntityId(null)}
             />
           )}
 
@@ -822,6 +850,8 @@ export default function App() {
               onSubTabChange={(sub) => setMaintenanceSubTab(sub)}
               autoOpenAdd={autoOpenTarget === 'maintenance' || autoOpenTarget === 'warranty' || autoOpenTarget === 'issue'}
               onAddModalOpened={() => setAutoOpenTarget(null)}
+              targetedEntityId={targetedEntityId}
+              onClearTargetedEntity={() => setTargetedEntityId(null)}
             />
           )}
 
@@ -843,6 +873,8 @@ export default function App() {
                 autoOpenTarget === 'card' ? 'card' : null
               }
               onAddModalOpened={() => setAutoOpenTarget(null)}
+              targetedEntityId={targetedEntityId}
+              onClearTargetedEntity={() => setTargetedEntityId(null)}
             />
           )}
 
@@ -867,6 +899,8 @@ export default function App() {
               onDeleteExpense={handleDeleteExpense}
               autoOpenAdd={autoOpenTarget === 'expense'}
               onAddModalOpened={() => setAutoOpenTarget(null)}
+              targetedExpenseId={targetedEntityId}
+              onClearTargetedExpense={() => setTargetedEntityId(null)}
             />
           )}
 
@@ -877,6 +911,8 @@ export default function App() {
               onShowToast={(msg, type) =>
                 addToast(type || 'info', type === 'error' ? 'Document Alert' : 'Document Processed', msg)
               }
+              targetedDocId={targetedEntityId}
+              onClearTargetedDoc={() => setTargetedEntityId(null)}
             />
           )}
 
@@ -892,9 +928,9 @@ export default function App() {
               profile={profile}
               expenses={expenses}
               assets={assets}
-              onNavigateTab={(tab) => {
+              onNavigateTab={(tab, subTab, entityId) => {
                 setCopilotContext(undefined);
-                setActiveTab(tab as NavigationTab);
+                handleNavigateSubTab(tab as NavigationTab, subTab, entityId);
               }}
               initialPrompt={copilotContext?.initialPrompt}
               initialDomain={copilotContext?.initialDomain}
@@ -909,10 +945,37 @@ export default function App() {
               onOpenSearch={() => setIsSearchOpen(true)}
               onOpenNotifications={() => setIsNotificationsOpen(true)}
               onOpenNotificationPreferences={() => setIsNotificationPreferencesOpen(true)}
+              onOpenTour={handleStartTour}
             />
           )}
         </ErrorBoundary>
       </main>
+
+      {/* Professional Product Footer */}
+      <Footer
+        isAuthenticated={true}
+        onNavigateTab={(tab) => setActiveTab(tab)}
+        onOpenTour={handleStartTour}
+        onOpenHelpCenter={() => setActiveTab('help')}
+        onOpenPolicy={handleOpenPolicy}
+        onOpenProfile={() => setIsProfileModalOpen(true)}
+        onSignOut={handleSignOut}
+      />
+
+      {/* Phase 3: Interactive Guided Tour Modal Overlay */}
+      <GuidedTourModal
+        tour={activeTour}
+        onClose={() => setActiveTour(null)}
+        onNavigateTab={handleNavigateSubTab}
+      />
+
+      {/* Phase 3: Trust, Privacy & Legal Policies Modal */}
+      <LegalPoliciesModal
+        isOpen={isLegalModalOpen}
+        onClose={() => setIsLegalModalOpen(false)}
+        initialTab={legalModalTab}
+        onOpenProfilePrivacy={() => setIsProfileModalOpen(true)}
+      />
 
       {/* Phase 2: Global Upload & AI Document Intake Modal */}
       {isGlobalUploadOpen && (
@@ -986,7 +1049,7 @@ export default function App() {
         onClose={() => setIsSearchOpen(false)}
         onNavigate={(tab, targetId, targetSubTab) => {
           setIsSearchOpen(false);
-          setActiveTab(tab);
+          handleNavigateSubTab(tab as NavigationTab, targetSubTab, targetId);
         }}
       />
 
@@ -1008,7 +1071,7 @@ export default function App() {
         }}
         onNavigateToSource={(tab, subTab, sourceId) => {
           setIsNotificationsOpen(false);
-          handleNavigateSubTab(tab as NavigationTab, subTab);
+          handleNavigateSubTab(tab as NavigationTab, subTab, sourceId);
         }}
       />
 
@@ -1028,8 +1091,10 @@ export default function App() {
         onClose={() => setIsMorningBriefOpen(false)}
         brief={morningBrief}
         isLoading={isLoadingMorningBrief}
+        onRefresh={loadMorningBrief}
         onNavigateTab={(tab, subTab, entityId) => {
-          handleNavigateSubTab(tab as NavigationTab, subTab);
+          setIsMorningBriefOpen(false);
+          handleNavigateSubTab(tab as NavigationTab, subTab, entityId);
         }}
         onAskCopilot={(prompt, initialDomain) => {
           setCopilotContext({ initialPrompt: prompt, initialDomain });
@@ -1045,6 +1110,7 @@ export default function App() {
           setActiveTab(tab);
         }}
         activeTab={activeTab}
+        onOpenTour={handleStartTour}
       />
 
       {/* Toast Notifications */}

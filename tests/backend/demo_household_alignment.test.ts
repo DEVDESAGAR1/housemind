@@ -3,7 +3,7 @@ import { DatabaseService } from '../../server/services/dbService';
 import { IssueIntelligenceService } from '../../server/services/issueIntelligenceService';
 
 export async function runDemoHouseholdAlignmentTests(runner: TestRunner): Promise<void> {
-  runner.setSuite('Phase 24.7: Existing Demo Household Intelligence Alignment & Indian Localization');
+  runner.setSuite('Localized Household Intelligence & Seed Data Integrity');
 
   const userId = 'demo-alignment-tester-user';
   const token = `test-token-${userId}`;
@@ -14,7 +14,7 @@ export async function runDemoHouseholdAlignmentTests(runner: TestRunner): Promis
   // =========================================================================
   // 1. Idempotent Demo Seeding & Privacy Cleanup
   // =========================================================================
-  await runner.test('Demo Seeding: Populates localized Indian household idempotently across all domains', async () => {
+  await runner.test('populates localized Indian household idempotently across all domains', async () => {
     // Clean before test
     await DatabaseService.clearDemoData(userId);
 
@@ -54,7 +54,7 @@ export async function runDemoHouseholdAlignmentTests(runner: TestRunner): Promis
   // =========================================================================
   // 2. Relationship Graph Integrity (GET /api/household/graph)
   // =========================================================================
-  await runner.test('Graph Integrity: Constructs coherent multi-domain relationship graph without orphan links', async () => {
+  await runner.test('constructs coherent multi-domain relationship graph without orphan links', async () => {
     const res = await apiRequest('/api/household/graph', {
       method: 'GET',
       token,
@@ -95,7 +95,7 @@ export async function runDemoHouseholdAlignmentTests(runner: TestRunner): Promis
   // =========================================================================
   // 3. Scenario A: Repair vs. Replace Compound Decision
   // =========================================================================
-  await runner.test('Scenario A (Repair vs Replace): Synthesizes compound recommendation for Daikin AC', async () => {
+  await runner.test('synthesizes compound recommendation for Daikin AC in repair vs replace scenario', async () => {
     const res = await apiRequest('/api/household/unified-actions', {
       method: 'GET',
       token,
@@ -135,7 +135,7 @@ export async function runDemoHouseholdAlignmentTests(runner: TestRunner): Promis
   // =========================================================================
   // 4. Scenario B: Approaching Warranty Expiration
   // =========================================================================
-  await runner.test('Scenario B (Warranty Expiry): Identifies approaching warranty expiration on Daikin AC', async () => {
+  await runner.test('identifies approaching warranty expiration on Daikin AC', async () => {
     const res = await apiRequest('/api/household/warranties', {
       method: 'GET',
       token,
@@ -158,7 +158,7 @@ export async function runDemoHouseholdAlignmentTests(runner: TestRunner): Promis
   // =========================================================================
   // 5. Scenario C: Recurring Failure Intelligence
   // =========================================================================
-  await runner.test('Scenario C (Recurrence): Issue Intelligence detects recurring failure pattern on Daikin AC', async () => {
+  await runner.test('detects recurring failure pattern on Daikin AC in issue intelligence', async () => {
     const report = await IssueIntelligenceService.analyzeIssue(userId, 'demo_issue_ac_compressor');
 
     if (!report.recurringSignal) {
@@ -184,7 +184,7 @@ export async function runDemoHouseholdAlignmentTests(runner: TestRunner): Promis
   // =========================================================================
   // 6. Scenario D: Overdue Maintenance Risk
   // =========================================================================
-  await runner.test('Scenario D (Maintenance Risk): Surfaces overdue filter replacement for Kent RO Purifier', async () => {
+  await runner.test('surfaces overdue filter replacement for Kent RO Purifier', async () => {
     const res = await apiRequest('/api/household/maintenances', {
       method: 'GET',
       token,
@@ -207,7 +207,7 @@ export async function runDemoHouseholdAlignmentTests(runner: TestRunner): Promis
   // =========================================================================
   // 7. Scenario E: Financial Ledger Mathematical Integrity in ₹ INR
   // =========================================================================
-  await runner.test('Scenario E (Financial Integrity): Verifies mathematical consistency of Indian financial transactions', async () => {
+  await runner.test('verifies mathematical consistency of Indian financial transactions in INR', async () => {
     const summaryRes = await apiRequest('/api/transactions/summary?currency=INR', {
       method: 'GET',
       token,
@@ -238,7 +238,7 @@ export async function runDemoHouseholdAlignmentTests(runner: TestRunner): Promis
   // =========================================================================
   // 8. Scenario F: Document-to-Asset Relationship Linkage
   // =========================================================================
-  await runner.test('Scenario F (Document Linkage): Connects AC Tax Invoice to Daikin Split AC in document metadata', async () => {
+  await runner.test('connects AC Tax Invoice to Daikin Split AC in document metadata', async () => {
     const res = await apiRequest('/api/documents', {
       method: 'GET',
       token,
@@ -261,7 +261,7 @@ export async function runDemoHouseholdAlignmentTests(runner: TestRunner): Promis
   // =========================================================================
   // 9. Single Household Copilot Grounded Intelligence Q&A
   // =========================================================================
-  await runner.test('Copilot Intelligence: Answers grounded household questions without hallucinating data', async () => {
+  await runner.test('answers grounded household questions without hallucinating unrecorded entities', async () => {
     const res = await apiRequest('/api/copilot/chat', {
       method: 'POST',
       token,
@@ -289,7 +289,7 @@ export async function runDemoHouseholdAlignmentTests(runner: TestRunner): Promis
   // =========================================================================
   // 10. Multi-Tenant Isolation & Privacy Security
   // =========================================================================
-  await runner.test('Security & Tenant Isolation: User 2 cannot access or mutate User 1 demo data', async () => {
+  await runner.test('prevents cross-tenant access to demo data and relationship graph', async () => {
     const res = await apiRequest('/api/household/graph', {
       method: 'GET',
       token: token2,

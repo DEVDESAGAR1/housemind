@@ -342,7 +342,7 @@ export class CalendarService {
         sourceEntityType: 'maintenance',
         sourceId: m.id,
         targetTab: 'maintenance',
-        targetSubTab: 'tasks',
+        targetSubTab: 'maintenance',
         isCompleted,
         isPaid: isCompleted,
         daysDiff,

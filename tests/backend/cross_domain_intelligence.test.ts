@@ -3,7 +3,7 @@ import { CrossDomainIntelligenceService } from '../../server/services/crossDomai
 import { ToolExecutor } from '../../server/services/agent/toolExecutor';
 
 export async function runCrossDomainIntelligenceTests(runner: TestRunner) {
-  runner.setSuite('Phase 24.4: Universal Cross-Domain Household Intelligence');
+  runner.setSuite('Universal Cross-Domain Household Intelligence Synthesis');
 
   const token1 = 'test-token-cross-domain-user1';
   const token2 = 'test-token-cross-domain-user2';
@@ -19,7 +19,7 @@ export async function runCrossDomainIntelligenceTests(runner: TestRunner) {
   let document1Id = '';
 
   // 1. Setup: Create Full Household Domain Records for User 1
-  await runner.test('Setup: Create property, room, asset, warranty, maintenance, and issues for user 1', async () => {
+  await runner.test('creates property, room, asset, warranty, maintenance, and issues for user 1', async () => {
     // Property
     const propRes = await apiRequest('/api/household/properties', {
       method: 'POST',
@@ -210,7 +210,7 @@ export async function runCrossDomainIntelligenceTests(runner: TestRunner) {
   });
 
   // 2. Household Relationship Graph Engine
-  await runner.test('Relationship Graph Engine: Builds multi-domain nodes and relational edges', async () => {
+  await runner.test('builds multi-domain nodes and relational edges in household graph engine', async () => {
     const res = await apiRequest('/api/household/graph', {
       method: 'GET',
       token: token1,
@@ -253,7 +253,7 @@ export async function runCrossDomainIntelligenceTests(runner: TestRunner) {
   });
 
   // 3. Cross-Domain Intelligence Engine: All Insights Generation
-  await runner.test('Cross-Domain Intelligence: Derives correlated multi-domain insights', async () => {
+  await runner.test('derives correlated multi-domain insights across household pillars', async () => {
     const res = await apiRequest('/api/household/cross-domain-insights', {
       method: 'GET',
       token: token1,
@@ -309,7 +309,7 @@ export async function runCrossDomainIntelligenceTests(runner: TestRunner) {
   });
 
   // 4. Priority Sorting & Hierarchy
-  await runner.test('Cross-Domain Intelligence: Respects deterministic priority hierarchy', async () => {
+  await runner.test('respects deterministic priority hierarchy in cross-domain insights', async () => {
     const res = await apiRequest('/api/household/cross-domain-insights', {
       method: 'GET',
       token: token1,
@@ -338,7 +338,7 @@ export async function runCrossDomainIntelligenceTests(runner: TestRunner) {
   });
 
   // 5. Insight Dismissal (Preserves source entities)
-  await runner.test('Insight Dismissal: Dismissing an insight removes it from view without deleting source entities', async () => {
+  await runner.test('dismisses insight from view without mutating or deleting underlying source entities', async () => {
     const listRes1 = await apiRequest('/api/household/cross-domain-insights', {
       method: 'GET',
       token: token1,
@@ -382,7 +382,7 @@ export async function runCrossDomainIntelligenceTests(runner: TestRunner) {
   });
 
   // 6. Operational Timeline Engine
-  await runner.test('Operational Timeline Engine: Returns sorted chronological stream across domains', async () => {
+  await runner.test('returns sorted chronological stream across domains in operational timeline', async () => {
     const res = await apiRequest('/api/household/timeline', {
       method: 'GET',
       token: token1,
@@ -419,7 +419,7 @@ export async function runCrossDomainIntelligenceTests(runner: TestRunner) {
   });
 
   // 7. Operational Timeline Domain Filtering
-  await runner.test('Operational Timeline Filtering: Correctly filters events by domain', async () => {
+  await runner.test('filters timeline events accurately by domain parameter', async () => {
     const res = await apiRequest('/api/household/timeline?domain=issues', {
       method: 'GET',
       token: token1,
@@ -438,7 +438,7 @@ export async function runCrossDomainIntelligenceTests(runner: TestRunner) {
   });
 
   // 8. Agent Tools Execution: getCrossDomainInsights & getHouseholdTimeline
-  await runner.test('Agent Tools: getCrossDomainInsights and getHouseholdTimeline execute safely via ToolExecutor', async () => {
+  await runner.test('executes getCrossDomainInsights and getHouseholdTimeline safe tools via ToolExecutor', async () => {
     const userId1 = 'cross-domain-user1';
 
     // Tool 1: getCrossDomainInsights
@@ -468,7 +468,7 @@ export async function runCrossDomainIntelligenceTests(runner: TestRunner) {
   });
 
   // 9. Strict Multi-Tenant Isolation
-  await runner.test('Security & Tenant Isolation: User 2 cannot access User 1 cross-domain insights or timeline', async () => {
+  await runner.test('prevents cross-tenant access to cross-domain insights, timeline, and graph', async () => {
     // User 2 query for insights
     const resInsights = await apiRequest('/api/household/cross-domain-insights', {
       method: 'GET',
@@ -503,7 +503,7 @@ export async function runCrossDomainIntelligenceTests(runner: TestRunner) {
   });
 
   // 10. AI Prompt Injection & Untrusted Data Resilience
-  await runner.test('Resilience: Malicious prompt injection in issue description does not corrupt insight generator', async () => {
+  await runner.test('resists prompt injection in issue descriptions without corrupting insight generation', async () => {
     // Create issue with adversarial prompt injection
     const injRes = await apiRequest('/api/household/issues', {
       method: 'POST',

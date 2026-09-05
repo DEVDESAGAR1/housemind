@@ -14,6 +14,7 @@ import {
   AlertCircle,
   HelpCircle,
   RefreshCw,
+  Info,
 } from 'lucide-react';
 import {
   HouseholdHealthReport,
@@ -21,13 +22,14 @@ import {
   HouseholdHealthSignal,
 } from '../types';
 import { ContextualHelp } from './help/ContextualHelp';
+import { WhyAmISeeingThisModal, WhyEvidencePayload } from './WhyAmISeeingThisModal';
 
 interface HouseholdHealthWidgetProps {
   healthReport: HouseholdHealthReport | null;
   isLoading: boolean;
   onRefresh: () => Promise<void>;
   onOpenDetailModal: () => void;
-  onNavigate: (tab: any) => void;
+  onNavigate: (tab: any, subTab?: string, entityId?: string) => void;
 }
 
 export function HouseholdHealthWidget({
@@ -38,6 +40,7 @@ export function HouseholdHealthWidget({
   onNavigate,
 }: HouseholdHealthWidgetProps) {
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [activeWhyEvidence, setActiveWhyEvidence] = useState<WhyEvidencePayload | null>(null);
 
   const handleRefresh = async () => {
     try {
@@ -136,6 +139,44 @@ export function HouseholdHealthWidget({
   const criticalSignals = healthReport.topSignals.filter((s) => s.status === 'critical');
   const warningSignals = healthReport.topSignals.filter((s) => s.status === 'warning');
 
+  const handleOpenWhyScore = () => {
+    const cats = healthReport.categories;
+    setActiveWhyEvidence({
+      title: `Household Health Score: ${score}/100`,
+      category: 'System Health Index',
+      badge: {
+        label: isProvisionalEmpty ? 'Unrated' : healthReport.statusLabel,
+        variant: score >= 80 ? 'success' : score >= 60 ? 'warning' : 'critical',
+      },
+      whatDetected: isProvisionalEmpty
+        ? 'Your household is in setup mode with partial data completeness.'
+        : `Evaluated across 4 pillars: Home (${cats.home?.score ?? 0}/100), Assets (${cats.assets?.score ?? 0}/100), Finances (${cats.finances?.score ?? 0}/100), Documents (${cats.documents?.score ?? 0}/100).`,
+      detectedSignals: [
+        `Home & Spaces Pillar: ${cats.home?.score ?? 0}/100 (${cats.home?.summary || 'N/A'})`,
+        `Assets & Equipment: ${cats.assets?.score ?? 0}/100 (${cats.assets?.summary || 'N/A'})`,
+        `Financial Health: ${cats.finances?.score ?? 0}/100 (${cats.finances?.summary || 'N/A'})`,
+        `Documents & Records: ${cats.documents?.score ?? 0}/100 (${cats.documents?.summary || 'N/A'})`,
+        `Data Completeness Index: ${completeness}%`,
+      ],
+      severityOrPriority: criticalSignals.length > 0 ? 'Critical' : 'Normal',
+      whyItMatters:
+        'Your Household Health Score is a deterministic index reflecting total operational stability, proactive warranty protection, debt ratios, and preventive maintenance compliance.',
+      whatToDoNext:
+        healthReport.recommendations[0]?.description ||
+        'Resolve overdue maintenance and register missing warranties to increase your score.',
+      sources: [
+        { title: 'Assets & Equipment', domain: 'assets', route: 'assets' },
+        { title: 'Maintenance & Warranties', domain: 'maintenance', route: 'maintenance' },
+        { title: 'Household Finances', domain: 'expenses', route: 'expenses' },
+        { title: 'Documents & OCR', domain: 'documents', route: 'documents' },
+      ],
+      primaryAction: {
+        label: 'Open Full Health Deep-Dive',
+        onExecute: onOpenDetailModal,
+      },
+    });
+  };
+
   return (
     <div
       id="household-health-intelligence-widget"
@@ -145,22 +186,12 @@ export function HouseholdHealthWidget({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-5">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-xs">
-              <Activity className="w-4 h-4" />
+            <div className="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-xs">
+              T3
             </div>
-            <h2 className="text-lg font-bold text-slate-900 tracking-tight">Household Health Intelligence</h2>
-            <ContextualHelp
-              id="help-health-score"
-              title="Household Health Score (0–100)"
-              summary="A deterministic composite evaluated across 4 equal pillars (Home & Spaces, Assets, Financials, Documents)."
-              bullets={[
-                'Scored from 0 to 100 with zero random AI fluctuations.',
-                'Rewards active warranties, routine upkeep, and low debt ratios.',
-                'Deducts for overdue maintenance and expiring equipment.',
-              ]}
-              tip="Upload receipts or register rooms to increase your Completeness Index."
-              onNavigateToHelp={() => onNavigate('help')}
-            />
+            <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-200/60">
+              Household Overview
+            </span>
             <span
               className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${
                 isProvisionalEmpty ? 'bg-indigo-100 text-indigo-800' : theme.badge
@@ -174,14 +205,27 @@ export function HouseholdHealthWidget({
               </span>
             )}
           </div>
+          <h2 className="text-lg font-bold text-slate-900 tracking-tight">Household Health Intelligence</h2>
           <p className="text-xs text-slate-500">
             Deterministic multi-domain composite tracking property readiness, asset integrity, finances, and compliance.
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5 self-start sm:self-auto">
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          {/* Why this score button */}
+          <button
+            type="button"
+            onClick={handleOpenWhyScore}
+            className="inline-flex items-center gap-1 px-3 py-2 text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-xs font-semibold transition cursor-pointer"
+            title="Why is my score calculated this way?"
+          >
+            <HelpCircle className="w-3.5 h-3.5 text-indigo-600" />
+            <span>Why this score?</span>
+          </button>
+
           <button
             id="btn-health-refresh"
+            type="button"
             onClick={handleRefresh}
             disabled={isRefreshing || isLoading}
             className="p-2 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 border border-slate-200 rounded-xl transition cursor-pointer"
@@ -192,6 +236,7 @@ export function HouseholdHealthWidget({
 
           <button
             id="btn-open-health-detail"
+            type="button"
             onClick={onOpenDetailModal}
             className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-indigo-600 text-white text-xs font-semibold transition cursor-pointer shadow-xs"
           >
@@ -470,6 +515,7 @@ export function HouseholdHealthWidget({
               <span>Prioritized Improvement Levers</span>
             </span>
             <button
+              type="button"
               onClick={onOpenDetailModal}
               className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 transition cursor-pointer"
             >
@@ -504,6 +550,7 @@ export function HouseholdHealthWidget({
 
                 {rec.actionTab && (
                   <button
+                    type="button"
                     onClick={() => onNavigate(rec.actionTab)}
                     className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-600 hover:text-indigo-800 transition cursor-pointer self-start mt-1"
                   >
@@ -516,6 +563,14 @@ export function HouseholdHealthWidget({
           </div>
         </div>
       )}
+
+      {/* Grounded Why Am I Seeing This Modal */}
+      <WhyAmISeeingThisModal
+        isOpen={!!activeWhyEvidence}
+        onClose={() => setActiveWhyEvidence(null)}
+        evidence={activeWhyEvidence}
+        onNavigate={onNavigate}
+      />
     </div>
   );
 }

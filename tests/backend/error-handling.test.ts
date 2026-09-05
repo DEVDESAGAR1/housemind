@@ -1,11 +1,11 @@
 import { apiRequest, TestRunner } from '../test-helper';
 
 export async function runErrorHandlingTests(runner: TestRunner) {
-  runner.setSuite('Error Recovery & Graceful Degradation');
+  runner.setSuite('Error Recovery, Fail-Safe Fallbacks & Graceful Degradation');
 
   const token = 'test-token-err-user';
 
-  await runner.test('Return 404 for non-existent expense ID with standard error envelope', async () => {
+  await runner.test('returns 404 standard error envelope for non-existent expense ID', async () => {
     const res = await apiRequest('/api/household/expenses/non-existent-exp-id-12345', {
       method: 'PUT',
       token,
@@ -20,7 +20,7 @@ export async function runErrorHandlingTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Return 404 for non-existent transaction ID', async () => {
+  await runner.test('returns 404 standard error envelope for non-existent transaction ID', async () => {
     const res = await apiRequest('/api/transactions/non-existent-tx-99999', {
       token,
     });
@@ -33,7 +33,7 @@ export async function runErrorHandlingTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Return 400 for unsupported file upload type', async () => {
+  await runner.test('rejects unsupported executable file uploads without server crashes', async () => {
     const blob = new Blob(['binary executable content'], { type: 'application/x-msdownload' });
     const formData = new FormData();
     formData.append('file', blob, 'malicious.exe');
@@ -52,7 +52,7 @@ export async function runErrorHandlingTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Return 400 for empty or blank chat message payload', async () => {
+  await runner.test('rejects whitespace-only chat message payloads with 400 VALIDATION_ERROR', async () => {
     const res = await apiRequest('/api/copilot/chat', {
       method: 'POST',
       token,

@@ -46,6 +46,8 @@ interface HouseholdIssuesTabProps {
   addToast: (type: 'success' | 'error' | 'info', title: string, message?: string) => void;
   filterAssetId?: string;
   onClearAssetFilter?: () => void;
+  initialIssueId?: string | null;
+  onClearInitialIssue?: () => void;
 }
 
 export function HouseholdIssuesTab({
@@ -59,6 +61,8 @@ export function HouseholdIssuesTab({
   addToast,
   filterAssetId,
   onClearAssetFilter,
+  initialIssueId,
+  onClearInitialIssue,
 }: HouseholdIssuesTabProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'open' | 'critical' | 'scheduled' | 'resolved'>('open');
@@ -81,6 +85,20 @@ export function HouseholdIssuesTab({
       setSelectedAssetFilter(filterAssetId);
     }
   }, [filterAssetId]);
+
+  // Auto-open requested issue if deep linked
+  React.useEffect(() => {
+    if (initialIssueId && issues.length > 0) {
+      const match = issues.find((i) => i.id === initialIssueId);
+      if (match) {
+        setDetailIssue(match);
+        setIsDetailModalOpen(true);
+      } else {
+        addToast('info', 'Issue Record', 'The requested issue ticket could not be found.');
+      }
+      onClearInitialIssue?.();
+    }
+  }, [initialIssueId, issues]);
 
   // Metrics
   const openIssues = useMemo(

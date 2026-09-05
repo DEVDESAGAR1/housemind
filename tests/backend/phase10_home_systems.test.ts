@@ -1,7 +1,7 @@
 import { apiRequest, TestRunner } from '../test-helper';
 
 export async function runPhase10HomeSystemsTests(runner: TestRunner) {
-  runner.setSuite('Phase 10: Run the Home Systems & AI Extraction');
+  runner.setSuite('Multi-Entity Ingestion & Intelligent Entity Extraction');
 
   const token1 = 'test-token-phase10-user1';
   const token2 = 'test-token-phase10-user2';
@@ -15,7 +15,7 @@ export async function runPhase10HomeSystemsTests(runner: TestRunner) {
   let card1Id = '';
 
   // 1. Property Management
-  await runner.test('Create a property record with specifications', async () => {
+  await runner.test('creates property record with specifications and notes', async () => {
     const res = await apiRequest('/api/properties', {
       method: 'POST',
       token: token1,
@@ -38,7 +38,7 @@ export async function runPhase10HomeSystemsTests(runner: TestRunner) {
     prop1Id = res.body.property.id;
   });
 
-  await runner.test('List user properties preserves multi-tenant isolation', async () => {
+  await runner.test('preserves multi-tenant isolation when listing property records', async () => {
     const res1 = await apiRequest('/api/properties', { token: token1 });
     if (res1.status !== 200 || res1.body?.properties?.length !== 1) {
       throw new Error(`Expected 1 property for user 1, got ${res1.body?.properties?.length}`);
@@ -51,7 +51,7 @@ export async function runPhase10HomeSystemsTests(runner: TestRunner) {
   });
 
   // 2. Room Layout Management
-  await runner.test('Create a room linked to a property', async () => {
+  await runner.test('creates room record linked to designated property', async () => {
     const res = await apiRequest('/api/rooms', {
       method: 'POST',
       token: token1,
@@ -73,7 +73,7 @@ export async function runPhase10HomeSystemsTests(runner: TestRunner) {
     room1Id = res.body.room.id;
   });
 
-  await runner.test('List rooms filtered by property ID', async () => {
+  await runner.test('filters room records accurately by property ID', async () => {
     const res = await apiRequest(`/api/rooms?propertyId=${prop1Id}`, { token: token1 });
     if (res.status !== 200 || res.body?.rooms?.length !== 1) {
       throw new Error(`Expected 1 room for property, got ${res.body?.rooms?.length}`);
@@ -81,7 +81,7 @@ export async function runPhase10HomeSystemsTests(runner: TestRunner) {
   });
 
   // 3. Warranties Management
-  await runner.test('Create warranty policy record with coverage dates', async () => {
+  await runner.test('creates warranty policy record with coverage dates and provider metadata', async () => {
     const res = await apiRequest('/api/warranties', {
       method: 'POST',
       token: token1,
@@ -107,7 +107,7 @@ export async function runPhase10HomeSystemsTests(runner: TestRunner) {
   });
 
   // 4. Maintenance Tasks Management
-  await runner.test('Create and track scheduled maintenance task', async () => {
+  await runner.test('creates and tracks scheduled recurring maintenance tasks', async () => {
     const res = await apiRequest('/api/maintenance-tasks', {
       method: 'POST',
       token: token1,
@@ -132,7 +132,7 @@ export async function runPhase10HomeSystemsTests(runner: TestRunner) {
     task1Id = res.body.task.id;
   });
 
-  await runner.test('Update maintenance task completion status', async () => {
+  await runner.test('updates maintenance task completion status and actual costs', async () => {
     const res = await apiRequest(`/api/maintenance-tasks/${task1Id}`, {
       method: 'PUT',
       token: token1,
@@ -149,7 +149,7 @@ export async function runPhase10HomeSystemsTests(runner: TestRunner) {
   });
 
   // 5. Utility Accounts Management
-  await runner.test('Create and configure utility account', async () => {
+  await runner.test('creates and configures utility accounts with autopay metadata', async () => {
     const res = await apiRequest('/api/utilities', {
       method: 'POST',
       token: token1,
@@ -177,7 +177,7 @@ export async function runPhase10HomeSystemsTests(runner: TestRunner) {
   });
 
   // 6. Household Loans / Mortgages
-  await runner.test('Create and track mortgage/loan account', async () => {
+  await runner.test('creates and tracks mortgage and household loan obligations', async () => {
     const res = await apiRequest('/api/loans', {
       method: 'POST',
       token: token1,
@@ -206,7 +206,7 @@ export async function runPhase10HomeSystemsTests(runner: TestRunner) {
   });
 
   // 7. Credit Cards
-  await runner.test('Create revolving credit card account', async () => {
+  await runner.test('creates revolving credit card account and credit utilization tracking', async () => {
     const res = await apiRequest('/api/credit-cards', {
       method: 'POST',
       token: token1,
@@ -233,7 +233,7 @@ export async function runPhase10HomeSystemsTests(runner: TestRunner) {
   });
 
   // 8. Command Center Summary Aggregation
-  await runner.test('Home Command Center aggregates metrics across all home systems', async () => {
+  await runner.test('aggregates multi-system metrics across properties, rooms, loans, and credit cards', async () => {
     const res = await apiRequest('/api/home/command-center-summary', { token: token1 });
     if (res.status !== 200) {
       throw new Error(`Expected 200 OK, got ${res.status}`);
@@ -256,7 +256,7 @@ export async function runPhase10HomeSystemsTests(runner: TestRunner) {
   });
 
   // 9. AI Entity Extraction
-  await runner.test('Extract structured warranty entity from unstructured document text', async () => {
+  await runner.test('extracts structured warranty entity from unstructured document text', async () => {
     const res = await apiRequest('/api/documents/extract-entity', {
       method: 'POST',
       token: token1,

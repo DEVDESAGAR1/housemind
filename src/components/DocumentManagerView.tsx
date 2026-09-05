@@ -24,12 +24,16 @@ interface DocumentManagerViewProps {
   token: string;
   profile: HouseholdProfile | null;
   onShowToast: (message: string, type?: 'success' | 'error' | 'info') => void;
+  targetedDocId?: string | null;
+  onClearTargetedDoc?: () => void;
 }
 
 export const DocumentManagerView: React.FC<DocumentManagerViewProps> = ({
   token,
   profile,
   onShowToast,
+  targetedDocId,
+  onClearTargetedDoc,
 }) => {
   const [documents, setDocuments] = useState<HouseholdDocument[]>([]);
   const [loading, setLoading] = useState(true);
@@ -69,6 +73,16 @@ export const DocumentManagerView: React.FC<DocumentManagerViewProps> = ({
       loadDocuments();
     }
   }, [token]);
+
+  useEffect(() => {
+    if (targetedDocId && documents.length > 0) {
+      const match = documents.find((d) => d.id === targetedDocId);
+      if (match) {
+        setReviewingDocument(match);
+      }
+      onClearTargetedDoc?.();
+    }
+  }, [targetedDocId, documents]);
 
   const handleFileUpload = async (file: File) => {
     if (!file) return;

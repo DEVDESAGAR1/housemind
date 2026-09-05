@@ -1,7 +1,7 @@
 import { apiRequest, TestRunner } from '../test-helper';
 
 export async function runScenariosTests(runner: TestRunner) {
-  runner.setSuite('What-If Simulator & Decision Intelligence');
+  runner.setSuite('Decision Simulator & Financial Affordability Modeling');
 
   const tokenA = 'test-token-scenario-user-a';
   const tokenB = 'test-token-scenario-user-b';
@@ -10,7 +10,7 @@ export async function runScenariosTests(runner: TestRunner) {
   let secondScenarioId = '';
 
   // Setup starter data for User A to have deterministic baseline
-  await runner.test('Seed user baseline with income and expenses', async () => {
+  await runner.test('seeds baseline financial metrics for scenario simulations', async () => {
     // Add income transaction
     const txRes = await apiRequest('/api/transactions', {
       method: 'POST',
@@ -46,7 +46,7 @@ export async function runScenariosTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Retrieve verified baseline metrics for User A', async () => {
+  await runner.test('returns verified financial baseline surplus and cash flow metrics', async () => {
     const res = await apiRequest('/api/scenarios/baseline', { token: tokenA });
     if (res.status !== 200) {
       throw new Error(`Expected 200 OK, got ${res.status}: ${JSON.stringify(res.body)}`);
@@ -64,7 +64,7 @@ export async function runScenariosTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Simulate hypothetical appliance EMI without persistence', async () => {
+  await runner.test('simulates hypothetical appliance EMI without persisting data', async () => {
     const res = await apiRequest('/api/scenarios/simulate', {
       method: 'POST',
       token: tokenA,
@@ -96,7 +96,7 @@ export async function runScenariosTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Create and persist What-If Scenario for User A', async () => {
+  await runner.test('creates and persists what-if purchase scenarios', async () => {
     const res = await apiRequest('/api/scenarios', {
       method: 'POST',
       token: tokenA,
@@ -128,7 +128,7 @@ export async function runScenariosTests(runner: TestRunner) {
     createdScenarioId = scenario.id;
   });
 
-  await runner.test('Create second scenario for comparison (Salary Hike)', async () => {
+  await runner.test('creates second scenario for multi-option comparison', async () => {
     const res = await apiRequest('/api/scenarios', {
       method: 'POST',
       token: tokenA,
@@ -148,7 +148,7 @@ export async function runScenariosTests(runner: TestRunner) {
     secondScenarioId = res.body.data.id;
   });
 
-  await runner.test('List scenarios returns all created models for User A', async () => {
+  await runner.test('returns listing of all created scenarios for user', async () => {
     const res = await apiRequest('/api/scenarios', { token: tokenA });
     if (res.status !== 200) {
       throw new Error(`Expected 200 OK, got ${res.status}`);
@@ -159,7 +159,7 @@ export async function runScenariosTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Get scenario by ID returns complete metrics', async () => {
+  await runner.test('returns scenario detail and affordability metrics by ID', async () => {
     const res = await apiRequest(`/api/scenarios/${createdScenarioId}`, { token: tokenA });
     if (res.status !== 200) {
       throw new Error(`Expected 200 OK, got ${res.status}`);
@@ -169,7 +169,7 @@ export async function runScenariosTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Update scenario inputs and recalculates projection', async () => {
+  await runner.test('updates scenario parameter inputs and recalculates projection', async () => {
     const res = await apiRequest(`/api/scenarios/${createdScenarioId}`, {
       method: 'PUT',
       token: tokenA,
@@ -194,7 +194,7 @@ export async function runScenariosTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Duplicate scenario creates independent copy', async () => {
+  await runner.test('duplicates scenario into an independent cloned model', async () => {
     const res = await apiRequest(`/api/scenarios/${createdScenarioId}/duplicate`, {
       method: 'POST',
       token: tokenA,
@@ -215,7 +215,7 @@ export async function runScenariosTests(runner: TestRunner) {
     await apiRequest(`/api/scenarios/${dup.id}`, { method: 'DELETE', token: tokenA });
   });
 
-  await runner.test('Compare scenarios matrix endpoint', async () => {
+  await runner.test('evaluates scenario comparison matrix with deterministic recommendations', async () => {
     const res = await apiRequest('/api/scenarios/compare', {
       method: 'POST',
       token: tokenA,
@@ -236,7 +236,7 @@ export async function runScenariosTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Explain scenario with Gemini fallback resilience', async () => {
+  await runner.test('generates scenario reasoning explanation with graceful Gemini fallback', async () => {
     const res = await apiRequest(`/api/scenarios/${createdScenarioId}/explain`, {
       method: 'POST',
       token: tokenA,
@@ -251,7 +251,7 @@ export async function runScenariosTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Multi-Tenant Isolation: User B cannot access or modify User A scenarios', async () => {
+  await runner.test('prevents cross-tenant access, modification, or deletion of scenario models', async () => {
     // User B tries to get User A's scenario
     const getRes = await apiRequest(`/api/scenarios/${createdScenarioId}`, { token: tokenB });
     if (getRes.status !== 404) {
@@ -278,7 +278,7 @@ export async function runScenariosTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Delete scenario from User A', async () => {
+  await runner.test('deletes scenario model removing it from user collection', async () => {
     const res = await apiRequest(`/api/scenarios/${createdScenarioId}`, {
       method: 'DELETE',
       token: tokenA,
@@ -294,7 +294,7 @@ export async function runScenariosTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Real household data non-destructive verification', async () => {
+  await runner.test('preserves real household financial records without destructive side-effects', async () => {
     // Verify expenses and transactions are untouched
     const expRes = await apiRequest('/api/household/expenses', { token: tokenA });
     const txRes = await apiRequest('/api/transactions', { token: tokenA });

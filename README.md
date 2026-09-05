@@ -5,7 +5,8 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.8-blue.svg)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-19-61dafb.svg)](https://react.dev/)
 [![Express](https://img.shields.io/badge/Express-4.21-lightgrey.svg)](https://expressjs.com/)
-[![Tests](https://img.shields.io/badge/Tests-347%2F347%20Passed%20(100%25)-success.svg)](docs/TESTING.md)
+[![Tests](https://img.shields.io/badge/Tests-394%2F394%20Passed%20(100%25)-success.svg)](docs/TESTING.md)
+[![Playwright](https://img.shields.io/badge/Browser%20Journeys-25%2F25%20Passed%20(100%25)-success.svg)](docs/TESTING.md)
 [![Gemini](https://img.shields.io/badge/Grounded%20AI-Gemini%202.5%20Flash-orange.svg)](https://ai.google.dev/)
 [![Security](https://img.shields.io/badge/Security-Secret%20Manager%20%7C%20Tenant%20Isolated-blueviolet.svg)](SECURITY.md)
 
@@ -170,7 +171,7 @@ For detailed specifications, see [SECURITY.md](SECURITY.md) and [PRIVACY.md](PRI
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/your-username/housemind.git
+git clone https://github.com/DEVDESAGAR1/housemind.git
 cd housemind
 
 # 2. Install dependencies
@@ -186,16 +187,19 @@ The application will be accessible at `http://localhost:3000`.
 
 ## 8. Quality Assurance & Verification Suite
 
-HouseMind includes an automated test harness covering all 24 domains:
+HouseMind includes an automated test harness and browser journey suite covering all 24 domains:
 
 ```bash
-# 1. Run the complete automated test suite (347 tests)
+# 1. Run the complete automated test suite (394 tests across 46 suites)
 npm test
 
-# 2. Run static type validation (Zero errors)
+# 2. Run the Playwright browser user-journeys suite (25 journeys)
+npm run test:browser
+
+# 3. Run static type validation (Zero errors)
 npm run lint
 
-# 3. Run production build verification
+# 4. Run production build verification
 npm run build
 ```
 
@@ -205,10 +209,9 @@ npm run build
 ===============================================================
   TEST EXECUTION SUMMARY
 ===============================================================
-  Total Tests Executed: 347
-  Passed:               347 (100%)
+  Total Tests Executed: 394
+  Passed:               394 (100%)
   Failed:               0
-  Execution Time:       30,130 ms (~30.1s)
 ===============================================================
 ALL TESTS PASSED SUCCESSFULLY.
 ```
@@ -222,12 +225,12 @@ For the complete testing breakdown and Playwright browser journey specifications
 | Document | Description |
 | :--- | :--- |
 | **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** | Full technical specification, 24 domain subsystems, dynamic graph model, and complete REST API reference |
-| **[docs/TESTING.md](docs/TESTING.md)** | Testing philosophy, 38 test suites breakdown (347 tests), and Playwright browser journey suite |
+| **[docs/TESTING.md](docs/TESTING.md)** | Testing philosophy, 46 test suites breakdown (394 tests), and 25 Playwright browser user journeys |
 | **[docs/USER-JOURNEYS.md](docs/USER-JOURNEYS.md)** | Detailed walkthroughs of the 6 end-to-end homeowner user workflows |
 | **[SECURITY.md](SECURITY.md)** | Security architecture, STRIDE threat model, defense-in-depth, Secret Manager, and AI safety protocols |
 | **[PRIVACY.md](PRIVACY.md)** | Data governance, context minimization, two-stage document staging, and telemetry boundaries |
 | **[DEPLOYMENT.md](DEPLOYMENT.md)** | Production Cloud Run deployment guide, Secret Manager provisioning, Docker instructions, and secret rotation |
-| **[CHANGELOG.md](CHANGELOG.md)** | Semantic release notes detailing platform milestones up to v2.5.0 |
+| **[CHANGELOG.md](CHANGELOG.md)** | Semantic release notes detailing platform milestones up to v2.6.0 |
 | **[CONTRIBUTING.md](CONTRIBUTING.md)** | Code of conduct, development setup, code standards, and pull request workflow |
 | **[docs/historical/AUDIT_REPORT.md](docs/historical/AUDIT_REPORT.md)** | Archived historical security audit and CodeQL remediation log |
 

@@ -15,8 +15,10 @@ import {
   ChevronUp,
   History,
   Info,
+  HelpCircle,
 } from 'lucide-react';
 import { CrossDomainInsight, CrossDomainInsightType, CrossDomainInsightPriority } from '../../types';
+import { WhyAmISeeingThisModal, WhyEvidencePayload } from '../WhyAmISeeingThisModal';
 
 interface HouseholdIntelligenceSectionProps {
   insights: CrossDomainInsight[];
@@ -24,7 +26,7 @@ interface HouseholdIntelligenceSectionProps {
   onRefresh?: () => void;
   onDismissInsight?: (id: string, fingerprint?: string) => void;
   onOpenTimeline?: () => void;
-  onNavigate: (tab: string) => void;
+  onNavigate: (tab: string, subTab?: string, entityId?: string) => void;
   currencyCode?: string;
   locale?: string;
 }
@@ -38,6 +40,7 @@ export function HouseholdIntelligenceSection({
 }: HouseholdIntelligenceSectionProps) {
   const [selectedFilter, setSelectedFilter] = useState<string>('all');
   const [expandedInsightIds, setExpandedInsightIds] = useState<Set<string>>(new Set());
+  const [activeWhyEvidence, setActiveWhyEvidence] = useState<WhyEvidencePayload | null>(null);
 
   const toggleExpand = (id: string) => {
     setExpandedInsightIds((prev) => {
@@ -107,6 +110,7 @@ export function HouseholdIntelligenceSection({
       case 'issues':
         return <Wrench className="w-3 h-3" />;
       case 'finance':
+      case 'expenses':
         return <DollarSign className="w-3 h-3" />;
       case 'documents':
         return <FileText className="w-3 h-3" />;
@@ -125,27 +129,60 @@ export function HouseholdIntelligenceSection({
     { id: 'missing_info', label: 'Missing Info' },
   ];
 
+  const handleOpenWhyForInsight = (insight: CrossDomainInsight) => {
+    setActiveWhyEvidence({
+      title: insight.title,
+      category: 'Cross-Domain Intelligence',
+      badge: { label: insight.priority.toUpperCase(), variant: insight.priority },
+      whatDetected: insight.explanation,
+      detectedSignals: insight.deterministicEvidence?.facts || [],
+      severityOrPriority: insight.priority,
+      whyItMatters:
+        insight.geminiSynthesis?.reasoning ||
+        'Cross-domain insights identify connections between appliance upkeep, warranty coverage, and unexpected financial costs.',
+      whatToDoNext: insight.geminiSynthesis?.actionableAdvice || insight.recommendedAction?.title || 'Review recommendations below.',
+      sources: insight.relatedDomains?.map((d) => ({
+        title: `${d.charAt(0).toUpperCase() + d.slice(1)} Domain`,
+        domain: d,
+        route: d === 'finance' ? 'expenses' : d === 'issues' ? 'assets' : d,
+      })) || [],
+      primaryAction: insight.recommendedAction
+        ? {
+            label: insight.recommendedAction.title,
+            onExecute: () => {
+              if (insight.recommendedAction?.targetRoute) {
+                onNavigate(insight.recommendedAction.targetRoute);
+              }
+            },
+          }
+        : undefined,
+    });
+  };
+
   return (
     <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-7 shadow-sm space-y-6 relative overflow-hidden">
       {/* Background Accent */}
       <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none" />
 
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 relative z-10">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 relative z-10 border-b border-slate-800 pb-4">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <div className="p-2 rounded-xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-400">
-              <Sparkles className="w-4 h-4" />
+            <div className="w-7 h-7 rounded-lg bg-indigo-500/20 text-indigo-300 flex items-center justify-center font-bold text-xs border border-indigo-500/30">
+              T4
             </div>
-            <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight">
-              Cross-Domain Household Intelligence
-            </h2>
+            <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-300 bg-indigo-500/10 px-2 py-0.5 rounded-md border border-indigo-500/20">
+              Correlated Insights
+            </span>
             {activeInsights.length > 0 && (
               <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
                 {activeInsights.length} active
               </span>
             )}
           </div>
+          <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight">
+            Cross-Domain Household Intelligence
+          </h2>
           <p className="text-xs sm:text-sm text-slate-400 max-w-2xl">
             Correlated signals linking equipment failures, active warranties, overdue maintenance, and financial obligations.
           </p>
@@ -155,6 +192,7 @@ export function HouseholdIntelligenceSection({
         {onOpenTimeline && (
           <button
             id="open-operational-timeline-btn"
+            type="button"
             onClick={onOpenTimeline}
             className="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs sm:text-sm font-semibold rounded-xl transition shadow-xs cursor-pointer shrink-0"
           >
@@ -169,6 +207,7 @@ export function HouseholdIntelligenceSection({
         {filterOptions.map((f) => (
           <button
             key={f.id}
+            type="button"
             onClick={() => setSelectedFilter(f.id)}
             className={`px-3 py-1.5 rounded-xl font-medium transition cursor-pointer whitespace-nowrap ${
               selectedFilter === f.id
@@ -207,7 +246,7 @@ export function HouseholdIntelligenceSection({
                 key={insight.id}
                 className="bg-slate-800/70 hover:bg-slate-800/90 border border-slate-700/70 hover:border-slate-600 rounded-2xl p-5 transition flex flex-col justify-between space-y-4 relative"
               >
-                {/* Top Row: Priority & Domain Badges & Dismiss */}
+                {/* Top Row: Priority & Domain Badges & Controls */}
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex flex-wrap items-center gap-2">
                     {getPriorityBadge(insight.priority)}
@@ -227,31 +266,54 @@ export function HouseholdIntelligenceSection({
                     )}
                   </div>
 
-                  {onDismissInsight && (
+                  <div className="flex items-center gap-1.5">
+                    {/* Why? info trigger */}
                     <button
-                      onClick={() => onDismissInsight(insight.id, insight.deduplicationKey)}
-                      title="Acknowledge / Dismiss"
-                      className="p-1 rounded-lg text-slate-500 hover:text-slate-300 hover:bg-slate-700/50 transition cursor-pointer"
+                      type="button"
+                      onClick={() => handleOpenWhyForInsight(insight)}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-700 hover:bg-slate-650 text-slate-300 text-xs font-medium transition cursor-pointer"
+                      title="Why did HouseMind generate this insight?"
                     >
-                      <X className="w-3.5 h-3.5" />
+                      <HelpCircle className="w-3.5 h-3.5 text-indigo-400" />
+                      <span>Why?</span>
                     </button>
-                  )}
+
+                    {onDismissInsight && (
+                      <button
+                        type="button"
+                        onClick={() => onDismissInsight(insight.id, insight.deduplicationKey)}
+                        title="Acknowledge / Dismiss"
+                        className="p-1 rounded-lg text-slate-500 hover:text-slate-300 hover:bg-slate-700/50 transition cursor-pointer"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Main Content */}
-                <div className="space-y-1.5">
+                <div className="space-y-2">
                   <h4 className="text-sm sm:text-base font-bold text-white tracking-tight">
                     {insight.title}
                   </h4>
-                  <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-                    {insight.explanation}
-                  </p>
+
+                  <div className="bg-slate-900/60 p-3 rounded-xl border border-slate-750 text-xs text-slate-300 space-y-1">
+                    <p className="leading-relaxed">
+                      <strong className="text-indigo-300">What happened:</strong> {insight.explanation}
+                    </p>
+                    {insight.geminiSynthesis?.reasoning && (
+                      <p className="leading-relaxed text-slate-400">
+                        <strong className="text-slate-300">Why it matters:</strong> {insight.geminiSynthesis.reasoning}
+                      </p>
+                    )}
+                  </div>
                 </div>
 
                 {/* Evidence Facts (Collapsible) */}
                 {insight.deterministicEvidence?.facts && insight.deterministicEvidence.facts.length > 0 && (
                   <div className="space-y-2 pt-1 border-t border-slate-700/60">
                     <button
+                      type="button"
                       onClick={() => toggleExpand(insight.id)}
                       className="inline-flex items-center gap-1.5 text-xs text-indigo-300 hover:text-indigo-200 transition font-medium cursor-pointer"
                     >
@@ -276,6 +338,7 @@ export function HouseholdIntelligenceSection({
                 {insight.recommendedAction && (
                   <div className="pt-2">
                     <button
+                      type="button"
                       onClick={() => {
                         if (insight.recommendedAction?.targetRoute) {
                           onNavigate(insight.recommendedAction.targetRoute);
@@ -293,6 +356,14 @@ export function HouseholdIntelligenceSection({
           })}
         </div>
       )}
+
+      {/* Grounded Why Am I Seeing This Modal */}
+      <WhyAmISeeingThisModal
+        isOpen={!!activeWhyEvidence}
+        onClose={() => setActiveWhyEvidence(null)}
+        evidence={activeWhyEvidence}
+        onNavigate={onNavigate}
+      />
     </div>
   );
 }

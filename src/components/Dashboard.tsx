@@ -58,7 +58,7 @@ interface DashboardProps {
   assets: HomeAsset[];
   insights: HouseholdInsight[];
   isLoadingInsights: boolean;
-  onNavigate: (tab: any) => void;
+  onNavigate: (tab: any, subTab?: string, entityId?: string) => void;
   onOpenAddExpense: () => void;
   onOpenAddAsset: () => void;
   onOpenProfile: () => void;
@@ -320,29 +320,7 @@ export function Dashboard({
         />
       )}
 
-      {/* 3. Core Question 1: "How is my household doing?" — Phase 3 Health Intelligence Engine */}
-      <HouseholdHealthWidget
-        healthReport={healthReport}
-        isLoading={isLoadingHealth}
-        onRefresh={handleRefreshHealth}
-        onOpenDetailModal={() => setIsHealthDetailModalOpen(true)}
-        onNavigate={onNavigate}
-      />
-
-      {/* 3B. Phase 24.5: Core Question: "What should I do next?" — Unified Household Action Layer */}
-      <UnifiedActionCenterSection
-        actions={unifiedActions}
-        isLoading={isLoadingUnifiedActions}
-        onRefresh={loadUnifiedActions}
-        onDismissAction={handleDismissUnifiedAction}
-        onSnoozeAction={handleSnoozeUnifiedAction}
-        onCompleteAction={handleCompleteUnifiedAction}
-        onNavigate={onNavigate}
-        currencyCode={currencyCode}
-        locale={locale}
-      />
-
-      {/* 4. Core Question 2: "What needs my attention?" — Needs Attention & Overdue Section */}
+      {/* TIER 1 — NEEDS ATTENTION NOW (Critical, Overdue, Due Today, Warnings) */}
       <NeedsAttentionSection
         expenses={expenses}
         assets={assets}
@@ -359,19 +337,28 @@ export function Dashboard({
         onInvestigateInsight={onInvestigateInsight}
       />
 
-      {/* 4B. Phase 24.4: Cross-Domain Household Intelligence */}
-      <HouseholdIntelligenceSection
-        insights={crossDomainInsights}
-        isLoading={isLoadingCrossDomain}
-        onRefresh={loadCrossDomainInsights}
-        onDismissInsight={handleDismissCrossDomainInsight}
-        onOpenTimeline={() => setIsTimelineModalOpen(true)}
+      {/* TIER 2 — WHAT SHOULD I DO NEXT? (Unified Household Action Center) */}
+      <UnifiedActionCenterSection
+        actions={unifiedActions}
+        isLoading={isLoadingUnifiedActions}
+        onRefresh={loadUnifiedActions}
+        onDismissAction={handleDismissUnifiedAction}
+        onSnoozeAction={handleSnoozeUnifiedAction}
+        onCompleteAction={handleCompleteUnifiedAction}
         onNavigate={onNavigate}
         currencyCode={currencyCode}
         locale={locale}
       />
 
-      {/* 5. Domain Snapshots — 4-Pillar Overview (Home, Assets, Finances, Maintenance) */}
+      {/* TIER 3 — HOUSEHOLD OVERVIEW (Health Score, 4-Pillar Snapshots, Upcoming 30-Day Schedule) */}
+      <HouseholdHealthWidget
+        healthReport={healthReport}
+        isLoading={isLoadingHealth}
+        onRefresh={handleRefreshHealth}
+        onOpenDetailModal={() => setIsHealthDetailModalOpen(true)}
+        onNavigate={onNavigate}
+      />
+
       <DomainSnapshotsSection
         properties={properties}
         rooms={rooms}
@@ -390,7 +377,6 @@ export function Dashboard({
         onNavigate={onNavigate}
       />
 
-      {/* 6. Core Question 3: "What's coming next?" — Upcoming Household Schedule (Next 30 Days) */}
       <UpcomingScheduleSection
         expenses={expenses}
         maintenances={tasks}
@@ -401,6 +387,18 @@ export function Dashboard({
         currencyCode={currencyCode}
         locale={locale}
         onNavigate={onNavigate}
+      />
+
+      {/* TIER 4 — ADDITIONAL INTELLIGENCE & INSIGHTS (Cross-Domain Correlated Signals) */}
+      <HouseholdIntelligenceSection
+        insights={crossDomainInsights}
+        isLoading={isLoadingCrossDomain}
+        onRefresh={loadCrossDomainInsights}
+        onDismissInsight={handleDismissCrossDomainInsight}
+        onOpenTimeline={() => setIsTimelineModalOpen(true)}
+        onNavigate={onNavigate}
+        currencyCode={currencyCode}
+        locale={locale}
       />
 
       {/* 7. Bottom Grid: Recent Activity & AI Copilot Spotlight */}

@@ -2,13 +2,13 @@ import { apiRequest, TestRunner } from '../test-helper';
 import { generateDomainGroundedReply, GroundedContext } from '../../server/services/copilotService';
 
 export async function runRegressionPhase1Tests(runner: TestRunner) {
-  runner.setSuite('Phase 1: Permanent Regression Protections & Resilience');
+  runner.setSuite('Core Platform Regression Protections & ErrorBoundary Resilience');
 
   const token = 'test-token-reg-user1';
 
   // 1. PDF / Non-CSV Document Upload Resilience (reproducing previous HTTP 500 issue)
   await runner.test(
-    'Regression Fix: PDF / Receipt upload extracts candidates without throwing 500',
+    'extracts transaction candidates from PDF and receipt uploads without throwing 500',
     async () => {
       const fakePdfContent = '%PDF-1.4\n1 0 obj\n<< /Title (Appliance Invoice) /Creator (Depot) >>\nendobj\ntrailer\n<< /Root 1 0 R >>\n%%EOF';
       const blob = new Blob([fakePdfContent], { type: 'application/pdf' });
@@ -40,7 +40,7 @@ export async function runRegressionPhase1Tests(runner: TestRunner) {
 
   // 2. Bank Statement Binary/Image Upload Fallback Resilience
   await runner.test(
-    'Regression Fix: Bank statement binary upload parses gracefully with fallback',
+    'parses binary bank statement uploads gracefully using fallback extractors',
     async () => {
       const fakeStmtBuffer = 'Binary Bank Statement Data Stream For Utility & Rent Payments';
       const blob = new Blob([fakeStmtBuffer], { type: 'application/pdf' });
@@ -67,7 +67,7 @@ export async function runRegressionPhase1Tests(runner: TestRunner) {
 
   // 3. Stale Data & Immediate Deletion Synchronization
   await runner.test(
-    'Regression Fix: Deleted entities are purged immediately from database and cannot be read',
+    'purges deleted entities immediately from database preventing stale reads',
     async () => {
       // Create property
       const propRes = await apiRequest('/api/properties', {
@@ -128,7 +128,7 @@ export async function runRegressionPhase1Tests(runner: TestRunner) {
 
   // 4. Copilot Multi-Domain Intent Differentiation Grounding
   await runner.test(
-    'Copilot Grounding: Generates distinct, differentiated answers for different household domains',
+    'generates distinct grounded answers across maintenance, warranty, utility, loan, and card domains',
     async () => {
       const dummyContext: GroundedContext = {
         profile: {
@@ -294,7 +294,7 @@ export async function runRegressionPhase1Tests(runner: TestRunner) {
 
   // 5. Double Submission & Idempotent Safety
   await runner.test(
-    'Resilience: Concurrent double-submission does not produce duplicate database corruption',
+    'handles concurrent creation requests safely without database corruption',
     async () => {
       const expensePayload = {
         title: 'Concurrent Solar Maintenance Fee',

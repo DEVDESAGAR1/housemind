@@ -7,7 +7,7 @@ import { NotificationService } from '../../server/services/notificationService';
 import { HouseholdAgentOrchestrator } from '../../server/services/agent/householdAgentOrchestrator';
 
 export async function runAgentNotificationsMemoryTests(runner: TestRunner) {
-  runner.setSuite('Phase 20: Agent Notifications + Controlled Household Context & Memory');
+  runner.setSuite('Agent Memory Safety & Notification Dispatching');
 
   const tokenUserA = 'test-token-memory-user-a';
   const tokenUserB = 'test-token-memory-user-b';
@@ -31,7 +31,7 @@ export async function runAgentNotificationsMemoryTests(runner: TestRunner) {
   });
 
   // 1. Memory belongs to correct tenant
-  await runner.test('Memory: Stored memory belongs strictly to the authenticated tenant', async () => {
+  await runner.test('binds stored memory strictly to authenticated tenant', async () => {
     const res = await apiRequest('/api/household/memory', {
       method: 'POST',
       token: tokenUserA,
@@ -57,7 +57,7 @@ export async function runAgentNotificationsMemoryTests(runner: TestRunner) {
   });
 
   // 2. Cross-tenant memory access denied
-  await runner.test('Memory: Cross-tenant memory access and listing is strictly denied', async () => {
+  await runner.test('prevents cross-tenant memory access and listing', async () => {
     const listResB = await apiRequest('/api/household/memory', {
       method: 'GET',
       token: tokenUserB,
@@ -73,7 +73,7 @@ export async function runAgentNotificationsMemoryTests(runner: TestRunner) {
   });
 
   // 3. Memory does not override current authoritative data
-  await runner.test('Memory Safety: Current authoritative data always wins over stored memory', async () => {
+  await runner.test('prioritizes current authoritative data over stored memory', async () => {
     // Stored memory says preferred currency is GBP
     await HouseholdMemoryService.addMemory(userIdA, {
       category: 'preference',
@@ -92,7 +92,7 @@ export async function runAgentNotificationsMemoryTests(runner: TestRunner) {
   });
 
   // 4. Sensitive values cannot be stored as memory
-  await runner.test('Memory Safety: Rejects passwords, credit cards, SSN, PAN, tokens, and secrets', async () => {
+  await runner.test('rejects sensitive credentials and secrets from memory store', async () => {
     const sensitivePayloads = [
       { key: 'admin_password', value: 'secret1234' },
       { key: 'stripe_api_key', value: 'sk_live_98374982374928374' },
@@ -124,7 +124,7 @@ export async function runAgentNotificationsMemoryTests(runner: TestRunner) {
   });
 
   // 5. Arbitrary Copilot conversation is not silently persisted
-  await runner.test('Memory: Arbitrary Copilot conversations do not silently pollute memory store', async () => {
+  await runner.test('prevents arbitrary copilot conversations from polluting memory store', async () => {
     const initialMemories = await HouseholdMemoryService.getMemories(userIdA);
 
     await apiRequest('/api/copilot/chat', {
@@ -141,7 +141,7 @@ export async function runAgentNotificationsMemoryTests(runner: TestRunner) {
 
   // 6. Agent notification generated for a valid event (Action Proposal)
   let testActionId = '';
-  await runner.test('Agent Notifications: Generated deterministically for pending action approval', async () => {
+  await runner.test('generates agent notifications deterministically for pending action approvals', async () => {
     // Create an asset and overdue task for User A
     const asset = await DatabaseService.createAsset(userIdA, {
       name: 'Central Heat Pump',
@@ -183,7 +183,7 @@ export async function runAgentNotificationsMemoryTests(runner: TestRunner) {
   });
 
   // 7. Duplicate notification prevented via deterministic fingerprint
-  await runner.test('Notification Deduplication: Repeated queries produce stable single notification', async () => {
+  await runner.test('deduplicates repeated notifications via deterministic fingerprint', async () => {
     const notifs1 = await NotificationService.getNotifications(userIdA);
     const notifs2 = await NotificationService.getNotifications(userIdA);
 
@@ -196,7 +196,7 @@ export async function runAgentNotificationsMemoryTests(runner: TestRunner) {
   });
 
   // 8. Changed underlying state creates updated notification / respects dismissed state
-  await runner.test('Notification State: Dismissed notifications remain suppressed', async () => {
+  await runner.test('preserves suppressed state for dismissed notifications', async () => {
     NotificationService.dismiss(userIdA, `notif_action_approval_${testActionId}`);
 
     const notifs = await NotificationService.getNotifications(userIdA);
@@ -207,7 +207,7 @@ export async function runAgentNotificationsMemoryTests(runner: TestRunner) {
   });
 
   // 9. Notification preferences respected
-  await runner.test('Notification Preferences: Disabled householdAlerts suppresses agent notifications', async () => {
+  await runner.test('respects notification preference filters for household alerts', async () => {
     // Propose a second action
     const proposal2 = await ActionExecutor.proposeAction(userIdA, 'markAllNotificationsRead');
 
@@ -241,7 +241,7 @@ export async function runAgentNotificationsMemoryTests(runner: TestRunner) {
   });
 
   // 10. Approval-required notification routes correctly
-  await runner.test('Notification Routing: Approval notification contains targetTab copilot and subTab actions', async () => {
+  await runner.test('routes approval-required notifications to copilot actions subtab', async () => {
     const proposal3 = await ActionExecutor.proposeAction(userIdA, 'markAllNotificationsRead');
     const notifs = await NotificationService.getNotifications(userIdA);
     const actionNotif = notifs.notifications.find((n) => n.id === `notif_action_approval_${proposal3.actionId}`);
@@ -256,7 +256,7 @@ export async function runAgentNotificationsMemoryTests(runner: TestRunner) {
   });
 
   // 11. Notification cannot bypass approval gate
-  await runner.test('Security Gate: Notifications cannot directly execute action without approval API call', async () => {
+  await runner.test('prevents notifications from bypassing approval execution gate', async () => {
     const proposal4 = await ActionExecutor.proposeAction(userIdA, 'completeMaintenanceTask');
 
     // Attempt to verify status is still pending_approval
@@ -267,7 +267,7 @@ export async function runAgentNotificationsMemoryTests(runner: TestRunner) {
   });
 
   // 12. Action approval still requires permission engine
-  await runner.test('Permission Engine: Denied actions cannot be approved or executed', async () => {
+  await runner.test('enforces permission engine denial on non-allowlisted actions', async () => {
     try {
       await ActionExecutor.proposeAction(userIdA, 'DELETE_EXPENSE' as any);
       throw new Error('Proposing non-allowlisted action should have failed');
@@ -280,7 +280,7 @@ export async function runAgentNotificationsMemoryTests(runner: TestRunner) {
   });
 
   // 13. Agent activity records appropriate lifecycle events
-  await runner.test('Agent Activity: Proposal and approval record full lifecycle in activity timeline', async () => {
+  await runner.test('records complete lifecycle in agent activity timeline', async () => {
     const proposal = await ActionExecutor.proposeAction(userIdA, 'markAllNotificationsRead');
     await ActionExecutor.executeApprovedAction(userIdA, proposal.actionId);
 
@@ -296,7 +296,7 @@ export async function runAgentNotificationsMemoryTests(runner: TestRunner) {
   });
 
   // 14. Morning Brief uses controlled context
-  await runner.test('Morning Brief: Uses controlled context with confirmed memory and without fake facts', async () => {
+  await runner.test('constructs morning brief using controlled context and verified memory', async () => {
     const res = await apiRequest('/api/copilot/morning-brief', {
       method: 'GET',
       token: tokenUserA,
@@ -313,7 +313,7 @@ export async function runAgentNotificationsMemoryTests(runner: TestRunner) {
   });
 
   // 15. Greeting does not trigger broad context retrieval
-  await runner.test('Performance: Casual greeting does not load full database entities', async () => {
+  await runner.test('avoids loading full database entities for casual greetings', async () => {
     const res = await apiRequest('/api/copilot/chat', {
       method: 'POST',
       token: tokenUserA,
@@ -332,7 +332,7 @@ export async function runAgentNotificationsMemoryTests(runner: TestRunner) {
   });
 
   // 16. Household question retrieves correct domain context
-  await runner.test('Context Builder: Domain-specific query loads relevant domain', async () => {
+  await runner.test('loads relevant domain context for domain-specific queries', async () => {
     const res = await apiRequest('/api/copilot/chat', {
       method: 'POST',
       token: tokenUserA,
@@ -350,7 +350,7 @@ export async function runAgentNotificationsMemoryTests(runner: TestRunner) {
   });
 
   // 17. Empty household remains safe
-  await runner.test('Safety: Empty household returns setup_required diagnostic safely', async () => {
+  await runner.test('returns setup_required status safely for empty households', async () => {
     const tokenEmpty = 'test-token-empty-h';
     const userIdEmpty = 'empty-h';
     DatabaseService.clearUserData(userIdEmpty);
@@ -370,7 +370,7 @@ export async function runAgentNotificationsMemoryTests(runner: TestRunner) {
   });
 
   // 18. Cross-user notification access denied
-  await runner.test('Security: Cross-user notification queries cannot see other households alerts', async () => {
+  await runner.test('prevents cross-user notification data leakage', async () => {
     const notifsB = await NotificationService.getNotifications(userIdB);
     const foundUserANotif = notifsB.notifications.find((n) => n.userId === userIdA);
     if (foundUserANotif) {
@@ -379,7 +379,7 @@ export async function runAgentNotificationsMemoryTests(runner: TestRunner) {
   });
 
   // 19. Cross-user agent activity access denied
-  await runner.test('Security: Cross-user agent activity timeline is strictly isolated', async () => {
+  await runner.test('enforces strict tenant isolation for agent activity timelines', async () => {
     const res = await apiRequest('/api/copilot/activity', {
       method: 'GET',
       token: tokenUserB,
@@ -395,7 +395,7 @@ export async function runAgentNotificationsMemoryTests(runner: TestRunner) {
   });
 
   // 20. Malicious uploaded text cannot alter agent policy
-  await runner.test('Security: Prompt injection in document content cannot alter agent policy', async () => {
+  await runner.test('prevents prompt injection in documents from altering agent policy', async () => {
     const maliciousDoc = await DatabaseService.saveDocument(userIdA, {
       id: 'doc_malicious_injection',
       userId: userIdA,
@@ -425,7 +425,7 @@ export async function runAgentNotificationsMemoryTests(runner: TestRunner) {
   });
 
   // 21. Large/unbounded context cannot be requested (memory size bounds)
-  await runner.test('Validation: Rejects oversized memory keys and values', async () => {
+  await runner.test('rejects oversized memory keys and values exceeding limits', async () => {
     const oversizedKey = 'a'.repeat(150);
     const oversizedValue = 'b'.repeat(600);
 
@@ -453,7 +453,7 @@ export async function runAgentNotificationsMemoryTests(runner: TestRunner) {
   });
 
   // 22. Copilot continues to render structured cards correctly
-  await runner.test('Copilot Response: Morning Brief queries return structured morningBrief object', async () => {
+  await runner.test('returns structured morning brief object in copilot chat responses', async () => {
     const res = await apiRequest('/api/copilot/chat', {
       method: 'POST',
       token: tokenUserA,
