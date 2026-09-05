@@ -852,7 +852,7 @@ export function Navbar({
                     </div>
                   </div>
 
-                  {/* Settings & Controls */}
+                  {/* Settings & Controls (Strict Account & Preferences) */}
                   <div className="py-1">
                     <button
                       id="menu-profile-specs-btn"
@@ -867,19 +867,6 @@ export function Navbar({
                       <span>Household Profile & Specs</span>
                     </button>
 
-                    <button
-                      id="menu-data-vault-btn"
-                      type="button"
-                      onClick={() => {
-                        setOpenMenu(null);
-                        onOpenProfile();
-                      }}
-                      className="w-full flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition cursor-pointer"
-                    >
-                      <Database className="w-4 h-4 text-emerald-600 shrink-0" />
-                      <span>Data Controls & Exports</span>
-                    </button>
-
                     {onOpenNotificationPreferences && (
                       <button
                         id="menu-notification-rules-btn"
@@ -891,18 +878,34 @@ export function Navbar({
                         className="w-full flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition cursor-pointer"
                       >
                         <Bell className="w-4 h-4 text-indigo-600 shrink-0" />
-                        <span>Notification Rules</span>
+                        <span>Notification Preferences</span>
                       </button>
                     )}
 
                     <button
-                      id="menu-help-center-btn"
+                      id="menu-ai-integrations-btn"
                       type="button"
-                      onClick={() => handleTabSelect('help')}
+                      onClick={() => {
+                        setOpenMenu(null);
+                        onOpenProfile();
+                      }}
                       className="w-full flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition cursor-pointer"
                     >
-                      <HelpCircle className="w-4 h-4 text-blue-600 shrink-0" />
-                      <span>Help & Documentation</span>
+                      <Sparkles className="w-4 h-4 text-purple-600 shrink-0" />
+                      <span>AI & Integrations</span>
+                    </button>
+
+                    <button
+                      id="menu-data-vault-btn"
+                      type="button"
+                      onClick={() => {
+                        setOpenMenu(null);
+                        onOpenProfile();
+                      }}
+                      className="w-full flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition cursor-pointer"
+                    >
+                      <Database className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span>Privacy & Data Controls</span>
                     </button>
                   </div>
 

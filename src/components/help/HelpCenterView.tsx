@@ -27,6 +27,7 @@ import {
   MessageSquare,
   Layers,
   Info,
+  Compass,
 } from 'lucide-react';
 import {
   HELP_CATEGORIES,
@@ -221,22 +222,37 @@ export function HelpCenterView({
               </p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsChecklistExpanded((prev) => !prev);
-            }}
-            aria-expanded={isChecklistExpanded}
-            className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 inline-flex items-center gap-1 cursor-pointer"
-          >
-            <span>{isChecklistExpanded ? 'Hide Steps' : 'View Steps'}</span>
-            <ChevronRight
-              className={`w-4 h-4 transition-transform duration-200 ${
-                isChecklistExpanded ? 'rotate-90' : ''
-              }`}
-            />
-          </button>
+          <div className="flex items-center gap-2">
+            {onOpenTour && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpenTour('catalog');
+                }}
+                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-xl transition cursor-pointer border border-indigo-200/60"
+              >
+                <Compass className="w-3.5 h-3.5 text-indigo-600" />
+                <span>Guided Tours</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsChecklistExpanded((prev) => !prev);
+              }}
+              aria-expanded={isChecklistExpanded}
+              className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 inline-flex items-center gap-1 cursor-pointer px-2 py-1.5 rounded-lg hover:bg-indigo-50/60"
+            >
+              <span>{isChecklistExpanded ? 'Hide Steps' : 'View Steps'}</span>
+              <ChevronRight
+                className={`w-4 h-4 transition-transform duration-200 ${
+                  isChecklistExpanded ? 'rotate-90' : ''
+                }`}
+              />
+            </button>
+          </div>
         </div>
 
         {isChecklistExpanded && (

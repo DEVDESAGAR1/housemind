@@ -51,9 +51,10 @@ interface ProfileModalProps {
   onSave: (updated: Partial<HouseholdProfile>) => Promise<void>;
   onDataChanged?: () => void;
   addToast?: (type: 'success' | 'error' | 'info', title: string, message?: string) => void;
+  initialTab?: ProfileTab;
 }
 
-type ProfileTab = 'residence' | 'account' | 'inventory' | 'notifications' | 'integrations' | 'privacy';
+export type ProfileTab = 'residence' | 'account' | 'inventory' | 'notifications' | 'integrations' | 'privacy';
 
 export function ProfileModal({
   isOpen,
@@ -62,8 +63,19 @@ export function ProfileModal({
   onSave,
   onDataChanged,
   addToast,
+  initialTab = 'residence',
 }: ProfileModalProps) {
-  const [activeTab, setActiveTab] = useState<ProfileTab>('residence');
+  const [activeTab, setActiveTab] = useState<ProfileTab>(initialTab);
+
+  // Synchronize initialTab if changed externally while open
+  useEffect(() => {
+    if (isOpen && initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [isOpen, initialTab]);
+
+  // AI System Status
+  const [aiStatus, setAiStatus] = useState<'available' | 'unavailable' | 'not_configured' | 'loading'>('loading');
 
   // Residence & Specs Form State
   const [homeName, setHomeName] = useState('');
@@ -101,7 +113,6 @@ export function ProfileModal({
   const [notificationPrefs, setNotificationPrefs] = useState<NotificationPreferences | null>(null);
   const [prefsLoading, setPrefsLoading] = useState(false);
   const [isSavingPrefs, setIsSavingPrefs] = useState(false);
-  const [isTestingEmail, setIsTestingEmail] = useState(false);
 
   // Export State
   const [isExportingJson, setIsExportingJson] = useState(false);
@@ -172,10 +183,24 @@ export function ProfileModal({
     }
   };
 
+  const fetchAiStatus = async () => {
+    try {
+      const res = await apiGet<{ status: 'available' | 'unavailable' | 'not_configured' }>('/api/system/ai-status');
+      if (res.success && res.data?.status) {
+        setAiStatus(res.data.status);
+      } else {
+        setAiStatus('unavailable');
+      }
+    } catch {
+      setAiStatus('unavailable');
+    }
+  };
+
   useEffect(() => {
     if (isOpen) {
       fetchPrivacyAndSources();
       fetchNotificationPrefs();
+      fetchAiStatus();
     }
   }, [isOpen]);
 
@@ -285,22 +310,6 @@ export function ProfileModal({
       if (addToast) addToast('error', 'Update Failed', err.message || 'Could not save notice window.');
     } finally {
       setIsSavingPrefs(false);
-    }
-  };
-
-  const handleTestEmailDigest = async () => {
-    try {
-      setIsTestingEmail(true);
-      const res = await api.testEmailDigest();
-      if (addToast) {
-        addToast('success', 'Email Test Triggered', res.message || 'Queued upcoming household digest email.');
-      }
-    } catch (err: any) {
-      if (addToast) {
-        addToast('error', 'Test Failed', err.message || 'Failed to trigger test email digest.');
-      }
-    } finally {
-      setIsTestingEmail(false);
     }
   };
 
@@ -497,7 +506,7 @@ export function ProfileModal({
             }`}
           >
             <Bell className="w-4 h-4" />
-            <span>Notification Rules</span>
+            <span>Notification Preferences</span>
           </button>
 
           <button
@@ -510,7 +519,7 @@ export function ProfileModal({
             }`}
           >
             <HardDrive className="w-4 h-4" />
-            <span>Ingestion Sources</span>
+            <span>AI & Integrations</span>
           </button>
 
           <button
@@ -1003,10 +1012,18 @@ export function ProfileModal({
                 </h4>
 
                 <div className="space-y-3">
-                  <div className="p-3 bg-white border border-slate-200 rounded-xl flex items-center justify-between">
+                  {/* In-App Alerts (Available & Toggleable) */}
+                  <div className="p-3.5 bg-white border border-slate-200 rounded-xl flex items-center justify-between">
                     <div>
-                      <div className="text-xs font-semibold text-slate-900">In-App Alerts & Banner Reminders</div>
-                      <div className="text-[11px] text-slate-500">Surface upcoming obligations inside the Command Center & Bell tray</div>
+                      <div className="text-xs font-semibold text-slate-900 flex items-center gap-2">
+                        <span>In-App Alerts & Banner Reminders</span>
+                        <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 text-[10px] font-bold rounded-md uppercase tracking-wider border border-emerald-200/60">
+                          Available
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-slate-500 mt-0.5">
+                        Surface upcoming obligations inside the Command Center & header notification bell
+                      </div>
                     </div>
                     <input
                       type="checkbox"
@@ -1016,29 +1033,48 @@ export function ProfileModal({
                     />
                   </div>
 
-                  <div className="p-3 bg-white border border-slate-200 rounded-xl flex items-center justify-between">
+                  {/* Email Notifications (Unavailable / Coming Soon) */}
+                  <div className="p-3.5 bg-slate-50/80 border border-slate-200/60 rounded-xl flex items-center justify-between opacity-60 cursor-not-allowed">
                     <div>
-                      <div className="text-xs font-semibold text-slate-900">Weekly Email Digest & Urgent Alerts</div>
-                      <div className="text-[11px] text-slate-500">Send proactive digest of upcoming bills and critical maintenance to:</div>
-                      <div className="text-xs font-medium text-slate-800 mt-1 font-mono">{profile?.email || 'user@example.com'}</div>
+                      <div className="text-xs font-semibold text-slate-700 flex items-center gap-2">
+                        <span>Email Notifications & Digest</span>
+                        <span className="px-2 py-0.5 bg-slate-200 text-slate-600 text-[10px] font-bold rounded-md uppercase tracking-wider">
+                          Not available
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-slate-400 mt-0.5">
+                        Weekly proactive digest of upcoming bills and critical maintenance (Coming soon)
+                      </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <button
-                        type="button"
-                        onClick={handleTestEmailDigest}
-                        disabled={isTestingEmail}
-                        className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium rounded-lg transition cursor-pointer"
-                      >
-                        <Send className="w-3 h-3 text-indigo-600" />
-                        <span>{isTestingEmail ? 'Sending...' : 'Test Email'}</span>
-                      </button>
-                      <input
-                        type="checkbox"
-                        checked={Boolean(notificationPrefs?.channels?.email ?? true)}
-                        onChange={(e) => handleToggleChannel('email', e.target.checked)}
-                        className="w-4 h-4 text-indigo-600 rounded border-slate-300 cursor-pointer"
-                      />
+                    <input
+                      type="checkbox"
+                      checked={false}
+                      disabled
+                      aria-disabled="true"
+                      className="w-4 h-4 text-slate-400 rounded border-slate-300 cursor-not-allowed"
+                    />
+                  </div>
+
+                  {/* Web Push Notifications (Unavailable / Coming Soon) */}
+                  <div className="p-3.5 bg-slate-50/80 border border-slate-200/60 rounded-xl flex items-center justify-between opacity-60 cursor-not-allowed">
+                    <div>
+                      <div className="text-xs font-semibold text-slate-700 flex items-center gap-2">
+                        <span>Web Push Notifications</span>
+                        <span className="px-2 py-0.5 bg-slate-200 text-slate-600 text-[10px] font-bold rounded-md uppercase tracking-wider">
+                          Unavailable
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-slate-400 mt-0.5">
+                        Instant browser alerts for urgent safety hazards and same-day deadlines (Coming soon)
+                      </div>
                     </div>
+                    <input
+                      type="checkbox"
+                      checked={false}
+                      disabled
+                      aria-disabled="true"
+                      className="w-4 h-4 text-slate-400 rounded border-slate-300 cursor-not-allowed"
+                    />
                   </div>
                 </div>
               </div>
@@ -1103,23 +1139,52 @@ export function ProfileModal({
             </div>
           )}
 
-          {/* TAB 5: INGESTION SOURCES & INTEGRATIONS */}
+          {/* TAB 5: AI & INTEGRATIONS */}
           {activeTab === 'integrations' && (
             <div className="space-y-4">
               <div>
                 <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
                   <HardDrive className="w-4 h-4 text-indigo-600" />
-                  Active Ingestion Channels & External Integrations
+                  AI & Connected Ingestion Integrations
                 </h4>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  All external data ingested into HouseMind is sanitized and strictly isolated to your user account.
+                  All AI reasoning and external data ingested into HouseMind is sanitized and strictly isolated to your user account.
                 </p>
               </div>
 
               <div className="space-y-2.5">
-                <div className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-xl flex items-center justify-between">
+                {/* 1. Gemini AI Status */}
+                <div className="p-3.5 bg-white border border-slate-200 rounded-xl flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-white border border-slate-200 rounded-lg text-indigo-600">
+                    <div className="p-2 bg-indigo-50 border border-indigo-100 rounded-lg text-indigo-600 shrink-0">
+                      <Sparkles className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="text-xs font-semibold text-slate-900">Gemini AI</div>
+                      <div className="text-[11px] text-slate-500">
+                        Grounded intelligence for natural-language household synthesis, document intake, and conversational reasoning
+                      </div>
+                    </div>
+                  </div>
+                  {aiStatus === 'available' ? (
+                    <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 text-[10px] font-bold rounded-md uppercase tracking-wider border border-emerald-200/60 whitespace-nowrap shrink-0 ml-2">
+                      Gemini AI · Available
+                    </span>
+                  ) : aiStatus === 'not_configured' ? (
+                    <span className="px-2.5 py-1 bg-amber-50 text-amber-700 text-[10px] font-bold rounded-md uppercase tracking-wider border border-amber-200/60 whitespace-nowrap shrink-0 ml-2">
+                      Gemini AI · Not configured
+                    </span>
+                  ) : (
+                    <span className="px-2.5 py-1 bg-slate-100 text-slate-600 text-[10px] font-bold rounded-md uppercase tracking-wider border border-slate-200 whitespace-nowrap shrink-0 ml-2">
+                      Gemini AI · Unavailable
+                    </span>
+                  )}
+                </div>
+
+                {/* 2. Document AI OCR & Multimodal Intake */}
+                <div className="p-3.5 bg-white border border-slate-200 rounded-xl flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-emerald-50 border border-emerald-100 rounded-lg text-emerald-600 shrink-0">
                       <UploadCloud className="w-4 h-4" />
                     </div>
                     <div>
@@ -1127,14 +1192,15 @@ export function ProfileModal({
                       <div className="text-[11px] text-slate-500">Extracts structured bills, warranties, receipts, and manual specs</div>
                     </div>
                   </div>
-                  <span className="px-2.5 py-1 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded-md uppercase tracking-wider">
+                  <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 text-[10px] font-bold rounded-md uppercase tracking-wider border border-emerald-200/60 shrink-0 ml-2">
                     Active
                   </span>
                 </div>
 
-                <div className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-xl flex items-center justify-between">
+                {/* 3. Manual Entry & Custom Entity Creator */}
+                <div className="p-3.5 bg-white border border-slate-200 rounded-xl flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-white border border-slate-200 rounded-lg text-slate-600">
+                    <div className="p-2 bg-slate-100 border border-slate-200 rounded-lg text-slate-600 shrink-0">
                       <FileText className="w-4 h-4" />
                     </div>
                     <div>
@@ -1142,38 +1208,40 @@ export function ProfileModal({
                       <div className="text-[11px] text-slate-500">Direct user additions for properties, rooms, expenses, and loans</div>
                     </div>
                   </div>
-                  <span className="px-2.5 py-1 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded-md uppercase tracking-wider">
+                  <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 text-[10px] font-bold rounded-md uppercase tracking-wider border border-emerald-200/60 shrink-0 ml-2">
                     Active
                   </span>
                 </div>
 
-                <div className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-xl flex items-center justify-between">
+                {/* 4. Google Drive (Unavailable / Greyed Out) */}
+                <div className="p-3.5 bg-slate-50/80 border border-slate-200/60 rounded-xl flex items-center justify-between opacity-60 cursor-not-allowed">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-white border border-slate-200 rounded-lg text-slate-600">
+                    <div className="p-2 bg-slate-200/60 border border-slate-300/60 rounded-lg text-slate-500 shrink-0">
                       <HardDrive className="w-4 h-4" />
                     </div>
                     <div>
-                      <div className="text-xs font-semibold text-slate-900">Google Drive Document Sync</div>
-                      <div className="text-[11px] text-slate-500">Scan household folder for appliance warranties and repair bills</div>
+                      <div className="text-xs font-semibold text-slate-700">Google Drive</div>
+                      <div className="text-[11px] text-slate-400">Sync household folder for appliance warranties and repair receipts</div>
                     </div>
                   </div>
-                  <span className="px-2.5 py-1 bg-slate-100 text-slate-700 text-[10px] font-bold rounded-md uppercase tracking-wider">
-                    Ready
+                  <span className="px-2.5 py-1 bg-slate-200 text-slate-600 text-[10px] font-bold rounded-md uppercase tracking-wider shrink-0 ml-2">
+                    Google Drive · Unavailable
                   </span>
                 </div>
 
-                <div className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-xl flex items-center justify-between">
+                {/* 5. Gmail (Unavailable / Greyed Out) */}
+                <div className="p-3.5 bg-slate-50/80 border border-slate-200/60 rounded-xl flex items-center justify-between opacity-60 cursor-not-allowed">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-white border border-slate-200 rounded-lg text-slate-600">
+                    <div className="p-2 bg-slate-200/60 border border-slate-300/60 rounded-lg text-slate-500 shrink-0">
                       <Mail className="w-4 h-4" />
                     </div>
                     <div>
-                      <div className="text-xs font-semibold text-slate-900">Gmail Utility Bill Intake</div>
-                      <div className="text-[11px] text-slate-500">Read-only search for electronic utility statements & payment receipts</div>
+                      <div className="text-xs font-semibold text-slate-700">Gmail</div>
+                      <div className="text-[11px] text-slate-400">Read-only search for electronic utility statements & payment receipts</div>
                     </div>
                   </div>
-                  <span className="px-2.5 py-1 bg-slate-100 text-slate-700 text-[10px] font-bold rounded-md uppercase tracking-wider">
-                    Ready
+                  <span className="px-2.5 py-1 bg-slate-200 text-slate-600 text-[10px] font-bold rounded-md uppercase tracking-wider shrink-0 ml-2">
+                    Gmail · Unavailable
                   </span>
                 </div>
               </div>

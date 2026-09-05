@@ -35,8 +35,8 @@ export function GuidedTourModal({
 
   const step: TourStep | undefined = tour?.steps[currentStepIndex];
 
-  // Update target element positioning
-  const updateTargetPosition = useCallback(() => {
+  // Measure target element rect without triggering scrolling
+  const measureTargetRect = useCallback(() => {
     if (!step?.targetSelector) {
       setTargetRect(null);
       return;
@@ -45,26 +45,16 @@ export function GuidedTourModal({
     try {
       const el = document.querySelector(step.targetSelector);
       if (el) {
-        const rect = el.getBoundingClientRect();
-        setTargetRect(rect);
-        // Scroll target into view gently if outside viewport
-        if (
-          rect.top < 0 ||
-          rect.bottom > window.innerHeight ||
-          rect.left < 0 ||
-          rect.right > window.innerWidth
-        ) {
-          el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        }
+        setTargetRect(el.getBoundingClientRect());
       } else {
         setTargetRect(null);
       }
     } catch {
       setTargetRect(null);
     }
-  }, [step]);
+  }, [step?.targetSelector]);
 
-  // Sync tab navigation and recalculate target rect on step change
+  // Handle step transitions: navigate tab, scroll target into view once if needed, then measure
   useEffect(() => {
     if (!step) return;
 
@@ -72,17 +62,43 @@ export function GuidedTourModal({
       onNavigateTab(step.tab, step.subTab);
     }
 
-    // Allow time for view rendering/tab transition before measuring DOM target
-    const timer = setTimeout(updateTargetPosition, 180);
-    window.addEventListener('resize', updateTargetPosition);
-    window.addEventListener('scroll', updateTargetPosition, true);
+    // Single one-shot scroll into view after tab view renders
+    const scrollTimer = setTimeout(() => {
+      if (step.targetSelector) {
+        try {
+          const el = document.querySelector(step.targetSelector);
+          if (el) {
+            const rect = el.getBoundingClientRect();
+            const isOutOfView =
+              rect.top < 60 ||
+              rect.bottom > window.innerHeight - 60 ||
+              rect.left < 0 ||
+              rect.right > window.innerWidth;
+            if (isOutOfView) {
+              el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+          }
+        } catch {
+          // safe fallback
+        }
+      }
+      measureTargetRect();
+    }, 160);
+
+    // Dynamic listeners to update rect during user scroll/resize (WITHOUT triggering scrollIntoView)
+    const handleViewportChange = () => {
+      measureTargetRect();
+    };
+
+    window.addEventListener('resize', handleViewportChange, { passive: true });
+    window.addEventListener('scroll', handleViewportChange, { passive: true, capture: true });
 
     return () => {
-      clearTimeout(timer);
-      window.removeEventListener('resize', updateTargetPosition);
-      window.removeEventListener('scroll', updateTargetPosition, true);
+      clearTimeout(scrollTimer);
+      window.removeEventListener('resize', handleViewportChange);
+      window.removeEventListener('scroll', handleViewportChange, true);
     };
-  }, [step, onNavigateTab, updateTargetPosition]);
+  }, [step, onNavigateTab, measureTargetRect]);
 
   // Keyboard navigation
   useEffect(() => {
@@ -137,7 +153,7 @@ export function GuidedTourModal({
     onClose();
   };
 
-  // Determine popup placement
+  // Determine popup placement cleanly within viewport
   let popoverStyle: React.CSSProperties = {
     position: 'fixed',
     zIndex: 9999,
@@ -145,19 +161,22 @@ export function GuidedTourModal({
 
   if (targetRect) {
     const margin = 14;
-    const popoverWidth = Math.min(380, window.innerWidth - 32);
+    const popoverWidth = Math.min(390, window.innerWidth - 32);
 
     let top = targetRect.bottom + margin;
     let left = Math.max(16, Math.min(targetRect.left, window.innerWidth - popoverWidth - 16));
 
     // If bottom is out of bounds, place above
-    if (top + 240 > window.innerHeight && targetRect.top > 250) {
-      top = Math.max(16, targetRect.top - 240 - margin);
+    if (top + 260 > window.innerHeight && targetRect.top > 260) {
+      top = Math.max(16, targetRect.top - 260 - margin);
     }
+
+    // Keep within safe viewport boundaries
+    top = Math.max(16, Math.min(top, window.innerHeight - 280));
 
     popoverStyle = {
       ...popoverStyle,
-      top: `${Math.max(16, top)}px`,
+      top: `${top}px`,
       left: `${left}px`,
       width: `${popoverWidth}px`,
     };
@@ -168,32 +187,66 @@ export function GuidedTourModal({
       top: '50%',
       left: '50%',
       transform: 'translate(-50%, -50%)',
-      width: 'min(90vw, 420px)',
+      width: 'min(92vw, 420px)',
     };
   }
 
+  // Calculate spotlight coordinates with padding
+  const spotlightPad = 6;
+  const spotX = targetRect ? Math.max(0, targetRect.left - spotlightPad) : 0;
+  const spotY = targetRect ? Math.max(0, targetRect.top - spotlightPad) : 0;
+  const spotW = targetRect ? targetRect.width + spotlightPad * 2 : 0;
+  const spotH = targetRect ? targetRect.height + spotlightPad * 2 : 0;
+
   return (
     <div
-      className="fixed inset-0 z-50 overflow-hidden select-none"
+      className="fixed inset-0 z-50 overflow-hidden select-none pointer-events-auto"
       role="dialog"
       aria-modal="true"
       aria-label={`Guided Tour: ${tour.title}`}
     >
-      {/* Darkened Backdrop Overlay */}
-      <div
-        className="absolute inset-0 bg-slate-950/75 backdrop-blur-[2px] transition-opacity duration-300"
+      {/* SVG Cutout Backdrop Mask (Zero Layout Shift, Perfect Cutout) */}
+      <svg
+        className="fixed inset-0 w-full h-full pointer-events-auto cursor-pointer"
         onClick={onClose}
-      />
+        aria-hidden="true"
+      >
+        <defs>
+          <mask id="guided-tour-mask">
+            {/* White background fills the mask (visible) */}
+            <rect width="100%" height="100%" fill="white" />
+            {/* Black rectangle punches out the spotlight hole */}
+            {targetRect && (
+              <rect
+                x={spotX}
+                y={spotY}
+                width={spotW}
+                height={spotH}
+                rx="14"
+                ry="14"
+                fill="black"
+              />
+            )}
+          </mask>
+        </defs>
+        {/* Dark tinted backdrop with mask hole */}
+        <rect
+          width="100%"
+          height="100%"
+          fill="rgba(2, 6, 23, 0.78)"
+          mask="url(#guided-tour-mask)"
+        />
+      </svg>
 
-      {/* Target Spotlight Highlight Ring if targetRect exists */}
+      {/* Target Spotlight Highlight Ring Outline */}
       {targetRect && (
         <div
-          className="absolute border-2 border-indigo-400 bg-indigo-500/15 rounded-2xl shadow-[0_0_0_9999px_rgba(2,6,23,0.7)] pointer-events-none transition-all duration-300 animate-pulse"
+          className="fixed border-2 border-indigo-400 bg-indigo-500/10 rounded-2xl ring-4 ring-indigo-500/20 pointer-events-none animate-pulse"
           style={{
-            top: `${Math.max(0, targetRect.top - 6)}px`,
-            left: `${Math.max(0, targetRect.left - 6)}px`,
-            width: `${targetRect.width + 12}px`,
-            height: `${targetRect.height + 12}px`,
+            top: `${spotY}px`,
+            left: `${spotX}px`,
+            width: `${spotW}px`,
+            height: `${spotH}px`,
             zIndex: 9998,
           }}
         />
@@ -203,7 +256,7 @@ export function GuidedTourModal({
       <div
         ref={modalRef}
         style={popoverStyle}
-        className="bg-slate-900 border border-indigo-500/40 rounded-3xl p-5 sm:p-6 shadow-2xl shadow-indigo-950/80 text-white backdrop-blur-xl animate-in fade-in zoom-in-95 duration-200"
+        className="bg-slate-900/95 border border-indigo-500/40 rounded-3xl p-5 sm:p-6 shadow-2xl shadow-indigo-950/80 text-white backdrop-blur-xl animate-in fade-in zoom-in-95 duration-200 pointer-events-auto"
       >
         {/* Header */}
         <div className="flex items-center justify-between gap-3 pb-3 border-b border-slate-800">
@@ -292,3 +345,4 @@ export function GuidedTourModal({
     </div>
   );
 }
+

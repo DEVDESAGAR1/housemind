@@ -329,49 +329,31 @@ export function NotificationPreferencesModal({
                   </span>
                 </div>
 
-                {/* Email Channel */}
-                <div className="p-3.5 rounded-2xl border border-slate-100 bg-slate-50/60 space-y-3">
+                {/* Email Channel (Unavailable / Coming Soon) */}
+                <div className="p-3.5 rounded-2xl border border-slate-200/60 bg-slate-50/80 space-y-2 opacity-60 cursor-not-allowed">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-xl bg-slate-200 text-slate-600 flex items-center justify-center">
+                      <div className="w-8 h-8 rounded-xl bg-slate-200 text-slate-500 flex items-center justify-center">
                         <Mail className="w-4 h-4" />
                       </div>
                       <div>
-                        <div className="text-sm font-semibold text-slate-800">Email Digest Delivery</div>
-                        <div className="text-xs text-slate-500">Weekly executive digest & critical alert emails</div>
+                        <div className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                          <span>Email Digest Delivery</span>
+                          <span className="px-2 py-0.5 bg-slate-200 text-slate-600 text-[10px] font-bold rounded-md uppercase tracking-wider">
+                            Not available
+                          </span>
+                        </div>
+                        <div className="text-xs text-slate-400">Weekly executive digest & critical alert emails (Coming soon)</div>
                       </div>
                     </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={preferences.channels.email}
-                        onChange={() => handleToggleChannel('email')}
-                        className="sr-only peer"
-                      />
-                      <div className="w-11 h-6 bg-slate-200 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
-                    </label>
+                    <input
+                      type="checkbox"
+                      checked={false}
+                      disabled
+                      aria-disabled="true"
+                      className="w-4 h-4 text-slate-400 rounded border-slate-300 cursor-not-allowed"
+                    />
                   </div>
-
-                  {preferences.channels.email && (
-                    <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between gap-3 text-xs">
-                      <span className="text-slate-600 truncate">
-                        Recipient: <strong className="text-slate-800">{preferences.emailAddress || 'User Account Email'}</strong>
-                      </span>
-                      <button
-                        type="button"
-                        onClick={handleTestEmail}
-                        disabled={isTestingEmail}
-                        className="px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl font-medium transition shrink-0 cursor-pointer flex items-center gap-1.5"
-                      >
-                        {isTestingEmail ? (
-                          <RefreshCw className="w-3 h-3 animate-spin" />
-                        ) : (
-                          <Send className="w-3 h-3 text-indigo-500" />
-                        )}
-                        <span>Test Channel</span>
-                      </button>
-                    </div>
-                  )}
                 </div>
               </div>
             </div>

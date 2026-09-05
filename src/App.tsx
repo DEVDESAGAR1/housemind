@@ -39,7 +39,7 @@ import { GlobalUploadModal } from './components/GlobalUploadModal';
 import { ScenarioSimulatorView } from './components/scenarios/ScenarioSimulatorView';
 import { CopilotView } from './components/CopilotView';
 import { InvestigationModal } from './components/InvestigationModal';
-import { ProfileModal } from './components/ProfileModal';
+import { ProfileModal, ProfileTab } from './components/ProfileModal';
 import { SearchModal } from './components/SearchModal';
 import { NotificationCenterModal } from './components/notifications/NotificationCenterModal';
 import { NotificationPreferencesModal } from './components/notifications/NotificationPreferencesModal';
@@ -48,6 +48,7 @@ import { LandingPage } from './components/LandingPage';
 import { HelpCenterView } from './components/help/HelpCenterView';
 import { FloatingHelpWidget } from './components/help/FloatingHelpWidget';
 import { GuidedTourModal } from './components/tours/GuidedTourModal';
+import { TourCatalogModal } from './components/tours/TourCatalogModal';
 import { HOUSEMIND_TOURS, GuidedTour } from './components/tours/tourDefinitions';
 import { LegalPoliciesModal, PolicyTab } from './components/legal/LegalPoliciesModal';
 import { Footer } from './components/Footer';
@@ -106,6 +107,7 @@ export default function App() {
   const [investigatingInsight, setInvestigatingInsight] = useState<HouseholdInsight | null>(null);
   const [isSeeding, setIsSeeding] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [profileModalTab, setProfileModalTab] = useState<ProfileTab>('residence');
 
   // Global Entity Extractor & Global Document Intake Modals
   const [isEntityExtractorOpen, setIsEntityExtractorOpen] = useState(false);
@@ -133,18 +135,28 @@ export default function App() {
 
   // Phase 3: Guided Tours & Legal Policies Modals
   const [activeTour, setActiveTour] = useState<GuidedTour | null>(null);
+  const [isTourCatalogOpen, setIsTourCatalogOpen] = useState(false);
   const [isLegalModalOpen, setIsLegalModalOpen] = useState(false);
   const [legalModalTab, setLegalModalTab] = useState<PolicyTab>('privacy');
 
-  const handleStartTour = (tourId: string = 'overview') => {
+  const handleStartTour = (tourId?: string) => {
+    if (!tourId || tourId === 'catalog') {
+      setIsTourCatalogOpen(true);
+      return;
+    }
     const tour = HOUSEMIND_TOURS[tourId] || HOUSEMIND_TOURS['overview'];
     setActiveTour(tour);
     trackEvent('guided_tour_started', { category: tour.id });
   };
 
+  const handleOpenProfile = (tab: ProfileTab = 'residence') => {
+    setProfileModalTab(tab);
+    setIsProfileModalOpen(true);
+  };
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      (window as any).__HOUSEMIND_START_TOUR__ = handleStartTour;
+      (window as any).__HOUSEMIND_START_TOUR__ = (tourId: string = 'overview') => handleStartTour(tourId);
     }
   }, []);
 
@@ -731,7 +743,7 @@ export default function App() {
         onAddOption={handleAddOption}
         maintenanceSubTab={maintenanceSubTab}
         utilitiesSubTab={utilitiesSubTab}
-        onOpenProfile={() => setIsProfileModalOpen(true)}
+        onOpenProfile={() => handleOpenProfile('residence')}
         onSeedDemo={handleSeedDemo}
         onSignOut={handleSignOut}
         isSeeding={isSeeding}
@@ -740,7 +752,7 @@ export default function App() {
         onOpenMorningBrief={handleOpenMorningBrief}
         unreadNotificationCount={unreadNotificationCount}
         onOpenNotifications={() => setIsNotificationsOpen(true)}
-        onOpenNotificationPreferences={() => setIsNotificationPreferencesOpen(true)}
+        onOpenNotificationPreferences={() => handleOpenProfile('notifications')}
       />
 
       {/* Main App Container */}
@@ -958,7 +970,7 @@ export default function App() {
         onOpenTour={handleStartTour}
         onOpenHelpCenter={() => setActiveTab('help')}
         onOpenPolicy={handleOpenPolicy}
-        onOpenProfile={() => setIsProfileModalOpen(true)}
+        onOpenProfile={() => handleOpenProfile('residence')}
         onSignOut={handleSignOut}
       />
 
@@ -974,7 +986,7 @@ export default function App() {
         isOpen={isLegalModalOpen}
         onClose={() => setIsLegalModalOpen(false)}
         initialTab={legalModalTab}
-        onOpenProfilePrivacy={() => setIsProfileModalOpen(true)}
+        onOpenProfilePrivacy={() => handleOpenProfile('privacy')}
       />
 
       {/* Phase 2: Global Upload & AI Document Intake Modal */}
@@ -1036,11 +1048,19 @@ export default function App() {
       {/* Profile Settings Modal */}
       <ProfileModal
         isOpen={isProfileModalOpen}
+        initialTab={profileModalTab}
         profile={profile}
         onClose={() => setIsProfileModalOpen(false)}
         onSave={handleSaveProfile}
         onDataChanged={loadHouseholdData}
         addToast={addToast}
+      />
+
+      {/* Phase 3: Interactive Guided Tours Catalog Modal */}
+      <TourCatalogModal
+        isOpen={isTourCatalogOpen}
+        onClose={() => setIsTourCatalogOpen(false)}
+        onSelectTour={(tourId) => handleStartTour(tourId)}
       />
 
       {/* Global Search Modal */}

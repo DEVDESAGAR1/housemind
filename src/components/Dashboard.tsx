@@ -42,7 +42,6 @@ import {
 import { formatCurrency, getCurrencySymbol } from '../config/locationCurrencyConfig';
 import { HouseholdHealthWidget } from './HouseholdHealthWidget';
 import { HouseholdHealthDetailModal } from './HouseholdHealthDetailModal';
-import { NeedsAttentionSection } from './command-center/NeedsAttentionSection';
 import { UnifiedActionCenterSection } from './command-center/UnifiedActionCenterSection';
 import { HouseholdIntelligenceSection } from './command-center/HouseholdIntelligenceSection';
 import { HouseholdTimelineModal } from './HouseholdTimelineModal';
@@ -320,24 +319,16 @@ export function Dashboard({
         />
       )}
 
-      {/* TIER 1 — NEEDS ATTENTION NOW (Critical, Overdue, Due Today, Warnings) */}
-      <NeedsAttentionSection
-        expenses={expenses}
-        assets={assets}
-        maintenances={tasks}
-        warranties={warranties}
-        utilities={utilities}
-        loans={loans}
-        creditCards={creditCards}
-        insights={insights}
-        healthSignals={healthReport?.topSignals}
-        currencyCode={currencyCode}
-        locale={locale}
+      {/* TIER 1 — HOUSEHOLD HEALTH SCORE & 4 PILLARS */}
+      <HouseholdHealthWidget
+        healthReport={healthReport}
+        isLoading={isLoadingHealth}
+        onRefresh={handleRefreshHealth}
+        onOpenDetailModal={() => setIsHealthDetailModalOpen(true)}
         onNavigate={onNavigate}
-        onInvestigateInsight={onInvestigateInsight}
       />
 
-      {/* TIER 2 — WHAT SHOULD I DO NEXT? (Unified Household Action Center) */}
+      {/* TIER 2 — WHAT SHOULD I DO NEXT? (Unified Action Center - Single Source of Truth) */}
       <UnifiedActionCenterSection
         actions={unifiedActions}
         isLoading={isLoadingUnifiedActions}
@@ -350,15 +341,20 @@ export function Dashboard({
         locale={locale}
       />
 
-      {/* TIER 3 — HOUSEHOLD OVERVIEW (Health Score, 4-Pillar Snapshots, Upcoming 30-Day Schedule) */}
-      <HouseholdHealthWidget
-        healthReport={healthReport}
-        isLoading={isLoadingHealth}
-        onRefresh={handleRefreshHealth}
-        onOpenDetailModal={() => setIsHealthDetailModalOpen(true)}
+      {/* TIER 3 — UPCOMING SCHEDULE (Concise 30-Day Obligations) */}
+      <UpcomingScheduleSection
+        expenses={expenses}
+        maintenances={tasks}
+        utilities={utilities}
+        loans={loans}
+        creditCards={creditCards}
+        warranties={warranties}
+        currencyCode={currencyCode}
+        locale={locale}
         onNavigate={onNavigate}
       />
 
+      {/* TIER 4 — HOUSEHOLD OVERVIEW (Domain Snapshots across Properties, Assets, Finances) */}
       <DomainSnapshotsSection
         properties={properties}
         rooms={rooms}
@@ -377,19 +373,7 @@ export function Dashboard({
         onNavigate={onNavigate}
       />
 
-      <UpcomingScheduleSection
-        expenses={expenses}
-        maintenances={tasks}
-        utilities={utilities}
-        loans={loans}
-        creditCards={creditCards}
-        warranties={warranties}
-        currencyCode={currencyCode}
-        locale={locale}
-        onNavigate={onNavigate}
-      />
-
-      {/* TIER 4 — ADDITIONAL INTELLIGENCE & INSIGHTS (Cross-Domain Correlated Signals) */}
+      {/* TIER 5 — CROSS-DOMAIN INTELLIGENCE (Compact Insight Cards) */}
       <HouseholdIntelligenceSection
         insights={crossDomainInsights}
         isLoading={isLoadingCrossDomain}
