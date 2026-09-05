@@ -42,6 +42,10 @@ export const ALLOWED_READ_TOOLS: Record<AgentToolName, AgentActionCategory> = {
   getFinancialSummary: 'READ',
   getExpiringWarrantiesAndDocuments: 'READ',
   getRecentNotifications: 'READ',
+  getHouseholdIssues: 'READ',
+  getCrossDomainInsights: 'READ',
+  getHouseholdTimeline: 'READ',
+  getUnifiedHouseholdActions: 'READ',
 };
 
 /**

@@ -1,6 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 import { DatabaseService } from '../dbService';
 import { ToolExecutor } from './toolExecutor';
+import { UnifiedHouseholdActionService } from '../unifiedHouseholdActionService';
 import {
   HouseholdMorningBrief,
   MorningBriefItem,
@@ -9,16 +10,18 @@ import {
   MorningBriefFinancialObligation,
   MorningBriefMaintenanceConcern,
   MorningBriefWarrantyConcern,
+  MorningBriefTopAction,
   AgentToolAuditRecord,
   AgentAuditMetadata,
 } from '../../../src/types';
+import { getGeminiApiKey, getGeminiModel } from '../../config/secrets';
 
 // Lazy-initialized Gemini Client
 let genAIClient: GoogleGenAI | null = null;
 
 function getGeminiClient(): GoogleGenAI {
   if (!genAIClient) {
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = getGeminiApiKey();
     if (!apiKey) {
       console.warn('[MORNING BRIEF] Warning: GEMINI_API_KEY is not set.');
     }
@@ -44,7 +47,7 @@ export class HouseholdMorningBriefService {
     const todayStr = timestamp.split('T')[0];
     const sevenDaysDate = new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0];
 
-    // 1. Gather context from all 6 safe read-only tools
+    // 1. Gather context from all safe read-only tools and database services in parallel
     const [
       profile,
       healthExec,
@@ -53,6 +56,10 @@ export class HouseholdMorningBriefService {
       financeExec,
       warrantiesExec,
       notificationsExec,
+      unifiedActionsRes,
+      issuesList,
+      expensesList,
+      maintenancesList,
     ] = await Promise.all([
       DatabaseService.getProfile(userId).catch(() => null),
       ToolExecutor.executeTool(userId, 'getHouseholdHealth'),
@@ -61,6 +68,10 @@ export class HouseholdMorningBriefService {
       ToolExecutor.executeTool(userId, 'getFinancialSummary'),
       ToolExecutor.executeTool(userId, 'getExpiringWarrantiesAndDocuments', { daysAhead: 60 }),
       ToolExecutor.executeTool(userId, 'getRecentNotifications', { unreadOnly: true }),
+      UnifiedHouseholdActionService.getUnifiedActions(userId, { limit: 5 }).catch(() => null),
+      DatabaseService.listIssues(userId).catch(() => []),
+      DatabaseService.listExpenses(userId).catch(() => []),
+      DatabaseService.listMaintenances(userId).catch(() => []),
     ]);
 
     toolAuditRecords.push(
@@ -110,6 +121,8 @@ export class HouseholdMorningBriefService {
         amount: cost,
         currency,
         actionTab: 'maintenance',
+        subTab: 'maintenance',
+        entityId: task.id,
         actionLabel: 'View Task',
       };
       itemsNeedingAttention.push(item);
@@ -157,18 +170,33 @@ export class HouseholdMorningBriefService {
       }
 
       let categoryType: MorningBriefItem['category'] = 'general';
-      if (evt.category === 'bills') categoryType = 'expense';
-      else if (evt.category === 'utilities') categoryType = 'utility';
-      else if (evt.category === 'loans') categoryType = 'loan';
-      else if (evt.category === 'credit_cards') categoryType = 'card';
-      else if (evt.category === 'maintenance') categoryType = 'maintenance';
-      else if (evt.category === 'warranties') categoryType = 'warranty';
-
+      let subTab: string | undefined = undefined;
       let actionTab = 'dashboard';
-      if (categoryType === 'maintenance') actionTab = 'maintenance';
-      else if (categoryType === 'utility' || categoryType === 'loan' || categoryType === 'card') actionTab = 'utilities';
-      else if (categoryType === 'expense') actionTab = 'expenses';
-      else if (categoryType === 'warranty') actionTab = 'warranties';
+
+      if (evt.category === 'bills') {
+        categoryType = 'expense';
+        actionTab = 'expenses';
+      } else if (evt.category === 'utilities') {
+        categoryType = 'utility';
+        actionTab = 'utilities';
+        subTab = 'utilities';
+      } else if (evt.category === 'loans') {
+        categoryType = 'loan';
+        actionTab = 'utilities';
+        subTab = 'loans';
+      } else if (evt.category === 'credit_cards') {
+        categoryType = 'card';
+        actionTab = 'utilities';
+        subTab = 'cards';
+      } else if (evt.category === 'maintenance') {
+        categoryType = 'maintenance';
+        actionTab = 'maintenance';
+        subTab = 'maintenance';
+      } else if (evt.category === 'warranties') {
+        categoryType = 'warranty';
+        actionTab = 'maintenance';
+        subTab = 'warranties';
+      }
 
       if (isPast && categoryType !== 'maintenance') {
         itemsNeedingAttention.push({
@@ -181,6 +209,8 @@ export class HouseholdMorningBriefService {
           amount: evt.amount,
           currency,
           actionTab,
+          subTab,
+          entityId: evt.id,
           actionLabel: 'Pay / Review',
         });
       } else if (isToday) {
@@ -194,6 +224,8 @@ export class HouseholdMorningBriefService {
           amount: evt.amount,
           currency,
           actionTab,
+          subTab,
+          entityId: evt.id,
           actionLabel: 'Handle Today',
         });
       } else if (isNext7Days) {
@@ -207,6 +239,8 @@ export class HouseholdMorningBriefService {
           amount: evt.amount,
           currency,
           actionTab,
+          subTab,
+          entityId: evt.id,
           actionLabel: 'View Schedule',
         });
       }
@@ -230,7 +264,9 @@ export class HouseholdMorningBriefService {
         reason: `Protection expires on ${w.endDate}. Review policy terms before expiration.`,
         dueDate: w.endDate,
         currency,
-        actionTab: 'warranties',
+        actionTab: 'maintenance',
+        subTab: 'warranties',
+        entityId: w.id,
         actionLabel: 'Review Policy',
       });
     }
@@ -250,6 +286,7 @@ export class HouseholdMorningBriefService {
         urgency: 'warning',
         reason: `Uploaded document is in "${doc.status}" state and requires confirmation.`,
         actionTab: 'documents',
+        entityId: doc.id,
         actionLabel: 'Review OCR',
       });
     }
@@ -309,8 +346,10 @@ export class HouseholdMorningBriefService {
       statusHeadline = `Nominal — ${itemsToWatch.length} Upcoming Item${itemsToWatch.length > 1 ? 's' : ''} on Radar`;
     }
 
-    // 9. Formulate Recommended First Action
+    // 9. Formulate Recommended First Action & Top Action
     let recommendedFirstAction: MorningBriefRecommendedAction | null = null;
+    let topAction: MorningBriefTopAction | null = null;
+
     if (itemsNeedingAttention.length > 0) {
       const top = itemsNeedingAttention[0];
       recommendedFirstAction = {
@@ -319,6 +358,8 @@ export class HouseholdMorningBriefService {
         urgency: top.urgency,
         reason: top.reason,
         actionTab: top.actionTab || 'dashboard',
+        subTab: top.subTab,
+        entityId: top.entityId,
         actionLabel: top.actionLabel || 'Take Action',
       };
     } else if (itemsToWatch.length > 0) {
@@ -329,16 +370,18 @@ export class HouseholdMorningBriefService {
         urgency: top.urgency,
         reason: top.reason,
         actionTab: top.actionTab || 'dashboard',
+        subTab: top.subTab,
+        entityId: top.entityId,
         actionLabel: top.actionLabel || 'Review',
       };
     } else if (isHouseholdEmpty) {
       recommendedFirstAction = {
-        title: 'Add Your First Home Property or Appliance',
+        title: 'Add Your First Home Property',
         category: 'general',
-        urgency: 'warning',
-        reason: 'Complete your initial onboarding profile to unlock preventative health insights.',
+        urgency: 'nominal',
+        reason: 'Complete initial setup to unlock automated health scores and preventative intelligence.',
         actionTab: 'properties',
-        actionLabel: 'Add Property',
+        actionLabel: 'Add Your Home',
       };
     } else {
       recommendedFirstAction = {
@@ -351,7 +394,126 @@ export class HouseholdMorningBriefService {
       };
     }
 
-    // 10. Synthesize Narrative (Gemini with deterministic fallback)
+    // Top action for Morning Brief Modal
+    const topUnifiedAction = unifiedActionsRes?.actions?.[0];
+    if (topUnifiedAction && !isHouseholdEmpty && (!itemsNeedingAttention[0] || itemsNeedingAttention[0].urgency !== 'critical' || topUnifiedAction.priority === 'critical')) {
+      const primaryRec = topUnifiedAction.recommendedActions?.[0];
+      topAction = {
+        id: topUnifiedAction.id,
+        title: topUnifiedAction.title,
+        why: topUnifiedAction.evidence?.facts?.slice(0, 3) || [topUnifiedAction.whyItMatters],
+        actionLabel: primaryRec?.title || 'Review Action',
+        targetTab: primaryRec?.targetTab || 'maintenance',
+        subTab: primaryRec?.subTab,
+        entityId: primaryRec?.entityId,
+        copilotPrompt: `Why is "${topUnifiedAction.title}" recommended as my top household priority?`,
+      };
+    } else if (itemsNeedingAttention.length > 0) {
+      const top = itemsNeedingAttention[0];
+      topAction = {
+        id: top.id,
+        title: top.title,
+        why: [top.reason],
+        actionLabel: top.actionLabel || 'Take Action',
+        targetTab: top.actionTab || 'dashboard',
+        subTab: top.subTab,
+        entityId: top.entityId,
+        copilotPrompt: `Why does "${top.title}" need my attention today?`,
+      };
+    } else if (topUnifiedAction && !isHouseholdEmpty) {
+      const primaryRec = topUnifiedAction.recommendedActions?.[0];
+      topAction = {
+        id: topUnifiedAction.id,
+        title: topUnifiedAction.title,
+        why: topUnifiedAction.evidence?.facts?.slice(0, 3) || [topUnifiedAction.whyItMatters],
+        actionLabel: primaryRec?.title || 'Review Action',
+        targetTab: primaryRec?.targetTab || 'maintenance',
+        subTab: primaryRec?.subTab,
+        entityId: primaryRec?.entityId,
+        copilotPrompt: `Why is "${topUnifiedAction.title}" recommended as my top household priority?`,
+      };
+    } else if (itemsToWatch.length > 0) {
+      const top = itemsToWatch[0];
+      topAction = {
+        id: top.id,
+        title: top.title,
+        why: [top.reason],
+        actionLabel: top.actionLabel || 'Review',
+        targetTab: top.actionTab || 'dashboard',
+        subTab: top.subTab,
+        entityId: top.entityId,
+        copilotPrompt: `What should I know about upcoming item "${top.title}"?`,
+      };
+    } else if (isHouseholdEmpty) {
+      topAction = {
+        title: 'Add Your First Home Property',
+        why: [
+          'Get organized with unified cross-domain intelligence.',
+          'Track assets, maintenance schedules, warranties, and recurring bills in one place.',
+        ],
+        actionLabel: 'Add Your Home',
+        targetTab: 'properties',
+        copilotPrompt: 'How should I get started with setting up my household in HouseMind?',
+      };
+    } else {
+      topAction = {
+        title: 'Perform Routine Preventative Inspection',
+        why: ['All active upkeep schedules and recurring bills are currently up to date.'],
+        actionLabel: 'View Dashboard',
+        targetTab: 'dashboard',
+        copilotPrompt: 'What preventative maintenance or checks should I plan for this season?',
+      };
+    }
+
+    // 10. Meaningful Changes Since Last Briefing (2–3 bullet points)
+    const meaningfulChanges: string[] = [];
+    if (!isHouseholdEmpty) {
+      for (const issue of issuesList) {
+        if (issue.status === 'in_progress') {
+          meaningfulChanges.push(`Issue "${issue.title}" moved to In Progress.`);
+        } else if (issue.status === 'resolved' || issue.status === 'verified') {
+          meaningfulChanges.push(`Issue "${issue.title}" was marked resolved.`);
+        }
+      }
+      for (const m of maintenancesList) {
+        if (m.status === 'completed') {
+          meaningfulChanges.push(`Maintenance task "${m.title}" was completed.`);
+        }
+      }
+      for (const exp of expensesList) {
+        if (exp.category === 'maintenance' || exp.category === 'services' || (exp.title && /repair/i.test(exp.title))) {
+          meaningfulChanges.push(`${currency} ${Number(exp.amount).toLocaleString()} repair expense recorded for "${exp.title}".`);
+        }
+      }
+      if (warrantiesData.expiringWarranties && warrantiesData.expiringWarranties.length > 0) {
+        const topWar = warrantiesData.expiringWarranties[0];
+        meaningfulChanges.push(`Warranty for "${topWar.provider || topWar.assetName || 'Equipment'}" entered expiration window (due ${topWar.endDate}).`);
+      }
+    }
+
+    const trimmedChanges = meaningfulChanges.slice(0, 3);
+    if (trimmedChanges.length === 0 && !isHouseholdEmpty) {
+      trimmedChanges.push('All tracked household assets and utility accounts operating nominally.');
+    }
+
+    // 11. Positive Signal
+    let positiveSignal: string | undefined = undefined;
+    if (!isHouseholdEmpty) {
+      const resolvedIssue = issuesList.find((i) => i.status === 'resolved' || i.status === 'verified');
+      if (resolvedIssue) {
+        positiveSignal = `Issue "${resolvedIssue.title}" was successfully resolved.`;
+      } else if (overdueTasks.length === 0 && itemsNeedingAttention.filter((i) => i.urgency === 'overdue').length === 0) {
+        positiveSignal = 'All scheduled maintenance tasks and bill payments are currently up to date.';
+      } else if (healthScore && healthScore >= 80) {
+        positiveSignal = 'Your overall household operational score is in good health today.';
+      }
+    }
+
+    // 12. Dismissal State Check
+    const isDismissedToday = profile?.lastDismissedBriefDate === todayStr;
+    const lastDismissedDate = profile?.lastDismissedBriefDate;
+
+    // 13. Synthesize Narrative (Gemini with deterministic fallback)
     const synthesizedNarrative = await this.generateSynthesizedNarrative({
       homeName,
       currency,
@@ -386,6 +548,11 @@ export class HouseholdMorningBriefService {
       completenessScore,
       itemsNeedingAttention,
       itemsToWatch,
+      meaningfulChanges: trimmedChanges,
+      positiveSignal,
+      topAction,
+      isDismissedToday,
+      lastDismissedDate,
       financialObligationsSummary: {
         monthlyBurnRate: Number(totalMonthlyBurnRate.toFixed(2)),
         upcomingTotalDueNext7Days: Number(upcomingTotalDueNext7Days.toFixed(2)),
@@ -497,7 +664,7 @@ ${watchList}
 
     // Attempt Gemini synthesis
     const client = getGeminiClient();
-    const modelName = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+    const modelName = getGeminiModel('gemini-2.5-flash');
 
     const systemPrompt = `You are HouseMind Morning Brief AI, synthesizing the daily operational brief for **${homeName}**.
 You must produce a concise, professional, clear briefing in markdown.

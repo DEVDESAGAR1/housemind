@@ -93,3 +93,17 @@ export function evaluateIssueSafety(
 
   return { isSafetyRisk: false };
 }
+
+export class IssueSafetyService {
+  static detectSafetyHazards(
+    title: string,
+    description?: string,
+    notes?: string
+  ): SafetyEvaluationResult & { escalationAdvice?: string } {
+    const res = evaluateIssueSafety(title, description, notes);
+    return {
+      ...res,
+      escalationAdvice: res.safetyWarning,
+    };
+  }
+}

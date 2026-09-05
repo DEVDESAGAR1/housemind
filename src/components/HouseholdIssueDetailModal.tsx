@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   X,
   AlertTriangle,
@@ -17,7 +17,19 @@ import {
   FileText,
   UserCheck,
   ArrowRight,
-  AlertCircle,
+  Sparkles,
+  Link2,
+  Unlink2,
+  ListChecks,
+  CheckSquare,
+  Square,
+  RefreshCw,
+  Info,
+  HelpCircle,
+  ExternalLink,
+  ChevronRight,
+  Layers,
+  History,
 } from 'lucide-react';
 import {
   HouseholdIssue,
@@ -26,6 +38,9 @@ import {
   Property,
   Room,
   Warranty,
+  IssueIntelligenceReport,
+  ResolutionChecklistItem,
+  PossibleRelatedIssue,
 } from '../types';
 import { api } from '../lib/api';
 import { formatCurrency } from '../config/locationCurrencyConfig';
@@ -103,16 +118,58 @@ export function HouseholdIssueDetailModal({
   onRefresh,
   addToast,
 }: HouseholdIssueDetailModalProps) {
-  const [activeTab, setActiveTab] = useState<'details' | 'timeline'>('details');
+  const [activeTab, setActiveTab] = useState<'details' | 'intelligence' | 'resolution' | 'timeline'>('details');
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [pendingStatus, setPendingStatus] = useState<HouseholdIssueStatus | null>(null);
   const [transitionNote, setTransitionNote] = useState('');
   const [resolutionText, setResolutionText] = useState('');
   const [actualCostInput, setActualCostInput] = useState('');
 
+  // Intelligence state
+  const [intelligence, setIntelligence] = useState<IssueIntelligenceReport | null>(null);
+  const [isLoadingIntelligence, setIsLoadingIntelligence] = useState(false);
+  const [intelligenceError, setIntelligenceError] = useState<string | null>(null);
+  const [isLinkingIssue, setIsLinkingIssue] = useState<string | null>(null);
+
+  // Resolution Checklist state
+  const [checklist, setChecklist] = useState<ResolutionChecklistItem[]>([]);
+  const [isUpdatingChecklist, setIsUpdatingChecklist] = useState(false);
+
+  // Root cause editor
+  const [rootCauseInput, setRootCauseInput] = useState('');
+  const [isSavingRootCause, setIsSavingRootCause] = useState(false);
+
   // Add activity note
   const [newActivityNote, setNewActivityNote] = useState('');
   const [isAddingActivity, setIsAddingActivity] = useState(false);
+
+  // Load intelligence
+  const loadIntelligence = useCallback(async (issueId: string) => {
+    setIsLoadingIntelligence(true);
+    setIntelligenceError(null);
+    try {
+      const data = await api.getIssueIntelligence(issueId);
+      setIntelligence(data);
+      if (data.checklist) {
+        setChecklist(data.checklist);
+      }
+    } catch (err: any) {
+      setIntelligenceError(err.message || 'Could not load issue intelligence.');
+    } finally {
+      setIsLoadingIntelligence(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isOpen && issue) {
+      loadIntelligence(issue.id);
+      setRootCauseInput(issue.rootCause || '');
+      setChecklist(issue.resolutionChecklist || []);
+    } else {
+      setIntelligence(null);
+      setIntelligenceError(null);
+    }
+  }, [isOpen, issue?.id, loadIntelligence]);
 
   if (!isOpen || !issue) return null;
 
@@ -140,15 +197,17 @@ export function HouseholdIssueDetailModal({
     try {
       await api.transitionIssueStatus(issue.id, pendingStatus, {
         note: transitionNote.trim() || undefined,
-        resolution: pendingStatus === 'resolved' || pendingStatus === 'verified' || pendingStatus === 'closed'
-          ? (resolutionText.trim() || undefined)
-          : undefined,
+        resolution:
+          pendingStatus === 'resolved' || pendingStatus === 'verified' || pendingStatus === 'closed'
+            ? resolutionText.trim() || undefined
+            : undefined,
         actualCost: actualCostInput ? parseFloat(actualCostInput) : undefined,
       });
 
       addToast('success', 'Status Updated', `Issue transitioned to ${pendingStatus.replace('_', ' ')}.`);
       setPendingStatus(null);
       await onRefresh();
+      await loadIntelligence(issue.id);
     } catch (err: any) {
       addToast('error', 'Transition Failed', err.message || 'Could not update status.');
     } finally {
@@ -173,9 +232,83 @@ export function HouseholdIssueDetailModal({
     }
   };
 
+  // Toggle checklist item
+  const handleToggleChecklistItem = async (item: ResolutionChecklistItem) => {
+    const updated = checklist.map((c) =>
+      c.id === item.id
+        ? {
+            ...c,
+            completed: !c.completed,
+            completedAt: !c.completed ? new Date().toISOString() : undefined,
+          }
+        : c
+    );
+    setChecklist(updated);
+    setIsUpdatingChecklist(true);
+    try {
+      await api.updateIssueChecklist(issue.id, updated);
+      addToast('success', 'Checklist Updated', `Step "${item.label}" updated.`);
+      await onRefresh();
+    } catch (err: any) {
+      addToast('error', 'Checklist Update Failed', err.message);
+      // revert
+      setChecklist(checklist);
+    } finally {
+      setIsUpdatingChecklist(false);
+    }
+  };
+
+  // Link related issue
+  const handleLinkRelatedIssue = async (targetIssue: PossibleRelatedIssue) => {
+    setIsLinkingIssue(targetIssue.id);
+    try {
+      await api.linkRelatedIssues(issue.id, targetIssue.id, targetIssue.relationReason);
+      addToast('success', 'Issues Linked', `Linked with ticket "${targetIssue.title}".`);
+      await onRefresh();
+      await loadIntelligence(issue.id);
+    } catch (err: any) {
+      addToast('error', 'Linking Failed', err.message);
+    } finally {
+      setIsLinkingIssue(null);
+    }
+  };
+
+  // Unlink related issue
+  const handleUnlinkRelatedIssue = async (targetIssueId: string) => {
+    setIsLinkingIssue(targetIssueId);
+    try {
+      await api.unlinkRelatedIssue(issue.id, targetIssueId);
+      addToast('success', 'Issue Unlinked', 'Removed relationship link.');
+      await onRefresh();
+      await loadIntelligence(issue.id);
+    } catch (err: any) {
+      addToast('error', 'Unlink Failed', err.message);
+    } finally {
+      setIsLinkingIssue(null);
+    }
+  };
+
+  // Save Root Cause
+  const handleSaveRootCause = async () => {
+    setIsSavingRootCause(true);
+    try {
+      await api.updateIssueRootCause(issue.id, rootCauseInput.trim());
+      addToast('success', 'Root Cause Saved', 'Root cause diagnostic updated.');
+      await onRefresh();
+      await loadIntelligence(issue.id);
+    } catch (err: any) {
+      addToast('error', 'Save Failed', err.message);
+    } finally {
+      setIsSavingRootCause(false);
+    }
+  };
+
+  // Checklist completion count
+  const completedChecklistCount = checklist.filter((c) => c.completed).length;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in">
-      <div className="w-full max-w-2xl max-h-[90vh] bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden">
+      <div className="w-full max-w-3xl max-h-[92vh] bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
           <div className="flex items-center gap-3">
@@ -360,7 +493,7 @@ export function HouseholdIssueDetailModal({
         )}
 
         {/* Tab Navigation */}
-        <div className="px-6 border-b border-slate-100 flex items-center gap-4">
+        <div className="px-6 border-b border-slate-100 flex items-center gap-4 bg-white">
           <button
             onClick={() => setActiveTab('details')}
             className={`py-3 text-xs font-bold border-b-2 transition cursor-pointer ${
@@ -370,6 +503,38 @@ export function HouseholdIssueDetailModal({
             }`}
           >
             Ticket Overview
+          </button>
+          <button
+            onClick={() => setActiveTab('intelligence')}
+            className={`py-3 text-xs font-bold border-b-2 transition cursor-pointer flex items-center gap-1.5 ${
+              activeTab === 'intelligence'
+                ? 'border-indigo-600 text-indigo-600'
+                : 'border-transparent text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
+            <span>Issue Intelligence</span>
+            {intelligence?.recurringSignal?.isRecurring && (
+              <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-amber-100 text-amber-800">
+                Recurring
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => setActiveTab('resolution')}
+            className={`py-3 text-xs font-bold border-b-2 transition cursor-pointer flex items-center gap-1.5 ${
+              activeTab === 'resolution'
+                ? 'border-indigo-600 text-indigo-600'
+                : 'border-transparent text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            <ListChecks className="w-3.5 h-3.5 text-emerald-500" />
+            <span>Resolution & Steps</span>
+            {checklist.length > 0 && (
+              <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-emerald-100 text-emerald-800">
+                {completedChecklistCount}/{checklist.length}
+              </span>
+            )}
           </button>
           <button
             onClick={() => setActiveTab('timeline')}
@@ -388,7 +553,8 @@ export function HouseholdIssueDetailModal({
 
         {/* Modal Body */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {activeTab === 'details' ? (
+          {/* TAB 1: DETAILS / OVERVIEW */}
+          {activeTab === 'details' && (
             <>
               {/* Description */}
               {issue.description && (
@@ -544,8 +710,401 @@ export function HouseholdIssueDetailModal({
                 </div>
               )}
             </>
-          ) : (
-            /* Timeline & Activity History */
+          )}
+
+          {/* TAB 2: ISSUE INTELLIGENCE */}
+          {activeTab === 'intelligence' && (
+            <div className="space-y-6">
+              {isLoadingIntelligence ? (
+                <div className="flex flex-col items-center justify-center py-12 text-slate-400 space-y-3">
+                  <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
+                  <p className="text-xs">Analyzing issue context, warranty status, and history...</p>
+                </div>
+              ) : intelligenceError ? (
+                <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 space-y-2">
+                  <div className="flex items-center gap-2 font-bold">
+                    <AlertTriangle className="w-4 h-4 text-rose-600" />
+                    <span>Could not load intelligence</span>
+                  </div>
+                  <p>{intelligenceError}</p>
+                  <button
+                    onClick={() => loadIntelligence(issue.id)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1 bg-white border border-rose-200 text-rose-700 font-semibold rounded-lg hover:bg-rose-100/50 cursor-pointer"
+                  >
+                    <RefreshCw className="w-3 h-3" />
+                    <span>Retry Analysis</span>
+                  </button>
+                </div>
+              ) : (
+                <>
+                  {/* Why It Matters */}
+                  <div className="p-4 bg-gradient-to-br from-indigo-50/60 to-purple-50/60 border border-indigo-100 rounded-2xl space-y-2">
+                    <div className="flex items-center gap-2 text-xs font-bold text-indigo-900">
+                      <Sparkles className="w-4 h-4 text-indigo-600" />
+                      <span>Why This Issue Matters</span>
+                    </div>
+                    <p className="text-xs text-slate-800 leading-relaxed font-medium">
+                      {intelligence?.whyItMatters ||
+                        `This ${issue.severity} severity issue requires attention to prevent household disruptions.`}
+                    </p>
+                  </div>
+
+                  {/* Recurrence Pattern Signals */}
+                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-xs font-bold text-slate-800">
+                        <History className="w-4 h-4 text-amber-600" />
+                        <span>Recurrence & Failure History</span>
+                      </div>
+                      {intelligence?.recurringSignal?.isRecurring ? (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">
+                          {intelligence.recurringSignal.repeatedIssueCount} Related Occurrences
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-200 text-slate-700">
+                          Single Incident
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-700 leading-relaxed">
+                      {intelligence?.recurringSignal?.summary ||
+                        'No recurring failure patterns detected for this asset.'}
+                    </p>
+                    {intelligence?.recurringSignal?.previousResolutions &&
+                      intelligence.recurringSignal.previousResolutions.length > 0 && (
+                        <div className="pt-2 border-t border-slate-200/80 space-y-1.5">
+                          <span className="text-[11px] font-bold text-slate-600 block">
+                            Previous Resolutions:
+                          </span>
+                          {intelligence.recurringSignal.previousResolutions.map((prev, idx) => (
+                            <div
+                              key={idx}
+                              className="text-[11px] text-slate-600 flex items-center justify-between bg-white px-2.5 py-1.5 rounded-lg border border-slate-200"
+                            >
+                              <span>{new Date(prev.date).toLocaleDateString()}</span>
+                              <span className="font-medium text-slate-800 line-clamp-1 max-w-[200px]">
+                                {prev.resolution || 'Resolved'}
+                              </span>
+                              {prev.cost ? (
+                                <span className="text-emerald-700 font-semibold">
+                                  {formatCurrency(prev.cost, currency)}
+                                </span>
+                              ) : null}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                  </div>
+
+                  {/* Warranty & Maintenance Intelligence Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Warranty Intelligence */}
+                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
+                          <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                          <span>Warranty Intelligence</span>
+                        </div>
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            intelligence?.warrantyIntelligence?.status === 'covered'
+                              ? 'bg-emerald-100 text-emerald-800'
+                              : intelligence?.warrantyIntelligence?.status === 'possibly_covered'
+                              ? 'bg-sky-100 text-sky-800'
+                              : intelligence?.warrantyIntelligence?.status === 'expired'
+                              ? 'bg-rose-100 text-rose-800'
+                              : 'bg-slate-200 text-slate-700'
+                          }`}
+                        >
+                          {intelligence?.warrantyIntelligence?.statusLabel || 'No Warranty'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-600 leading-relaxed">
+                        {intelligence?.warrantyIntelligence?.explanation ||
+                          'No warranty records associated with this asset.'}
+                      </p>
+                      {intelligence?.warrantyIntelligence?.provider && (
+                        <div className="text-[11px] text-slate-700 bg-white p-2 rounded-lg border border-slate-100 flex items-center justify-between">
+                          <span className="font-medium">Provider: {intelligence.warrantyIntelligence.provider}</span>
+                          {intelligence.warrantyIntelligence.endDate && (
+                            <span className="text-slate-500">
+                              Exp: {new Date(intelligence.warrantyIntelligence.endDate).toLocaleDateString()}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Maintenance Intelligence */}
+                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
+                        <Wrench className="w-4 h-4 text-indigo-600" />
+                        <span>Maintenance Intelligence</span>
+                      </div>
+                      <p className="text-xs text-slate-600 leading-relaxed">
+                        {intelligence?.maintenanceIntelligence?.preventiveOpportunity ||
+                          'Routine maintenance is up to date for this component.'}
+                      </p>
+                      {intelligence?.maintenanceIntelligence?.recentMaintenance &&
+                        intelligence.maintenanceIntelligence.recentMaintenance.length > 0 && (
+                          <div className="text-[11px] text-slate-700 bg-white p-2 rounded-lg border border-slate-100 space-y-1">
+                            <span className="font-semibold block text-slate-800">Recent Service:</span>
+                            {intelligence.maintenanceIntelligence.recentMaintenance.slice(0, 2).map((m) => (
+                              <div key={m.id} className="text-slate-600 flex justify-between">
+                                <span>{m.title}</span>
+                                {m.completedDate && (
+                                  <span>{new Date(m.completedDate).toLocaleDateString()}</span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                    </div>
+                  </div>
+
+                  {/* Related / Duplicate Issues Detection */}
+                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-xs font-bold text-slate-800">
+                        <Layers className="w-4 h-4 text-indigo-600" />
+                        <span>Possible Related & Duplicate Issues</span>
+                      </div>
+                      <span className="text-[10px] text-slate-500">
+                        {intelligence?.relatedIssues?.length || 0} candidate(s)
+                      </span>
+                    </div>
+
+                    {intelligence?.relatedIssues && intelligence.relatedIssues.length > 0 ? (
+                      <div className="space-y-2">
+                        {intelligence.relatedIssues.map((rel) => {
+                          const isAlreadyLinked =
+                            rel.isLinked || issue.relatedIssueIds?.includes(rel.id);
+                          return (
+                            <div
+                              key={rel.id}
+                              className="p-3 bg-white border border-slate-200 rounded-xl flex items-start justify-between gap-3 text-xs"
+                            >
+                              <div className="space-y-1 flex-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-bold text-slate-900">{rel.title}</span>
+                                  <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-700 capitalize">
+                                    {rel.status}
+                                  </span>
+                                  <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-indigo-50 text-indigo-700">
+                                    {Math.round(rel.similarityScore * 100)}% match
+                                  </span>
+                                </div>
+                                <p className="text-[11px] text-slate-600">{rel.relationReason}</p>
+                                <p className="text-[10px] text-slate-400">
+                                  Reported: {new Date(rel.reportedAt).toLocaleDateString()}
+                                  {rel.assetName ? ` • ${rel.assetName}` : ''}
+                                </p>
+                              </div>
+
+                              <div className="shrink-0 flex items-center gap-2">
+                                {isAlreadyLinked ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleUnlinkRelatedIssue(rel.id)}
+                                    disabled={isLinkingIssue === rel.id}
+                                    className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 hover:bg-rose-50 text-slate-700 hover:text-rose-700 text-[11px] font-semibold rounded-lg border border-slate-200 transition cursor-pointer"
+                                  >
+                                    {isLinkingIssue === rel.id ? (
+                                      <Loader2 className="w-3 h-3 animate-spin" />
+                                    ) : (
+                                      <Unlink2 className="w-3 h-3" />
+                                    )}
+                                    <span>Unlink</span>
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleLinkRelatedIssue(rel)}
+                                    disabled={isLinkingIssue === rel.id}
+                                    className="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[11px] font-semibold rounded-lg border border-indigo-200 transition cursor-pointer"
+                                  >
+                                    {isLinkingIssue === rel.id ? (
+                                      <Loader2 className="w-3 h-3 animate-spin" />
+                                    ) : (
+                                      <Link2 className="w-3 h-3" />
+                                    )}
+                                    <span>Link Issue</span>
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-slate-400 italic py-2">
+                        No duplicate or related open/historical issues found for this household.
+                      </p>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* TAB 3: RESOLUTION & RECOMMENDED NEXT STEPS */}
+          {activeTab === 'resolution' && (
+            <div className="space-y-6">
+              {/* Recommended Next Steps */}
+              {intelligence?.recommendedNextSteps && intelligence.recommendedNextSteps.length > 0 && (
+                <div className="p-4 bg-gradient-to-br from-slate-50 to-indigo-50/40 border border-indigo-100 rounded-2xl space-y-3">
+                  <div className="flex items-center gap-2 text-xs font-bold text-slate-900">
+                    <Sparkles className="w-4 h-4 text-indigo-600" />
+                    <span>Recommended Next Steps</span>
+                  </div>
+                  <div className="space-y-2">
+                    {intelligence.recommendedNextSteps.map((step) => (
+                      <div
+                        key={step.id}
+                        className="p-3 bg-white border border-slate-200 rounded-xl space-y-1 text-xs shadow-2xs"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-800 text-[11px] font-bold flex items-center justify-center">
+                              {step.order}
+                            </span>
+                            <span className="font-bold text-slate-900">{step.title}</span>
+                          </div>
+                          <span
+                            className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                              step.priority === 'urgent'
+                                ? 'bg-rose-100 text-rose-800'
+                                : step.priority === 'high'
+                                ? 'bg-orange-100 text-orange-800'
+                                : 'bg-slate-100 text-slate-700'
+                            }`}
+                          >
+                            {step.priority}
+                          </span>
+                        </div>
+                        <p className="text-slate-600 pl-7 text-[11px] leading-relaxed">
+                          {step.guidance}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Resolution Checklist */}
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-xs font-bold text-slate-800">
+                    <ListChecks className="w-4 h-4 text-emerald-600" />
+                    <span>Resolution Checklist</span>
+                  </div>
+                  <span className="text-xs font-bold text-emerald-800">
+                    {completedChecklistCount} of {checklist.length} Complete
+                  </span>
+                </div>
+
+                <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
+                  <div
+                    className="bg-emerald-600 h-1.5 transition-all duration-300"
+                    style={{
+                      width: `${checklist.length ? (completedChecklistCount / checklist.length) * 100 : 0}%`,
+                    }}
+                  />
+                </div>
+
+                <div className="space-y-1.5 pt-2">
+                  {checklist.map((item) => (
+                    <div
+                      key={item.id}
+                      onClick={() => !isUpdatingChecklist && handleToggleChecklistItem(item)}
+                      className={`p-2.5 rounded-xl border flex items-center justify-between gap-3 text-xs cursor-pointer transition select-none ${
+                        item.completed
+                          ? 'bg-emerald-50/70 border-emerald-200 text-emerald-900'
+                          : 'bg-white border-slate-200 hover:border-slate-300 text-slate-800'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        {item.completed ? (
+                          <CheckSquare className="w-4 h-4 text-emerald-600 shrink-0" />
+                        ) : (
+                          <Square className="w-4 h-4 text-slate-400 shrink-0" />
+                        )}
+                        <span className={item.completed ? 'line-through text-slate-500' : 'font-medium'}>
+                          {item.label}
+                        </span>
+                      </div>
+                      {item.autoDerived && (
+                        <span className="text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
+                          Auto
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Root Cause Analysis */}
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-800">Root Cause Diagnostic</span>
+                  <button
+                    type="button"
+                    onClick={handleSaveRootCause}
+                    disabled={isSavingRootCause || rootCauseInput === (issue.rootCause || '')}
+                    className="text-xs font-bold text-indigo-600 hover:text-indigo-800 disabled:opacity-40 cursor-pointer"
+                  >
+                    {isSavingRootCause ? 'Saving...' : 'Save'}
+                  </button>
+                </div>
+                <textarea
+                  value={rootCauseInput}
+                  onChange={(e) => setRootCauseInput(e.target.value)}
+                  placeholder="Record root cause once diagnosed (e.g. Worn compressor capacitor causing irregular cooling cycles)."
+                  rows={2}
+                  className="w-full text-xs p-2.5 rounded-xl border border-slate-200 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              {/* Structured Resolution Summary (When resolved or available) */}
+              {intelligence?.resolutionSummary && (
+                <div className="p-4 bg-emerald-50/80 border border-emerald-200 rounded-2xl space-y-2 text-xs">
+                  <div className="flex items-center gap-2 font-bold text-emerald-900">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    <span>Structured Resolution Summary</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] pt-1">
+                    <div>
+                      <span className="text-slate-500 block">What Happened:</span>
+                      <span className="text-slate-800 font-medium">
+                        {intelligence.resolutionSummary.whatHappened}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block">Action Taken:</span>
+                      <span className="text-slate-800 font-medium">
+                        {intelligence.resolutionSummary.actionTaken}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block">Warranty Involvement:</span>
+                      <span className="text-slate-800 font-medium">
+                        {intelligence.resolutionSummary.warrantyInvolvement}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block">Recommended Prevention:</span>
+                      <span className="text-slate-800 font-medium">
+                        {intelligence.resolutionSummary.recommendedPrevention}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB 4: TIMELINE & ACTIVITY HISTORY */}
+          {activeTab === 'timeline' && (
             <div className="space-y-4">
               {/* Add Note Input */}
               <form onSubmit={handleAddManualActivity} className="flex gap-2">
@@ -619,3 +1178,4 @@ export function HouseholdIssueDetailModal({
     </div>
   );
 }
+

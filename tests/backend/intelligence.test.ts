@@ -1,12 +1,12 @@
 import { apiRequest, TestRunner } from '../test-helper';
 
 export async function runIntelligenceTests(runner: TestRunner) {
-  runner.setSuite('Intelligence & Deterministic Financial Metrics');
+  runner.setSuite('Household Financial Intelligence & Replacement Forecasting');
 
   const token = 'test-token-intel-user';
 
   // Seed expenses and assets for deterministic intelligence calculation
-  await runner.test('Setup intelligence test fixtures', async () => {
+  await runner.test('seeds initial expense and asset records for deterministic intelligence calculation', async () => {
     // Add monthly mortgage
     await apiRequest('/api/household/expenses', {
       method: 'POST',
@@ -48,7 +48,7 @@ export async function runIntelligenceTests(runner: TestRunner) {
     });
   });
 
-  await runner.test('Compute deterministic summary metrics (monthly burn, annual cost)', async () => {
+  await runner.test('computes deterministic financial summary metrics including monthly burn rate and annual expense', async () => {
     const res = await apiRequest('/api/intelligence/summary', { token });
     if (res.status !== 200) {
       throw new Error(`Expected 200 OK, got ${res.status}: ${JSON.stringify(res.body)}`);
@@ -78,7 +78,7 @@ export async function runIntelligenceTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Fetch generated intelligence insights and aging asset warnings', async () => {
+  await runner.test('generates proactive intelligence insights and aging asset replacement warnings', async () => {
     const res = await apiRequest('/api/intelligence/insights', { token });
     if (res.status !== 200) {
       throw new Error(`Expected 200 OK, got ${res.status}`);

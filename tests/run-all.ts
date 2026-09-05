@@ -28,6 +28,14 @@ import { runAgentActionApprovalTests } from './backend/agent_action_approval.tes
 import { runAgentActivityUITests } from './backend/agent_activity_ui.test';
 import { runAgentNotificationsMemoryTests } from './backend/agent_notifications_memory.test';
 import { runUnifiedCopilotUXTests } from './backend/unified_copilot_ux.test';
+import { runIssueIntelligenceTests } from './backend/issue_intelligence.test';
+import { runCrossDomainIntelligenceTests } from './backend/cross_domain_intelligence.test';
+import { runUnifiedHouseholdActionsTests } from './backend/unified_household_actions.test';
+import { runMorningBriefUXTests } from './backend/morning_brief_ux.test';
+import { runDemoHouseholdAlignmentTests } from './backend/demo_household_alignment.test';
+import { runUIUXCopilotHelpTests } from './backend/ui_ux_copilot_help.test';
+import { runAnalyticsObservabilityTests } from './backend/analytics_observability.test';
+import { runSecretsHardeningTests } from './backend/secrets_hardening.test';
 
 async function main() {
   console.log('\n===============================================================');
@@ -127,6 +135,30 @@ async function main() {
 
     console.log('\n--- 29. Phase 22: Unified Agentic Copilot UX Across the Entire Application ---');
     await runUnifiedCopilotUXTests(runner);
+
+    console.log('\n--- 30. Phase 24.3: Issue Intelligence & Resolution Intelligence ---');
+    await runIssueIntelligenceTests(runner);
+
+    console.log('\n--- 31. Phase 24.4: Universal Cross-Domain Household Intelligence ---');
+    await runCrossDomainIntelligenceTests(runner);
+
+    console.log('\n--- 32. Phase 24.5: Unified Household Intelligence & Action Layer ---');
+    await runUnifiedHouseholdActionsTests(runner);
+
+    console.log('\n--- 33. Phase 24.6: Morning Brief Popup-First UX ---');
+    await runMorningBriefUXTests(runner);
+
+    console.log('\n--- 34. Phase 24.7: Existing Demo Household Intelligence Alignment & Indian Localization ---');
+    await runDemoHouseholdAlignmentTests(runner);
+
+    console.log('\n--- 35. Phase 25: Full Product UI/UX Excellence + Copilot + Help & Support ---');
+    await runUIUXCopilotHelpTests(runner);
+
+    console.log('\n--- 36. Phase 27: Free GA4 + Production Observability ---');
+    await runAnalyticsObservabilityTests(runner);
+
+    console.log('\n--- 37. Phase 28: Google Cloud Secret Manager + Production Secrets Hardening ---');
+    await runSecretsHardeningTests(runner);
   } finally {
 
     await stopTestServer();

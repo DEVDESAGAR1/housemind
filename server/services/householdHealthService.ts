@@ -21,13 +21,14 @@ import {
   HouseholdDocument,
   HouseholdIssue,
 } from '../../src/types';
+import { getGeminiApiKey, getGeminiModel } from '../config/secrets';
 
 // Lazy-initialized Gemini Client
 let genAIClient: GoogleGenAI | null = null;
 
 function getGeminiClient(): GoogleGenAI {
   if (!genAIClient) {
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = getGeminiApiKey();
     if (!apiKey) {
       console.warn('[HEALTH SERVICE] Warning: GEMINI_API_KEY is not set.');
     }
@@ -205,7 +206,8 @@ export function computeAssetHealth(
   assets: HomeAsset[],
   warranties: WarrantyPolicy[],
   maintenanceTasks: MaintenanceTask[],
-  referenceDate: Date = new Date()
+  referenceDate: Date = new Date(),
+  issues: HouseholdIssue[] = []
 ): CategoryHealthBreakdown {
   const signals: HouseholdHealthSignal[] = [];
   const positiveFactors: string[] = [];
@@ -288,7 +290,35 @@ export function computeAssetHealth(
       });
     }
 
-    if (criticalAssets.length === 0 && needsMaintAssets.length === 0 && operationalAssets.length > 0) {
+    // Open Critical / Unresolved Issue check
+    const openCriticalIssues = issues.filter(
+      (i) =>
+        (i.severity === 'critical' || !!i.safetyWarning) &&
+        !['resolved', 'verified', 'closed', 'cancelled'].includes(i.status)
+    );
+    if (openCriticalIssues.length > 0 && criticalAssets.length === 0) {
+      const deduction = Math.min(20, openCriticalIssues.length * 10);
+      rawScore -= deduction;
+      const titles = openCriticalIssues.map((i) => i.title).join(', ');
+      riskFactors.push(`${openCriticalIssues.length} open critical household ticket(s): ${titles}`);
+      signals.push({
+        id: 'asset_open_critical_issues',
+        category: 'assets',
+        name: 'Open Critical Household Tickets',
+        status: 'critical',
+        scoreImpact: -deduction,
+        weight: 0.9,
+        title: 'Critical Safety or Appliance Issue Pending',
+        description: `${openCriticalIssues.length} unresolved high-urgency ticket(s): ${titles}.`,
+        evidence: `Unresolved tickets: ${titles}`,
+        recommendation: 'Inspect and resolve open high-priority tickets.',
+        actionTab: 'maintenance',
+        actionLabel: 'View Tickets',
+        relatedEntityIds: openCriticalIssues.map((i) => i.id),
+      });
+    }
+
+    if (criticalAssets.length === 0 && needsMaintAssets.length === 0 && openCriticalIssues.length === 0 && operationalAssets.length > 0) {
       positiveFactors.push('100% of tracked equipment is fully operational');
       rawScore += 10;
       signals.push({
@@ -834,10 +864,11 @@ export function calculateHouseholdHealthReport(
   creditCards: CreditCardAccount[],
   transactions: FinancialTransaction[],
   documents: HouseholdDocument[],
-  referenceDate: Date = new Date()
+  referenceDate: Date = new Date(),
+  issues: HouseholdIssue[] = []
 ): HouseholdHealthReport {
   const home = computeHomeHealth(properties, rooms, documents);
-  const assetCategory = computeAssetHealth(assets, warranties, maintenanceTasks, referenceDate);
+  const assetCategory = computeAssetHealth(assets, warranties, maintenanceTasks, referenceDate, issues);
   const finances = computeFinancialHealth(expenses, utilities, loans, creditCards, transactions, referenceDate);
   const docs = computeDocumentHealth(documents, assets, properties, loans, warranties);
 
@@ -1061,7 +1092,7 @@ export async function generateHealthAiExplanation(
 
   try {
     const ai = getGeminiClient();
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = getGeminiApiKey();
     if (!apiKey) {
       return fallback;
     }
@@ -1095,7 +1126,7 @@ Return ONLY valid JSON with this exact structure:
   ]
 }`;
 
-    const modelName = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+    const modelName = getGeminiModel('gemini-2.5-flash');
     const response = await ai.models.generateContent({
       model: modelName,
       contents: prompt,
@@ -1148,6 +1179,7 @@ export class HouseholdHealthService {
       creditCards,
       transactions,
       documents,
+      issues,
     ] = await Promise.all([
       DatabaseService.getProfile(userId).catch(() => null),
       DatabaseService.listProperties(userId).catch(() => []),
@@ -1161,6 +1193,7 @@ export class HouseholdHealthService {
       DatabaseService.listCreditCards(userId).catch(() => []),
       DatabaseService.listTransactions(userId).catch(() => []),
       DatabaseService.listDocuments(userId).catch(() => []),
+      DatabaseService.listIssues(userId).catch(() => []),
     ]);
 
     const report = calculateHouseholdHealthReport(
@@ -1177,7 +1210,8 @@ export class HouseholdHealthService {
       creditCards,
       transactions,
       documents,
-      options.referenceDate || new Date()
+      options.referenceDate || new Date(),
+      issues
     );
 
     if (options.includeAiExplanation) {

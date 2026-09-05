@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   DollarSign,
   Wrench,
@@ -36,11 +36,16 @@ import {
   CreditCardAccount,
   HouseholdDocument,
   HomeCommandCenterSummary,
+  CrossDomainInsight,
+  UnifiedHouseholdAction,
 } from '../types';
 import { formatCurrency, getCurrencySymbol } from '../config/locationCurrencyConfig';
 import { HouseholdHealthWidget } from './HouseholdHealthWidget';
 import { HouseholdHealthDetailModal } from './HouseholdHealthDetailModal';
 import { NeedsAttentionSection } from './command-center/NeedsAttentionSection';
+import { UnifiedActionCenterSection } from './command-center/UnifiedActionCenterSection';
+import { HouseholdIntelligenceSection } from './command-center/HouseholdIntelligenceSection';
+import { HouseholdTimelineModal } from './HouseholdTimelineModal';
 import { UpcomingScheduleSection } from './command-center/UpcomingScheduleSection';
 import { DomainSnapshotsSection } from './command-center/DomainSnapshotsSection';
 import { RecentActivitySection } from './command-center/RecentActivitySection';
@@ -75,6 +80,7 @@ interface DashboardProps {
   creditCards?: CreditCardAccount[];
   documents?: HouseholdDocument[];
   commandCenterSummary?: HomeCommandCenterSummary | null;
+  onOpenMorningBrief?: () => void;
 }
 
 export function Dashboard({
@@ -93,6 +99,7 @@ export function Dashboard({
   onUpdateInsightStatus,
   isSeeding,
   onOpenGlobalUpload,
+  onOpenMorningBrief,
   healthReport: propHealthReport,
   isLoadingHealth: propIsLoadingHealth,
   onRefreshHealth: propOnRefreshHealth,
@@ -109,6 +116,11 @@ export function Dashboard({
   const [isHealthDetailModalOpen, setIsHealthDetailModalOpen] = useState(false);
   const [localHealthReport, setLocalHealthReport] = useState<HouseholdHealthReport | null>(null);
   const [localIsLoadingHealth, setLocalIsLoadingHealth] = useState(false);
+  const [crossDomainInsights, setCrossDomainInsights] = useState<CrossDomainInsight[]>([]);
+  const [isLoadingCrossDomain, setIsLoadingCrossDomain] = useState(false);
+  const [unifiedActions, setUnifiedActions] = useState<UnifiedHouseholdAction[]>([]);
+  const [isLoadingUnifiedActions, setIsLoadingUnifiedActions] = useState(false);
+  const [isTimelineModalOpen, setIsTimelineModalOpen] = useState(false);
 
   const currencyCode = profile?.currency || 'USD';
   const locale = profile?.locale || undefined;
@@ -116,6 +128,83 @@ export function Dashboard({
 
   const healthReport = propHealthReport !== undefined ? propHealthReport : localHealthReport;
   const isLoadingHealth = propIsLoadingHealth !== undefined ? propIsLoadingHealth : localIsLoadingHealth;
+
+  const loadUnifiedActions = async () => {
+    try {
+      setIsLoadingUnifiedActions(true);
+      const res = await api.getUnifiedActions({ limit: 8 });
+      if (res?.actions) {
+        setUnifiedActions(res.actions);
+      }
+    } catch (err) {
+      console.error('[DASHBOARD] Failed to load unified actions:', err);
+    } finally {
+      setIsLoadingUnifiedActions(false);
+    }
+  };
+
+  const loadCrossDomainInsights = async () => {
+    try {
+      setIsLoadingCrossDomain(true);
+      const res = await api.getCrossDomainInsights({ limit: 10 });
+      if (res?.insights) {
+        setCrossDomainInsights(res.insights);
+      }
+    } catch (err) {
+      console.error('[DASHBOARD] Failed to load cross-domain insights:', err);
+    } finally {
+      setIsLoadingCrossDomain(false);
+    }
+  };
+
+  useEffect(() => {
+    loadUnifiedActions();
+    loadCrossDomainInsights();
+  }, [assets.length, expenses.length, tasks.length, warranties.length]);
+
+  const handleDismissUnifiedAction = async (id: string, fingerprint?: string) => {
+    try {
+      await api.dismissUnifiedAction(id, fingerprint);
+      setUnifiedActions((prev) =>
+        prev.filter((act) => act.id !== id && (!fingerprint || act.deduplicationKey !== fingerprint))
+      );
+    } catch (err) {
+      console.error('[DASHBOARD] Failed to dismiss unified action:', err);
+    }
+  };
+
+  const handleSnoozeUnifiedAction = async (id: string, durationDays: number, fingerprint?: string) => {
+    try {
+      await api.snoozeUnifiedAction(id, durationDays, fingerprint);
+      setUnifiedActions((prev) =>
+        prev.filter((act) => act.id !== id && (!fingerprint || act.deduplicationKey !== fingerprint))
+      );
+    } catch (err) {
+      console.error('[DASHBOARD] Failed to snooze unified action:', err);
+    }
+  };
+
+  const handleCompleteUnifiedAction = async (id: string, fingerprint?: string) => {
+    try {
+      await api.completeUnifiedAction(id, fingerprint);
+      setUnifiedActions((prev) =>
+        prev.filter((act) => act.id !== id && (!fingerprint || act.deduplicationKey !== fingerprint))
+      );
+    } catch (err) {
+      console.error('[DASHBOARD] Failed to complete unified action:', err);
+    }
+  };
+
+  const handleDismissCrossDomainInsight = async (id: string, fingerprint?: string) => {
+    try {
+      await api.dismissCrossDomainInsight(id, fingerprint);
+      setCrossDomainInsights((prev) =>
+        prev.filter((ins) => ins.id !== id && (!fingerprint || ins.deduplicationKey !== fingerprint))
+      );
+    } catch (err) {
+      console.error('[DASHBOARD] Failed to dismiss cross-domain insight:', err);
+    }
+  };
 
   const handleRefreshHealth = async () => {
     if (propOnRefreshHealth) {
@@ -175,7 +264,7 @@ export function Dashboard({
           <div className="flex flex-wrap items-center gap-2.5">
             <button
               id="dash-morning-brief-btn"
-              onClick={() => onNavigate('copilot')}
+              onClick={onOpenMorningBrief ? onOpenMorningBrief : () => onNavigate('copilot')}
               className="inline-flex items-center gap-2 px-4 py-2.5 bg-linear-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-slate-950 text-xs sm:text-sm font-bold rounded-xl transition shadow-xs cursor-pointer"
             >
               <Sun className="w-4 h-4 text-slate-950" />
@@ -240,6 +329,19 @@ export function Dashboard({
         onNavigate={onNavigate}
       />
 
+      {/* 3B. Phase 24.5: Core Question: "What should I do next?" — Unified Household Action Layer */}
+      <UnifiedActionCenterSection
+        actions={unifiedActions}
+        isLoading={isLoadingUnifiedActions}
+        onRefresh={loadUnifiedActions}
+        onDismissAction={handleDismissUnifiedAction}
+        onSnoozeAction={handleSnoozeUnifiedAction}
+        onCompleteAction={handleCompleteUnifiedAction}
+        onNavigate={onNavigate}
+        currencyCode={currencyCode}
+        locale={locale}
+      />
+
       {/* 4. Core Question 2: "What needs my attention?" — Needs Attention & Overdue Section */}
       <NeedsAttentionSection
         expenses={expenses}
@@ -255,6 +357,18 @@ export function Dashboard({
         locale={locale}
         onNavigate={onNavigate}
         onInvestigateInsight={onInvestigateInsight}
+      />
+
+      {/* 4B. Phase 24.4: Cross-Domain Household Intelligence */}
+      <HouseholdIntelligenceSection
+        insights={crossDomainInsights}
+        isLoading={isLoadingCrossDomain}
+        onRefresh={loadCrossDomainInsights}
+        onDismissInsight={handleDismissCrossDomainInsight}
+        onOpenTimeline={() => setIsTimelineModalOpen(true)}
+        onNavigate={onNavigate}
+        currencyCode={currencyCode}
+        locale={locale}
       />
 
       {/* 5. Domain Snapshots — 4-Pillar Overview (Home, Assets, Finances, Maintenance) */}
@@ -350,6 +464,15 @@ export function Dashboard({
         healthReport={healthReport}
         onRefresh={handleRefreshHealth}
         onNavigate={onNavigate}
+      />
+
+      {/* 9. Phase 24.4: Household Operational Timeline Modal */}
+      <HouseholdTimelineModal
+        isOpen={isTimelineModalOpen}
+        onClose={() => setIsTimelineModalOpen(false)}
+        onNavigate={onNavigate}
+        currencyCode={currencyCode}
+        locale={locale}
       />
     </div>
   );

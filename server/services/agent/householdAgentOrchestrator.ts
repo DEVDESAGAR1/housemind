@@ -25,13 +25,14 @@ import { HouseholdMorningBriefService } from './householdMorningBrief';
 import { ActionExecutor } from './actionExecutor';
 import { NotificationService } from '../notificationService';
 import { AgentActivityService } from './agentActivityService';
+import { getGeminiApiKey, getGeminiModel } from '../../config/secrets';
 
 // Lazy-initialized Gemini Client
 let genAIClient: GoogleGenAI | null = null;
 
 function getGeminiClient(): GoogleGenAI {
   if (!genAIClient) {
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = getGeminiApiKey();
     if (!apiKey) {
       console.warn('[AGENT ORCHESTRATOR] Warning: GEMINI_API_KEY is not set.');
     }
@@ -102,6 +103,17 @@ function buildAgentSystemPrompt(
           .join('\n')
       : 'No credit cards tracked.';
 
+  const issuesList =
+    context.issues && context.issues.length > 0
+      ? context.issues
+          .slice(0, 8)
+          .map(
+            (iss, idx) =>
+              `[Issue #${idx + 1}] "${iss.title}", Status: ${iss.status}, Severity: ${iss.severity}${iss.safetyWarning ? ` (SAFETY HAZARD: ${iss.safetyWarning})` : ''}, Reported: ${iss.reportedAt ? iss.reportedAt.split('T')[0] : 'N/A'}${iss.resolution ? ` | Resolution: ${iss.resolution}` : ''}`
+          )
+          .join('\n')
+      : 'No household issues or tickets recorded.';
+
   return `You are HouseMind Copilot, an expert, objective AI assistant specialized in home management, preventative maintenance, utilities, debt amortization, and financial efficiency for **${facts.homeName}**.
 
 ### DETERMINISTIC GROUND TRUTH (PRE-CALCULATED FACTS):
@@ -112,6 +124,7 @@ function buildAgentSystemPrompt(
   (Loans: ${currency} ${facts.loanDebt.toLocaleString()} + Credit Cards: ${currency} ${facts.creditCardDebt.toLocaleString()})
 - Household Health Score: ${facts.isProvisional ? 'Unrated (Setup Required)' : `${facts.healthScore}/100 (${facts.healthLabel})`} (Data Completeness: ${facts.completenessScore}%)
 - Monitored Inventory: ${facts.totalAssetsCount} appliances, ${facts.activeWarrantiesCount} active warranties, ${facts.upcomingTasksCount} scheduled maintenance tasks (${facts.overdueTasksCount} overdue).
+- Open Household Tickets: ${facts.openIssuesCount} (${facts.criticalIssuesCount} critical/safety).
 
 ### RANKED ACTION PRIORITIES & IMMEDIATE NEEDS:
 ${prioritySummary}
@@ -122,6 +135,9 @@ ${expensesList}
 
 --- ASSETS & APPLIANCES ---
 ${assetsList}
+
+--- HOUSEHOLD TICKETS & ISSUES ---
+${issuesList}
 
 --- MAINTENANCE SCHEDULE ---
 ${tasksList}
@@ -141,11 +157,13 @@ ${cardsList}
    - Answer questions truthfully and accurately based strictly on the provided household data.
    - Never invent non-existent appliances, fake bill amounts, or unverified interest rates.
    - If data is not present, explicitly state that it is not yet recorded in HouseMind.
-3. Priority Reasoning:
-   - When asked "What needs my attention?" or "What should I do first?", clearly rank overdue maintenance, bills due in <= 7 days, and high credit utilization in order of urgency.
+3. Priority Reasoning & Unified Next Actions:
+   - When asked "What should I do first?", "What should I deal with first?", or "What needs attention this week?", synthesize the unified household action recommendations (critical safety hazards > overdue payments/tasks > repair-vs-replace decisions > expiring warranties).
 4. Currency & Formatting:
    - Always format monetary figures in ${currency} using clean markdown with bullet points.
-5. Suggestions:
+5. Source Transparency & Grounded Evidence:
+   - When answering cross-domain questions or explaining recommendations ("Why are you recommending this?", "What is costing me the most?"), explicitly cite the underlying evidence and records (e.g. 'Based on: [Asset: Refrigerator], [Warranty: Samsung Care], [Expense: Repair — 8,500]').
+6. Suggestions:
    - At the very end of your response, output 2 or 3 brief follow-up questions the homeowner might want to ask, prefixed with "SUGGESTIONS:" on its own line followed by each suggestion on a bulleted line.`;
 }
 
@@ -429,7 +447,7 @@ Would you like me to mark it as completed? Please confirm your approval in the c
 
       // 8. Invoke Gemini with grounded context
       const systemInstruction = buildAgentSystemPrompt(context, facts, intent);
-      const modelName = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+      const modelName = getGeminiModel('gemini-2.5-flash');
       const client = getGeminiClient();
 
       try {

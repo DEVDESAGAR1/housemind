@@ -2,6 +2,8 @@ import { DatabaseService } from '../../dbService';
 import { HouseholdHealthService } from '../../householdHealthService';
 import { CalendarService } from '../../calendarService';
 import { NotificationService } from '../../notificationService';
+import { CrossDomainIntelligenceService } from '../../crossDomainIntelligenceService';
+import { UnifiedHouseholdActionService } from '../../unifiedHouseholdActionService';
 import { toMonthlyAmount } from '../householdContextBuilder';
 
 export interface UpcomingObligationsParams {
@@ -246,4 +248,167 @@ export class HouseholdTools {
       })),
     };
   }
+
+  /**
+   * 7. Retrieves household issues, tickets, and recurrence intelligence
+   */
+  public static async getHouseholdIssues(
+    userId: string,
+    params?: { status?: string; severity?: string; assetId?: string }
+  ) {
+    const issues = await DatabaseService.listIssues(userId);
+    const profile = await DatabaseService.getProfile(userId).catch(() => null);
+    const currency = profile?.currency || 'USD';
+
+    let filtered = issues;
+    if (params?.status) {
+      if (params.status === 'open') {
+        filtered = filtered.filter(
+          (i) => !['resolved', 'verified', 'closed', 'cancelled'].includes(i.status)
+        );
+      } else {
+        filtered = filtered.filter((i) => i.status === params.status);
+      }
+    }
+    if (params?.severity) {
+      filtered = filtered.filter((i) => i.severity === params.severity);
+    }
+    if (params?.assetId) {
+      filtered = filtered.filter((i) => i.assetId === params.assetId);
+    }
+
+    const openCount = issues.filter(
+      (i) => !['resolved', 'verified', 'closed', 'cancelled'].includes(i.status)
+    ).length;
+    const criticalCount = issues.filter(
+      (i) =>
+        (i.severity === 'critical' || !!i.safetyWarning) &&
+        !['resolved', 'verified', 'closed', 'cancelled'].includes(i.status)
+    ).length;
+
+    return {
+      currency,
+      totalIssuesCount: issues.length,
+      openIssuesCount: openCount,
+      criticalIssuesCount: criticalCount,
+      matchingIssuesCount: filtered.length,
+      issues: filtered.slice(0, 10).map((i) => ({
+        id: i.id,
+        title: i.title,
+        status: i.status,
+        severity: i.severity,
+        safetyWarning: i.safetyWarning,
+        reportedAt: i.reportedAt,
+        scheduledDate: i.scheduledDate,
+        dueDate: i.dueDate,
+        serviceProvider: i.serviceProvider,
+        estimatedCost: i.estimatedCost,
+        actualCost: i.actualCost,
+        resolution: i.resolution,
+        rootCause: i.rootCause,
+      })),
+    };
+  }
+
+  /**
+   * 8. Retrieves cross-domain household insights linking assets, warranties, maintenance, issues, and finance
+   */
+  public static async getCrossDomainInsights(
+    userId: string,
+    params?: { priority?: string; type?: string; limit?: number }
+  ) {
+    const result = await CrossDomainIntelligenceService.generateCrossDomainInsights(userId, {
+      priority: params?.priority,
+      type: params?.type,
+      limit: params?.limit || 10,
+    });
+
+    return {
+      totalInsights: result.total,
+      criticalCount: result.criticalCount,
+      overdueCount: result.overdueCount,
+      warningCount: result.warningCount,
+      dueSoonCount: result.dueSoonCount,
+      insights: result.insights.map((ins) => ({
+        id: ins.id,
+        type: ins.type,
+        title: ins.title,
+        priority: ins.priority,
+        severity: ins.severity,
+        explanation: ins.explanation,
+        relatedDomains: ins.relatedDomains,
+        relatedRecords: ins.relatedRecords.map((r) => ({
+          domain: r.domain,
+          title: r.title,
+        })),
+        evidence: ins.deterministicEvidence.facts,
+        recommendedAction: ins.recommendedAction?.title,
+      })),
+    };
+  }
+
+  /**
+   * 9. Retrieves operational household timeline across all domains
+   */
+  public static async getHouseholdTimeline(
+    userId: string,
+    params?: { domain?: string; limit?: number }
+  ) {
+    const timeline = await CrossDomainIntelligenceService.generateHouseholdTimeline(userId, {
+      domain: params?.domain,
+      limit: params?.limit || 15,
+    });
+
+    return {
+      totalEvents: timeline.totalEvents,
+      domainCounts: timeline.domainCounts,
+      events: timeline.events.map((e) => ({
+        id: e.id,
+        date: e.date,
+        title: e.title,
+        description: e.description,
+        domain: e.domain,
+        eventType: e.eventType,
+        status: e.status,
+        amount: e.amount,
+      })),
+    };
+  }
+  /**
+   * 10. Retrieves consolidated, prioritized next actions across the household
+   */
+  public static async getUnifiedHouseholdActions(
+    userId: string,
+    params?: { priority?: string; domain?: string; limit?: number }
+  ) {
+    const result = await UnifiedHouseholdActionService.getUnifiedActions(userId, {
+      priority: params?.priority,
+      domain: params?.domain,
+      limit: params?.limit || 10,
+    });
+
+    return {
+      total: result.total,
+      criticalCount: result.criticalCount,
+      overdueCount: result.overdueCount,
+      dueTodayCount: result.dueTodayCount,
+      warningCount: result.warningCount,
+      dueSoonCount: result.dueSoonCount,
+      actions: result.actions.map((act) => ({
+        id: act.id,
+        type: act.type,
+        priority: act.priority,
+        title: act.title,
+        summary: act.summary,
+        whyItMatters: act.whyItMatters,
+        evidence: act.evidence.facts,
+        relatedRecords: act.relatedRecords.map((r) => ({
+          domain: r.domain,
+          title: r.title,
+        })),
+        recommendedActions: act.recommendedActions.map((ra) => ra.title),
+      })),
+    };
+  }
 }
+

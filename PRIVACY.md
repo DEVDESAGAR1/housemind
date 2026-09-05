@@ -72,3 +72,18 @@ Users can inspect their data footprint, ingestion connectors, and privacy bounda
 - `POST /api/household/demo-remove` — Surgically purges all `isDemo: true` records.
 - `POST /api/household/reset-data` — Purges all tenant records when supplied with `{ confirmPhrase: "DELETE MY DATA" }`.
 
+---
+
+## 5. Privacy-Safe Product Telemetry & Aggregate Analytics
+
+HouseMind incorporates privacy-conscious, non-blocking product telemetry via Google Analytics 4 (GA4) / Firebase Analytics to measure macro application usage:
+
+1. **Strict Parameter Allowlisting**:
+   - Only bounded categorical event parameters are accepted (e.g., `file_type: 'pdf'`, `domain: 'assets'`, `result: 'success'`, `export_type: 'json'`).
+   - A centralized sanitization layer (`src/lib/analytics.ts`) structurally forbids and strips all personal data, financial values, document content, filenames, Copilot prompts/responses, and raw search query strings.
+2. **Anonymous Aggregation**:
+   - Firebase UIDs, email addresses, and tenant IDs are never transmitted as GA4 `User-ID` or event parameters.
+3. **Graceful Degradation**:
+   - If analytics is disabled or the measurement ID is absent, HouseMind operates with 100% functionality without any degradation or errors.
+
+

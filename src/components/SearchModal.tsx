@@ -20,6 +20,7 @@ import {
 import { api } from '../lib/api';
 import { GlobalSearchResultItem, GlobalSearchResponse, GlobalSearchCategory } from '../types';
 import { NavigationTab } from './Navbar';
+import { trackEvent } from '../lib/analytics';
 
 interface SearchModalProps {
   isOpen: boolean;
@@ -70,6 +71,13 @@ export function SearchModal({ isOpen, onClose, onNavigate }: SearchModalProps) {
       const res = await api.searchHousehold(q, category, 50);
       setSearchResponse(res);
       setSelectedIndex(0);
+
+      const count = res?.totalCount || 0;
+      const bucket = count === 0 ? 'zero' : count === 1 ? 'one' : 'multiple';
+      trackEvent('search_used', {
+        result_bucket: bucket,
+        category_filter: category || 'all',
+      });
     } catch (err: any) {
       console.error('Search request failed:', err);
       setError(err.message || 'Failed to search household records. Please try again.');

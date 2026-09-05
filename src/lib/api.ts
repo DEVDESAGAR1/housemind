@@ -48,6 +48,20 @@ import {
   HouseholdIssueCandidate,
   HouseholdIssueStatus,
   HouseholdIssueSeverity,
+  IssueIntelligenceReport,
+  ResolutionChecklistItem,
+  PossibleRelatedIssue,
+  RecurringFailureSignal,
+  IssueWarrantyIntelligence,
+  IssueMaintenanceIntelligence,
+  RecommendedNextStep,
+  StructuredResolutionSummary,
+  CrossDomainInsightsResponse,
+  CrossDomainInsight,
+  HouseholdTimelineResponse,
+  HouseholdGraphResponse,
+  UnifiedHouseholdActionsResponse,
+  UnifiedHouseholdAction,
 } from '../types';
 
 
@@ -322,11 +336,20 @@ export const api = {
 
   async getMorningBrief(): Promise<HouseholdMorningBrief> {
     const headers = await getAuthHeader();
-    const res = await fetch('/api/copilot/morning-brief', {
+    const res = await fetch('/api/household/morning-brief', {
       method: 'GET',
       headers,
     });
     return handleResponse<HouseholdMorningBrief>(res);
+  },
+
+  async dismissMorningBriefToday(): Promise<{ dismissedDate: string; isDismissedToday: boolean }> {
+    const headers = await getAuthHeader();
+    const res = await fetch('/api/household/morning-brief/dismiss-today', {
+      method: 'POST',
+      headers,
+    });
+    return handleResponse<{ dismissedDate: string; isDismissedToday: boolean }>(res);
   },
 
   async getAgentAction(actionId: string): Promise<AgentActionProposal> {
@@ -872,6 +895,64 @@ export const api = {
     return handleResponse<HouseholdIssueCandidate>(res);
   },
 
+  async getIssueIntelligence(id: string): Promise<IssueIntelligenceReport> {
+    const headers = await getAuthHeader();
+    const res = await fetch(`/api/household/issues/${encodeURIComponent(id)}/intelligence`, {
+      method: 'GET',
+      headers,
+    });
+    return handleResponse<IssueIntelligenceReport>(res);
+  },
+
+  async linkRelatedIssues(id: string, targetIssueId: string, reason?: string): Promise<{ success: boolean; issue: HouseholdIssue }> {
+    const headers = await getAuthHeader();
+    const res = await fetch(`/api/household/issues/${encodeURIComponent(id)}/link-related`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ targetIssueId, reason }),
+    });
+    return handleResponse<{ success: boolean; issue: HouseholdIssue }>(res);
+  },
+
+  async unlinkRelatedIssue(id: string, targetIssueId: string): Promise<{ success: boolean; issue: HouseholdIssue }> {
+    const headers = await getAuthHeader();
+    const res = await fetch(`/api/household/issues/${encodeURIComponent(id)}/unlink-related`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ targetIssueId }),
+    });
+    return handleResponse<{ success: boolean; issue: HouseholdIssue }>(res);
+  },
+
+  async updateIssueChecklist(id: string, checklist: ResolutionChecklistItem[]): Promise<HouseholdIssue> {
+    const headers = await getAuthHeader();
+    const res = await fetch(`/api/household/issues/${encodeURIComponent(id)}/checklist`, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify({ checklist }),
+    });
+    return handleResponse<HouseholdIssue>(res);
+  },
+
+  async updateIssueRootCause(id: string, rootCause: string): Promise<HouseholdIssue> {
+    const headers = await getAuthHeader();
+    const res = await fetch(`/api/household/issues/${encodeURIComponent(id)}/root-cause`, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify({ rootCause }),
+    });
+    return handleResponse<HouseholdIssue>(res);
+  },
+
+  async getHouseholdRecurringInsights(): Promise<any[]> {
+    const headers = await getAuthHeader();
+    const res = await fetch('/api/household/issues/recurring-insights', {
+      method: 'GET',
+      headers,
+    });
+    return handleResponse<any[]>(res);
+  },
+
   // Utilities
   async getUtilities(propertyId?: string): Promise<UtilityAccount[]> {
     const headers = await getAuthHeader();
@@ -1276,6 +1357,130 @@ export const api = {
       headers,
     });
     return handleResponse<{ success: boolean; message: string }>(res);
+  },
+
+  // ==========================================
+  // PHASE 24.4: CROSS-DOMAIN HOUSEHOLD INTELLIGENCE
+  // ==========================================
+
+  async getCrossDomainInsights(params?: {
+    priority?: string;
+    type?: string;
+    includeDismissed?: boolean;
+    limit?: number;
+  }): Promise<CrossDomainInsightsResponse> {
+    const headers = await getAuthHeader();
+    const query = new URLSearchParams();
+    if (params?.priority) query.set('priority', params.priority);
+    if (params?.type) query.set('type', params.type);
+    if (params?.includeDismissed) query.set('includeDismissed', 'true');
+    if (params?.limit) query.set('limit', String(params.limit));
+
+    const res = await fetch(`/api/household/cross-domain-insights?${query.toString()}`, {
+      method: 'GET',
+      headers,
+    });
+    return handleResponse<CrossDomainInsightsResponse>(res);
+  },
+
+  async dismissCrossDomainInsight(insightId: string, fingerprint?: string): Promise<{ success: boolean; message: string }> {
+    const headers = await getAuthHeader();
+    const res = await fetch('/api/household/cross-domain-insights/dismiss', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ insightId, fingerprint }),
+    });
+    return handleResponse<{ success: boolean; message: string }>(res);
+  },
+
+  async getHouseholdTimeline(params?: {
+    domain?: string;
+    startDate?: string;
+    endDate?: string;
+    limit?: number;
+  }): Promise<HouseholdTimelineResponse> {
+    const headers = await getAuthHeader();
+    const query = new URLSearchParams();
+    if (params?.domain) query.set('domain', params.domain);
+    if (params?.startDate) query.set('startDate', params.startDate);
+    if (params?.endDate) query.set('endDate', params.endDate);
+    if (params?.limit) query.set('limit', String(params.limit));
+
+    const res = await fetch(`/api/household/timeline?${query.toString()}`, {
+      method: 'GET',
+      headers,
+    });
+    return handleResponse<HouseholdTimelineResponse>(res);
+  },
+
+  async getHouseholdGraph(): Promise<HouseholdGraphResponse> {
+    const headers = await getAuthHeader();
+    const res = await fetch('/api/household/graph', {
+      method: 'GET',
+      headers,
+    });
+    return handleResponse<HouseholdGraphResponse>(res);
+  },
+
+  // ==========================================
+  // PHASE 24.5: UNIFIED HOUSEHOLD ACTIONS
+  // ==========================================
+
+  async getUnifiedActions(params?: {
+    priority?: string;
+    domain?: string;
+    status?: string;
+    limit?: number;
+  }): Promise<UnifiedHouseholdActionsResponse> {
+    const headers = await getAuthHeader();
+    const query = new URLSearchParams();
+    if (params?.priority) query.set('priority', params.priority);
+    if (params?.domain) query.set('domain', params.domain);
+    if (params?.status) query.set('status', params.status);
+    if (params?.limit) query.set('limit', String(params.limit));
+
+    const res = await fetch(`/api/household/unified-actions?${query.toString()}`, {
+      method: 'GET',
+      headers,
+    });
+    return handleResponse<UnifiedHouseholdActionsResponse>(res);
+  },
+
+  async dismissUnifiedAction(actionId: string, fingerprint?: string): Promise<{ success: boolean; message: string }> {
+    const headers = await getAuthHeader();
+    const res = await fetch(`/api/household/unified-actions/${actionId}/dismiss`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ fingerprint }),
+    });
+    return handleResponse<{ success: boolean; message: string }>(res);
+  },
+
+  async snoozeUnifiedAction(
+    actionId: string,
+    durationDays = 7,
+    fingerprint?: string
+  ): Promise<{ success: boolean; snoozedUntil: string; message: string }> {
+    const headers = await getAuthHeader();
+    const res = await fetch(`/api/household/unified-actions/${actionId}/snooze`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ durationDays, fingerprint }),
+    });
+    return handleResponse<{ success: boolean; snoozedUntil: string; message: string }>(res);
+  },
+
+  async completeUnifiedAction(
+    actionId: string,
+    fingerprint?: string
+  ): Promise<{ success: boolean; completedAt: string; message: string }> {
+    const headers = await getAuthHeader();
+    const res = await fetch(`/api/household/unified-actions/${actionId}/complete`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ fingerprint }),
+    });
+    return handleResponse<{ success: boolean; completedAt: string; message: string }>(res);
   },
 };
 

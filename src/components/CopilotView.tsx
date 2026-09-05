@@ -25,6 +25,7 @@ import {
 } from '../types';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
 import { CopilotChatContainer } from './copilot/CopilotChatContainer';
+import { trackEvent } from '../lib/analytics';
 
 export interface CopilotViewProps {
   profile: HouseholdProfile | null;
@@ -62,8 +63,9 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
 
   const executedInitialPromptRef = useRef<string | null>(null);
 
-  // Load conversation list on mount
+  // Load conversation list on mount & track open
   useEffect(() => {
+    trackEvent('copilot_opened');
     loadConversations();
   }, []);
 
@@ -168,11 +170,16 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
 
     setMessages((prev) => [...prev, userMessage]);
     setIsLoading(true);
+    trackEvent('copilot_question_submitted');
 
     try {
       const response = await api.sendCopilotChat({
         message: query,
         conversationId: activeConversationId || undefined,
+      });
+
+      trackEvent('copilot_response_success', {
+        response_mode: response.actionProposal ? 'ai' : 'deterministic',
       });
 
       const assistantMessage: ChatMessage = {
@@ -196,6 +203,7 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
       loadConversations();
     } catch (err: any) {
       console.error('Copilot chat error:', err);
+      trackEvent('copilot_response_fallback', { result: 'failure' });
       const errMsg = err.message || 'Failed to receive reply from HouseMind Copilot.';
       setChatError(errMsg);
       setLastFailedQuery(query);
@@ -207,6 +215,7 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
   const handleApproveAction = async (msgIndex: number, actionId: string) => {
     try {
       setExecutingActionId(actionId);
+      trackEvent('copilot_action_clicked', { action_type: 'action_execution' });
       const executionResult = await api.approveAgentAction(actionId);
 
       setMessages((prev) => {

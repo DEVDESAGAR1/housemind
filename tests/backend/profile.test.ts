@@ -1,11 +1,11 @@
 import { apiRequest, TestRunner } from '../test-helper';
 
 export async function runProfileTests(runner: TestRunner) {
-  runner.setSuite('Household Profile Management');
+  runner.setSuite('Household Profile & Localization Management');
 
   const token = 'test-token-profile-user';
 
-  await runner.test('Fetch initial default profile for new user', async () => {
+  await runner.test('returns initial default profile for newly registered user', async () => {
     const res = await apiRequest('/api/household/profile', { token });
     if (res.status !== 200) {
       throw new Error(`Expected status 200, got ${res.status}`);
@@ -15,7 +15,7 @@ export async function runProfileTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Update household profile fields successfully', async () => {
+  await runner.test('updates household profile specification fields successfully', async () => {
     const updatePayload = {
       homeName: 'Maplewood Residence',
       homeType: 'single_family',
@@ -42,7 +42,7 @@ export async function runProfileTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Update household profile with global localization and currency override', async () => {
+  await runner.test('updates profile localization attributes and currency overrides', async () => {
     const res = await apiRequest('/api/household/profile', {
       method: 'PUT',
       token,
@@ -63,7 +63,7 @@ export async function runProfileTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Fetch Data Sources summary with grounding info', async () => {
+  await runner.test('returns data sources summary with grounded AI context', async () => {
     const res = await apiRequest('/api/household/data-sources', { token });
     if (res.status !== 200) {
       throw new Error(`Expected 200, got ${res.status}`);
@@ -73,7 +73,7 @@ export async function runProfileTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Seed and safely remove demo data without affecting custom items', async () => {
+  await runner.test('seeds and safely purges demo starter data without affecting user records', async () => {
     // 1. Seed demo data
     const seedRes = await apiRequest('/api/household/demo-seed', { method: 'POST', token });
     if (seedRes.status !== 200) {
@@ -90,7 +90,7 @@ export async function runProfileTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Validate profile reject negative square footage or invalid year', async () => {
+  await runner.test('rejects invalid profile inputs with negative square footage or invalid year', async () => {
     const res = await apiRequest('/api/household/profile', {
       method: 'PUT',
       token,

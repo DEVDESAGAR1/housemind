@@ -19,12 +19,13 @@ import {
   StructuredResolutionSummary,
   WarrantyCoverageStatus,
 } from '../../src/types';
+import { getGeminiApiKey } from '../config/secrets';
 
 let genAIClient: GoogleGenAI | null = null;
 
 function getGeminiClient(): GoogleGenAI | null {
   if (!genAIClient) {
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = getGeminiApiKey();
     if (!apiKey) {
       return null;
     }
@@ -189,7 +190,7 @@ export class IssueIntelligenceService {
             id: linkedAsset.id,
             name: linkedAsset.name,
             brand: linkedAsset.brand,
-            model: linkedAsset.model,
+            model: (linkedAsset as any).modelNumber || (linkedAsset as any).model,
             category: linkedAsset.category,
           }
         : undefined,
@@ -250,6 +251,8 @@ export class IssueIntelligenceService {
       daysUntilExpiration = Math.round(diffMs / (1000 * 60 * 60 * 24));
     }
 
+    const providerName = (policy as any).warrantyProvider || (policy as any).provider || (policy as any).providerName || 'Provider';
+
     let status: WarrantyCoverageStatus = 'possibly_covered';
     let statusLabel = 'Possibly Covered';
     let explanation = '';
@@ -257,7 +260,7 @@ export class IssueIntelligenceService {
     if (!hasDates && !policy.coverageDetails) {
       status = 'incomplete';
       statusLabel = 'Warranty Information Incomplete';
-      explanation = `Warranty record for ${policy.provider || 'Provider'} exists, but lacks clear validity dates or coverage terms. Verify original policy document.`;
+      explanation = `Warranty record for ${providerName} exists, but lacks clear validity dates or coverage terms. Verify original policy document.`;
     } else if (isExpired) {
       status = 'expired';
       statusLabel = 'Warranty Expired';
@@ -265,11 +268,11 @@ export class IssueIntelligenceService {
     } else if (policy.endDate && policy.endDate >= todayIso) {
       status = 'covered';
       statusLabel = 'Active Coverage';
-      explanation = `Active coverage under ${policy.provider || 'Provider'} until ${policy.endDate} (${daysUntilExpiration} days remaining). Check claim terms before paying out-of-pocket.`;
+      explanation = `Active coverage under ${providerName} until ${policy.endDate} (${daysUntilExpiration} days remaining). Check claim terms before paying out-of-pocket.`;
     } else {
       status = 'possibly_covered';
       statusLabel = 'Possibly Covered';
-      explanation = `Protection policy registered under ${policy.provider || 'Provider'}. Review specific coverage terms and deductibles for this component.`;
+      explanation = `Protection policy registered under ${providerName}. Review specific coverage terms and deductibles for this component.`;
     }
 
     let documentName: string | undefined;
@@ -282,7 +285,7 @@ export class IssueIntelligenceService {
       status,
       statusLabel,
       warrantyId: policy.id,
-      provider: policy.provider,
+      provider: providerName,
       policyNumber: policy.policyNumber,
       startDate: policy.startDate,
       endDate: policy.endDate,

@@ -1,9 +1,9 @@
 import { apiRequest, TestRunner } from '../test-helper';
 
 export async function runAuthTests(runner: TestRunner) {
-  runner.setSuite('Authentication & Multi-Tenant Authorization');
+  runner.setSuite('Household Authentication & Tenant Security');
 
-  await runner.test('Health endpoint is public and reports healthy status', async () => {
+  await runner.test('allows public health endpoint to report healthy status', async () => {
     const res = await apiRequest('/api/health');
     if (res.status !== 200) {
       throw new Error(`Expected status 200, got ${res.status}`);
@@ -13,7 +13,7 @@ export async function runAuthTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Reject unauthenticated request to /api/household/profile with 401', async () => {
+  await runner.test('rejects unauthenticated request to protected profile endpoint with 401 UNAUTHORIZED', async () => {
     const res = await apiRequest('/api/household/profile');
     if (res.status !== 401) {
       throw new Error(`Expected 401 Unauthorized, got ${res.status}`);
@@ -23,7 +23,7 @@ export async function runAuthTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Reject malformed / invalid bearer token with 401', async () => {
+  await runner.test('rejects malformed or invalid bearer token with 401 UNAUTHORIZED', async () => {
     const res = await apiRequest('/api/household/expenses', {
       headers: { Authorization: 'Bearer totally-invalid-token-string-xyz' },
     });
@@ -32,7 +32,7 @@ export async function runAuthTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Authenticate user with valid test token and access isolated profile', async () => {
+  await runner.test('allows authenticated user with valid bearer token to access isolated profile', async () => {
     const res = await apiRequest('/api/household/profile', {
       token: 'test-token-user-alpha',
     });
@@ -44,7 +44,7 @@ export async function runAuthTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Strict Multi-Tenant Isolation: user-beta cannot see user-alpha records', async () => {
+  await runner.test('prevents cross-tenant data leakage between isolated user accounts', async () => {
     // User Alpha creates an expense
     const createRes = await apiRequest('/api/household/expenses', {
       method: 'POST',
@@ -83,74 +83,44 @@ export async function runAuthTests(runner: TestRunner) {
   // URL Query Bypass & Attacker Forgery Regression Suite
   // =========================================================================
 
-  await runner.test('Reject unauthenticated request with ?demo=true with 401', async () => {
-    const res = await apiRequest('/api/household/profile?demo=true');
-    if (res.status !== 401) {
-      throw new Error(`Expected 401 Unauthorized, got ${res.status}`);
-    }
-    if (res.body?.success !== false || res.body?.error?.code !== 'UNAUTHORIZED') {
-      throw new Error(`Expected UNAUTHORIZED error, got ${JSON.stringify(res.body)}`);
+  await runner.test('rejects unauthenticated query parameter bypass attempts (?demo=true, ?guest=true, ?anonymous=true)', async () => {
+    const bypassEndpoints = [
+      '/api/household/profile?demo=true',
+      '/api/household/profile?demo==true',
+      '/api/household/expenses?guest=true',
+      '/api/household/command-center?anonymous=true',
+    ];
+
+    for (const url of bypassEndpoints) {
+      const res = await apiRequest(url);
+      if (res.status !== 401) {
+        throw new Error(`Expected 401 Unauthorized for bypass attempt ${url}, got ${res.status}`);
+      }
+      if (res.body?.success !== false || res.body?.error?.code !== 'UNAUTHORIZED') {
+        throw new Error(`Expected UNAUTHORIZED error envelope for ${url}, got ${JSON.stringify(res.body)}`);
+      }
     }
   });
 
-  await runner.test('Reject unauthenticated request with ?demo==true with 401', async () => {
-    const res = await apiRequest('/api/household/profile?demo==true');
-    if (res.status !== 401) {
-      throw new Error(`Expected 401 Unauthorized, got ${res.status}`);
+  await runner.test('rejects forged attacker and legacy guest bearer tokens with 401 UNAUTHORIZED', async () => {
+    const forgedTokens = [
+      'test-token-attacker',
+      'test-token-forged',
+      'test-token-invalid',
+      'guest-token-preview',
+    ];
+
+    for (const badToken of forgedTokens) {
+      const res = await apiRequest('/api/household/profile', {
+        headers: { Authorization: `Bearer ${badToken}` },
+      });
+      if (res.status !== 401) {
+        throw new Error(`Expected 401 Unauthorized for token ${badToken}, got ${res.status}`);
+      }
     }
   });
 
-  await runner.test('Reject unauthenticated request with ?guest=true with 401', async () => {
-    const res = await apiRequest('/api/household/expenses?guest=true');
-    if (res.status !== 401) {
-      throw new Error(`Expected 401 Unauthorized, got ${res.status}`);
-    }
-  });
-
-  await runner.test('Reject unauthenticated request with ?anonymous=true with 401', async () => {
-    const res = await apiRequest('/api/household/command-center?anonymous=true');
-    if (res.status !== 401) {
-      throw new Error(`Expected 401 Unauthorized, got ${res.status}`);
-    }
-  });
-
-  await runner.test('Reject forged bearer token Authorization: Bearer test-token-attacker with 401', async () => {
-    const res = await apiRequest('/api/household/profile', {
-      headers: { Authorization: 'Bearer test-token-attacker' },
-    });
-    if (res.status !== 401) {
-      throw new Error(`Expected 401 Unauthorized for test-token-attacker, got ${res.status}`);
-    }
-  });
-
-  await runner.test('Reject forged bearer token Authorization: Bearer test-token-forged with 401', async () => {
-    const res = await apiRequest('/api/household/expenses', {
-      headers: { Authorization: 'Bearer test-token-forged' },
-    });
-    if (res.status !== 401) {
-      throw new Error(`Expected 401 Unauthorized for test-token-forged, got ${res.status}`);
-    }
-  });
-
-  await runner.test('Reject forged bearer token Authorization: Bearer test-token-invalid with 401', async () => {
-    const res = await apiRequest('/api/household/profile', {
-      headers: { Authorization: 'Bearer test-token-invalid' },
-    });
-    if (res.status !== 401) {
-      throw new Error(`Expected 401 Unauthorized for test-token-invalid, got ${res.status}`);
-    }
-  });
-
-  await runner.test('Reject legacy guest bearer token Authorization: Bearer guest-token-preview with 401', async () => {
-    const res = await apiRequest('/api/household/profile', {
-      headers: { Authorization: 'Bearer guest-token-preview' },
-    });
-    if (res.status !== 401) {
-      throw new Error(`Expected 401 Unauthorized for guest-token-preview, got ${res.status}`);
-    }
-  });
-
-  await runner.test('Reject unauthenticated request to POST /api/household/demo-seed with 401', async () => {
+  await runner.test('rejects unauthenticated request to demo-seed endpoint with 401 UNAUTHORIZED', async () => {
     const res = await apiRequest('/api/household/demo-seed', {
       method: 'POST',
     });
@@ -159,7 +129,7 @@ export async function runAuthTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Authenticated user can seed realistic starter demo DATA idempotently', async () => {
+  await runner.test('allows authenticated users to seed and remove starter demo data idempotently', async () => {
     const seedRes = await apiRequest('/api/household/demo-seed', {
       method: 'POST',
       token: 'test-token-seed-tester',

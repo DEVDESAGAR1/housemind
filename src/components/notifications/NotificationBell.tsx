@@ -17,11 +17,11 @@ export function NotificationBell({
       id="notification-bell-btn"
       onClick={onClick}
       type="button"
-      className={`relative p-2.5 text-slate-600 hover:text-slate-900 bg-white/80 hover:bg-slate-100 rounded-2xl border border-slate-200/80 transition-all duration-150 shadow-xs cursor-pointer focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 active:scale-95 ${className}`}
+      className={`relative p-1.5 sm:p-2.5 text-slate-600 hover:text-slate-900 bg-white/80 hover:bg-slate-100 rounded-xl sm:rounded-2xl border border-slate-200/80 transition-all duration-150 shadow-xs cursor-pointer focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 active:scale-95 ${className}`}
       aria-label={`Open notifications (${unreadCount} unread)`}
       title="Household Notifications"
     >
-      <Bell className="w-5 h-5 text-slate-700" />
+      <Bell className="w-4 h-4 sm:w-5 sm:h-5 text-slate-700" />
       {unreadCount > 0 && (
         <>
           <span className="absolute -top-1 -right-1 px-1.5 py-0.5 min-w-[18px] text-[10px] font-bold text-white bg-rose-500 rounded-full border-2 border-white shadow-xs flex items-center justify-center">

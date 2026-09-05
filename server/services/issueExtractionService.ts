@@ -6,12 +6,13 @@ import {
   HouseholdIssueCandidate,
   NaturalLanguageIssueExtractionResult,
 } from '../../src/types';
+import { getGeminiApiKey } from '../config/secrets';
 
 // Lazy Gemini client initialization
 let aiClient: GoogleGenAI | null = null;
 function getAI(): GoogleGenAI | null {
   if (!aiClient) {
-    const key = process.env.GEMINI_API_KEY;
+    const key = getGeminiApiKey();
     if (!key) return null;
     aiClient = new GoogleGenAI({
       apiKey: key,

@@ -3,13 +3,13 @@ import path from 'path';
 import { apiRequest, TestRunner } from '../test-helper';
 
 export async function runDocumentsTests(runner: TestRunner) {
-  runner.setSuite('Financial Document Upload & Import Pipeline');
+  runner.setSuite('Document Intake, Verification & Transaction Extraction');
 
   const token = 'test-token-doc-user';
   let uploadedDocId = '';
   let candidates: any[] = [];
 
-  await runner.test('Upload and parse bank statement CSV document', async () => {
+  await runner.test('uploads and parses bank statement CSV extracting candidates without premature ledger commitment', async () => {
     const csvContent = `Date,Description,Debit,Credit,Balance,Category
 2026-08-01,TechCorp Net Payroll Direct Deposit,,4500.00,7240.50,Salary
 2026-08-02,ACH Autopay First National Mortgage,1850.00,,5390.50,Housing
@@ -53,7 +53,7 @@ export async function runDocumentsTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Fetch document review payload with candidates', async () => {
+  await runner.test('returns document review payload with extracted candidate list', async () => {
     const res = await apiRequest(`/api/documents/${uploadedDocId}`, { token });
     if (res.status !== 200) {
       throw new Error(`Expected 200 OK, got ${res.status}`);
@@ -63,7 +63,7 @@ export async function runDocumentsTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Explicit user confirmation commits candidates to transactions ledger', async () => {
+  await runner.test('commits confirmed candidate items to user transactions ledger upon explicit approval', async () => {
     const res = await apiRequest(`/api/imports/${uploadedDocId}/confirm`, {
       method: 'POST',
       token,
@@ -89,7 +89,7 @@ export async function runDocumentsTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Duplicate detection flags previously imported candidates on re-upload', async () => {
+  await runner.test('detects and flags duplicate transactions on re-upload of matching statement data', async () => {
     const csvContent = `Date,Description,Debit,Credit,Balance,Category
 2026-08-01,TechCorp Net Payroll Direct Deposit,,4500.00,7240.50,Salary
 2026-08-02,ACH Autopay First National Mortgage,1850.00,,5390.50,Housing
@@ -117,7 +117,7 @@ export async function runDocumentsTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Reject document import flow without creating transactions', async () => {
+  await runner.test('rejects document import flow without creating ledger transactions', async () => {
     // Upload a doc to reject
     const blob = new Blob(['Date,Description,Debit\n2026-08-01,Test To Reject,100.00'], { type: 'text/csv' });
     const formData = new FormData();
@@ -156,7 +156,7 @@ export async function runDocumentsTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Phase 2 Global Upload: Pre-upload duplicate check endpoint', async () => {
+  await runner.test('checks for pre-upload duplicate file records accurately', async () => {
     const checkRes = await apiRequest('/api/documents/check-duplicate', {
       method: 'POST',
       token,
@@ -174,7 +174,7 @@ export async function runDocumentsTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Phase 2 Global Upload: Save document record only without child entities', async () => {
+  await runner.test('saves standalone document records directly without child entity generation', async () => {
     const res = await apiRequest('/api/documents/save-document-only', {
       method: 'POST',
       token,

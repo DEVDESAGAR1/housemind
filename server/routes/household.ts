@@ -58,6 +58,8 @@ import { IssueIntelligenceService } from '../services/issueIntelligenceService';
 import { searchHousehold } from '../services/searchService';
 import { CalendarService } from '../services/calendarService';
 import { NotificationService } from '../services/notificationService';
+import { CrossDomainIntelligenceService } from '../services/crossDomainIntelligenceService';
+import { UnifiedHouseholdActionService } from '../services/unifiedHouseholdActionService';
 
 const router = Router();
 
@@ -2844,6 +2846,376 @@ router.delete('/memory/:id', async (req: AuthenticatedRequest, res: Response): P
         code: 'INTERNAL_SERVER_ERROR',
         message: 'Failed to delete household memory.',
       },
+    });
+  }
+});
+
+// ==========================================
+// 12. PHASE 24.4: CROSS-DOMAIN HOUSEHOLD INTELLIGENCE
+// ==========================================
+
+/**
+ * GET /api/household/cross-domain-insights
+ * Derives deterministic, cross-domain insights linking Assets, Issues, Warranties, Maintenance, Finance, and Documents
+ */
+router.get('/cross-domain-insights', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const priority = typeof req.query.priority === 'string' ? req.query.priority : undefined;
+  const type = typeof req.query.type === 'string' ? req.query.type : undefined;
+  const includeDismissed = req.query.includeDismissed === 'true';
+  const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
+
+  try {
+    const result = await CrossDomainIntelligenceService.generateCrossDomainInsights(userId, {
+      priority,
+      type,
+      includeDismissed,
+      limit,
+    });
+
+    res.status(200).json({
+      success: true,
+      data: result,
+      ...result,
+    });
+  } catch (error: any) {
+    console.error('[CROSS_DOMAIN] Error generating cross-domain insights:', {
+      userId,
+      message: error instanceof Error ? error.message : String(error),
+    });
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'Failed to derive cross-domain household insights.',
+      },
+    });
+  }
+});
+
+/**
+ * POST /api/household/cross-domain-insights/dismiss
+ * Acknowledges or dismisses a cross-domain insight without mutating source entities
+ */
+router.post('/cross-domain-insights/dismiss', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const { insightId, fingerprint } = req.body;
+  const targetId = fingerprint || insightId;
+
+  if (!targetId || typeof targetId !== 'string') {
+    res.status(400).json({
+      success: false,
+      error: {
+        code: 'INVALID_PARAMETERS',
+        message: 'insightId or fingerprint is required to dismiss insight.',
+      },
+    });
+    return;
+  }
+
+  try {
+    await CrossDomainIntelligenceService.dismissCrossDomainInsight(userId, targetId);
+
+    res.status(200).json({
+      success: true,
+      message: 'Insight dismissed successfully.',
+    });
+  } catch (error: any) {
+    console.error('[CROSS_DOMAIN] Error dismissing insight:', {
+      userId,
+      targetId,
+      message: error instanceof Error ? error.message : String(error),
+    });
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'Failed to dismiss cross-domain insight.',
+      },
+    });
+  }
+});
+
+/**
+ * GET /api/household/timeline
+ * Aggregates all operational events across all domains into a unified chronological stream
+ */
+router.get('/timeline', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const domain = typeof req.query.domain === 'string' ? req.query.domain : undefined;
+  const startDate = typeof req.query.startDate === 'string' ? req.query.startDate : undefined;
+  const endDate = typeof req.query.endDate === 'string' ? req.query.endDate : undefined;
+  const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
+
+  try {
+    const timeline = await CrossDomainIntelligenceService.generateHouseholdTimeline(userId, {
+      domain,
+      startDate,
+      endDate,
+      limit,
+    });
+
+    res.status(200).json({
+      success: true,
+      data: timeline,
+      ...timeline,
+    });
+  } catch (error: any) {
+    console.error('[TIMELINE] Error generating operational timeline:', {
+      userId,
+      message: error instanceof Error ? error.message : String(error),
+    });
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'Failed to retrieve household operational timeline.',
+      },
+    });
+  }
+});
+
+/**
+ * GET /api/household/graph
+ * Returns lightweight entity relationship graph for the authenticated household
+ */
+router.get('/graph', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+
+  try {
+    const graph = await CrossDomainIntelligenceService.buildHouseholdGraph(userId);
+
+    res.status(200).json({
+      success: true,
+      data: graph,
+      ...graph,
+    });
+  } catch (error: any) {
+    console.error('[GRAPH] Error building household graph:', {
+      userId,
+      message: error instanceof Error ? error.message : String(error),
+    });
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'Failed to construct household relationship graph.',
+      },
+    });
+  }
+});
+
+// ==========================================
+// 13. PHASE 24.5: UNIFIED HOUSEHOLD ACTIONS
+// ==========================================
+
+/**
+ * GET /api/household/unified-actions
+ * Retrieves consolidated, prioritized, and deduplicated action recommendations
+ */
+router.get('/unified-actions', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const priority = typeof req.query.priority === 'string' ? req.query.priority : undefined;
+  const domain = typeof req.query.domain === 'string' ? req.query.domain : undefined;
+  const status = typeof req.query.status === 'string' ? req.query.status : undefined;
+  const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
+
+  try {
+    const result = await UnifiedHouseholdActionService.getUnifiedActions(userId, {
+      priority,
+      domain,
+      status,
+      limit,
+    });
+
+    res.status(200).json({
+      success: true,
+      data: result,
+      ...result,
+    });
+  } catch (error: any) {
+    console.error('[UNIFIED_ACTIONS] Error generating unified actions:', {
+      userId,
+      message: error instanceof Error ? error.message : String(error),
+    });
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'Failed to derive unified household action recommendations.',
+      },
+    });
+  }
+});
+
+/**
+ * POST /api/household/unified-actions/:id/dismiss
+ * Non-destructively dismisses an action recommendation
+ */
+router.post('/unified-actions/:id/dismiss', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const actionId = req.params.id;
+  const { fingerprint } = req.body || {};
+
+  if (!actionId) {
+    res.status(400).json({
+      success: false,
+      error: { code: 'INVALID_PARAMETERS', message: 'Action ID is required.' },
+    });
+    return;
+  }
+
+  try {
+    const result = await UnifiedHouseholdActionService.dismissAction(userId, actionId, fingerprint);
+    res.status(200).json({
+      success: true,
+      data: result,
+      message: 'Action recommendation dismissed.',
+    });
+  } catch (error: any) {
+    console.error('[UNIFIED_ACTIONS] Error dismissing action:', {
+      userId,
+      actionId,
+      message: error instanceof Error ? error.message : String(error),
+    });
+    res.status(500).json({
+      success: false,
+      error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to dismiss action recommendation.' },
+    });
+  }
+});
+
+/**
+ * POST /api/household/unified-actions/:id/snooze
+ * Snoozes an action recommendation for N days
+ */
+router.post('/unified-actions/:id/snooze', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const actionId = req.params.id;
+  const { durationDays, fingerprint } = req.body || {};
+
+  if (!actionId) {
+    res.status(400).json({
+      success: false,
+      error: { code: 'INVALID_PARAMETERS', message: 'Action ID is required.' },
+    });
+    return;
+  }
+
+  try {
+    const result = await UnifiedHouseholdActionService.snoozeAction(
+      userId,
+      actionId,
+      Number(durationDays) || 7,
+      fingerprint
+    );
+    res.status(200).json({
+      success: true,
+      data: result,
+      message: 'Action recommendation snoozed.',
+    });
+  } catch (error: any) {
+    console.error('[UNIFIED_ACTIONS] Error snoozing action:', {
+      userId,
+      actionId,
+      message: error instanceof Error ? error.message : String(error),
+    });
+    res.status(500).json({
+      success: false,
+      error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to snooze action recommendation.' },
+    });
+  }
+});
+
+/**
+ * POST /api/household/unified-actions/:id/complete
+ * Marks an action recommendation completed
+ */
+router.post('/unified-actions/:id/complete', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const actionId = req.params.id;
+  const { fingerprint } = req.body || {};
+
+  if (!actionId) {
+    res.status(400).json({
+      success: false,
+      error: { code: 'INVALID_PARAMETERS', message: 'Action ID is required.' },
+    });
+    return;
+  }
+
+  try {
+    const result = await UnifiedHouseholdActionService.completeAction(userId, actionId, fingerprint);
+    res.status(200).json({
+      success: true,
+      data: result,
+      message: 'Action recommendation marked completed.',
+    });
+  } catch (error: any) {
+    console.error('[UNIFIED_ACTIONS] Error completing action:', {
+      userId,
+      actionId,
+      message: error instanceof Error ? error.message : String(error),
+    });
+    res.status(500).json({
+      success: false,
+      error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to complete action recommendation.' },
+    });
+  }
+});
+
+// ==========================================
+// Phase 24.6: Morning Brief UX Endpoints
+// ==========================================
+
+/**
+ * GET /api/household/morning-brief
+ * Returns comprehensive daily household morning brief
+ */
+router.get('/morning-brief', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  try {
+    const { HouseholdMorningBriefService } = await import('../services/agent/householdMorningBrief');
+    const brief = await HouseholdMorningBriefService.generateMorningBrief(userId);
+    res.status(200).json({
+      success: true,
+      data: brief,
+    });
+  } catch (error: any) {
+    console.error('[HOUSEHOLD] Error generating morning brief:', {
+      userId,
+      message: error instanceof Error ? error.message : String(error),
+    });
+    res.status(500).json({
+      success: false,
+      error: { code: 'MORNING_BRIEF_ERROR', message: 'Failed to generate morning brief.' },
+    });
+  }
+});
+
+/**
+ * POST /api/household/morning-brief/dismiss-today
+ * Records dismissal timestamp for today's morning brief so it does not pop up repeatedly
+ */
+router.post('/morning-brief/dismiss-today', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const userId = req.userId!;
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  try {
+    await DatabaseService.setProfile(userId, { lastDismissedBriefDate: todayStr }, req.userToken);
+    res.status(200).json({
+      success: true,
+      data: { dismissedDate: todayStr, isDismissedToday: true },
+      message: "Today's morning brief dismissed from auto-presentation.",
+    });
+  } catch (error: any) {
+    console.error('[HOUSEHOLD] Error dismissing morning brief:', {
+      userId,
+      message: error instanceof Error ? error.message : String(error),
+    });
+    res.status(500).json({
+      success: false,
+      error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to record morning brief dismissal.' },
     });
   }
 });

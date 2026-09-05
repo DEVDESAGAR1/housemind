@@ -24,6 +24,7 @@ export interface HouseholdProfile {
   locale?: string;
   currency: string;
   currencyOverride?: boolean;
+  lastDismissedBriefDate?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -84,6 +85,7 @@ export interface HouseholdExpense {
   dueDate?: string;
   isAutoPay: boolean;
   paymentStatus: PaymentStatus;
+  isPaid?: boolean;
   notes?: string;
   propertyId?: string;
   assetId?: string;
@@ -147,6 +149,7 @@ export interface Property {
   purchaseDate?: string;
   purchaseValue?: number;
   currentEstimatedValue?: number;
+  valuation?: number;
   ownershipInfo?: string;
   squareFootage?: number;
   yearBuilt?: number;
@@ -208,14 +211,19 @@ export interface HomeAsset {
   category: AssetCategory;
   subcategory?: string;
   brand?: string;
+  make?: string;
   modelNumber?: string;
   serialNumber?: string;
   installDate?: string;
+  purchaseDate?: string;
   warrantyExpiryDate?: string;
   expectedLifespanYears?: number;
   purchaseCost?: number;
+  purchasePrice?: number;
   currentEstimatedValue?: number;
+  estimatedValue?: number;
   currentStatus: AssetStatus;
+  status?: AssetStatus | string;
   roomLocation?: string;
   maintenanceNotes?: string;
   imageUrl?: string;
@@ -287,7 +295,7 @@ export type MaintenanceSchedule =
   | 'custom'
   | string;
 
-export type MaintenanceStatus = 'scheduled' | 'pending' | 'completed' | 'overdue';
+export type MaintenanceStatus = 'scheduled' | 'pending' | 'completed' | 'overdue' | 'cancelled';
 
 export interface MaintenanceTask {
   id: string;
@@ -299,6 +307,7 @@ export interface MaintenanceTask {
   propertyId?: string;
   roomId?: string;
   serviceDate: string;
+  scheduledDate?: string;
   dueDate?: string;
   cost: number;
   estimatedCost?: number;
@@ -625,6 +634,7 @@ export interface HouseholdLoan {
   tenureMonths: number;
   paymentDueDay: number;
   outstandingAmount: number;
+  outstandingBalance?: number;
   currentBalance?: number;
   documentIds?: string[];
   status: 'active' | 'closed';
@@ -936,7 +946,20 @@ export interface MorningBriefItem {
   amount?: number;
   currency?: string;
   actionTab?: string;
+  subTab?: string;
+  entityId?: string;
   actionLabel?: string;
+}
+
+export interface MorningBriefTopAction {
+  id?: string;
+  title: string;
+  why: string[];
+  actionLabel: string;
+  targetTab: string;
+  subTab?: string;
+  entityId?: string;
+  copilotPrompt: string;
 }
 
 export interface MorningBriefRecommendedAction {
@@ -945,6 +968,8 @@ export interface MorningBriefRecommendedAction {
   urgency: MorningBriefUrgency;
   reason: string;
   actionTab: string;
+  subTab?: string;
+  entityId?: string;
   actionLabel: string;
 }
 
@@ -980,6 +1005,11 @@ export interface HouseholdMorningBrief {
   completenessScore: number;
   itemsNeedingAttention: MorningBriefItem[];
   itemsToWatch: MorningBriefItem[];
+  meaningfulChanges?: string[];
+  positiveSignal?: string;
+  topAction?: MorningBriefTopAction | null;
+  isDismissedToday?: boolean;
+  lastDismissedDate?: string;
   financialObligationsSummary: {
     monthlyBurnRate: number;
     upcomingTotalDueNext7Days: number;
@@ -1079,7 +1109,11 @@ export type AgentToolName =
   | 'getOverdueMaintenance'
   | 'getFinancialSummary'
   | 'getExpiringWarrantiesAndDocuments'
-  | 'getRecentNotifications';
+  | 'getRecentNotifications'
+  | 'getHouseholdIssues'
+  | 'getCrossDomainInsights'
+  | 'getHouseholdTimeline'
+  | 'getUnifiedHouseholdActions';
 
 export interface AgentToolAuditRecord {
   toolName: string;
@@ -1478,6 +1512,8 @@ export interface HouseholdDocument {
   id: string;
   userId: string;
   fileName: string;
+  title?: string;
+  docType?: string;
   fileType: string;
   fileSize: number;
   documentType: DocumentType;
@@ -1490,6 +1526,7 @@ export interface HouseholdDocument {
   assetId?: string;
   uploadedAt?: string;
   isDemo?: boolean;
+  metadata?: Record<string, any>;
   sourceMetadata?: ImportedSourceMetadata;
   createdAt: string;
   updatedAt: string;
@@ -1798,6 +1835,7 @@ export interface GlobalSearchCategory {
 export interface GlobalSearchResponse {
   query: string;
   totalMatches: number;
+  totalCount?: number;
   categoryFilter?: string;
   categories: GlobalSearchCategory[];
   groupedResults: Record<string, GlobalSearchResultItem[]>;
@@ -1926,3 +1964,238 @@ export interface HouseholdNotificationsResponse {
   categoriesCount: Record<string, number>;
   preferences: NotificationPreferences;
 }
+
+// ==========================================
+// Phase 24.4: Universal Cross-Domain Household Intelligence Types
+// ==========================================
+
+export type CrossDomainInsightType =
+  | 'risk'
+  | 'recurrence'
+  | 'opportunity'
+  | 'deadline'
+  | 'cost'
+  | 'relationship'
+  | 'missing_info'
+  | 'positive_signal';
+
+export type CrossDomainInsightPriority =
+  | 'critical'
+  | 'overdue'
+  | 'due_today'
+  | 'warning'
+  | 'due_soon';
+
+export type HouseholdDomain =
+  | 'properties'
+  | 'rooms'
+  | 'assets'
+  | 'issues'
+  | 'warranties'
+  | 'maintenance'
+  | 'finance'
+  | 'documents'
+  | 'calendar'
+  | 'notifications';
+
+export interface CrossDomainRecordRef {
+  id: string;
+  domain: HouseholdDomain | string;
+  title: string;
+  type?: string;
+  route?: string;
+}
+
+export interface CrossDomainRecommendedAction {
+  title: string;
+  actionType?: 'navigate' | 'review' | 'schedule' | 'inspect' | 'verify' | 'general';
+  targetRoute?: string;
+  params?: Record<string, any>;
+}
+
+export interface CrossDomainInsight {
+  id: string;
+  userId: string;
+  type: CrossDomainInsightType;
+  title: string;
+  explanation: string;
+  priority: CrossDomainInsightPriority;
+  severity: 'critical' | 'high' | 'medium' | 'low';
+  relatedDomains: HouseholdDomain[];
+  relatedRecords: CrossDomainRecordRef[];
+  deterministicEvidence: {
+    facts: string[];
+    calculation?: string;
+    metrics?: Record<string, any>;
+  };
+  recommendedAction?: CrossDomainRecommendedAction;
+  deduplicationKey: string;
+  createdAt: string;
+  updatedAt: string;
+  isDismissed?: boolean;
+  geminiSynthesis?: {
+    summary: string;
+    reasoning: string;
+    actionableAdvice: string;
+  } | null;
+}
+
+export interface CrossDomainInsightsResponse {
+  total: number;
+  criticalCount: number;
+  overdueCount: number;
+  dueTodayCount: number;
+  warningCount: number;
+  dueSoonCount: number;
+  insights: CrossDomainInsight[];
+}
+
+export interface HouseholdTimelineEvent {
+  id: string;
+  date: string; // ISO string or YYYY-MM-DD
+  title: string;
+  description?: string;
+  domain: HouseholdDomain;
+  eventType: string;
+  status?: string;
+  severity?: 'critical' | 'high' | 'medium' | 'low' | 'info';
+  recordId?: string;
+  targetRoute?: string;
+  amount?: number;
+  metadata?: Record<string, any>;
+}
+
+export interface HouseholdTimelineResponse {
+  totalEvents: number;
+  events: HouseholdTimelineEvent[];
+  domainCounts: Record<string, number>;
+}
+
+export interface HouseholdGraphNode {
+  id: string;
+  domain: HouseholdDomain;
+  label: string;
+  type?: string;
+  status?: string;
+  metadata?: Record<string, any>;
+}
+
+export interface HouseholdGraphEdge {
+  id: string;
+  source: string; // Node ID
+  target: string; // Node ID
+  relationship:
+    | 'located_in'
+    | 'affects'
+    | 'caused_by'
+    | 'related_to'
+    | 'covered_by'
+    | 'maintained_by'
+    | 'documented_by'
+    | 'scheduled_for'
+    | 'generated_notification'
+    | 'incurred_cost'
+    | 'follows'
+    | 'recurs_after';
+  label?: string;
+}
+
+export interface HouseholdGraphResponse {
+  nodesCount: number;
+  edgesCount: number;
+  nodes: HouseholdGraphNode[];
+  edges: HouseholdGraphEdge[];
+}
+
+// ==========================================
+// Phase 24.5: Unified Household Intelligence & Action Layer Types
+// ==========================================
+
+export type UnifiedHouseholdActionType =
+  | 'risk'
+  | 'repair_replace'
+  | 'warranty_action'
+  | 'overdue_maintenance'
+  | 'overdue_payment'
+  | 'safety_hazard'
+  | 'recurrence_prevention'
+  | 'document_gap'
+  | 'cost_optimization'
+  | 'positive_signal';
+
+export type UnifiedHouseholdActionPriority =
+  | 'critical'
+  | 'overdue'
+  | 'due_today'
+  | 'warning'
+  | 'due_soon';
+
+export type UnifiedHouseholdActionStatus =
+  | 'active'
+  | 'dismissed'
+  | 'snoozed'
+  | 'completed';
+
+export interface UnifiedActionTarget {
+  id: string;
+  domain: HouseholdDomain | string;
+  title: string;
+  type?: string;
+  route?: string;
+  subTab?: string;
+  entityId?: string;
+}
+
+export interface UnifiedRecommendedActionItem {
+  id: string;
+  title: string;
+  actionType:
+    | 'navigate'
+    | 'review'
+    | 'schedule'
+    | 'inspect'
+    | 'verify'
+    | 'snooze'
+    | 'dismiss'
+    | 'complete'
+    | 'copilot';
+  targetTab?: string;
+  subTab?: string;
+  entityId?: string;
+  isPrimary?: boolean;
+  params?: Record<string, any>;
+}
+
+export interface UnifiedHouseholdAction {
+  id: string;
+  userId: string;
+  type: UnifiedHouseholdActionType;
+  priority: UnifiedHouseholdActionPriority;
+  title: string;
+  summary: string;
+  whyItMatters: string;
+  evidence: {
+    facts: string[];
+    calculation?: string;
+    metrics?: Record<string, any>;
+  };
+  relatedRecords: UnifiedActionTarget[];
+  recommendedActions: UnifiedRecommendedActionItem[];
+  status: UnifiedHouseholdActionStatus;
+  snoozedUntil?: string; // ISO string
+  completedAt?: string; // ISO string
+  deduplicationKey: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UnifiedHouseholdActionsResponse {
+  total: number;
+  criticalCount: number;
+  overdueCount: number;
+  dueTodayCount: number;
+  warningCount: number;
+  dueSoonCount: number;
+  actions: UnifiedHouseholdAction[];
+}
+

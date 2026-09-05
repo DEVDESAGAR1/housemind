@@ -11,13 +11,14 @@ import {
   HouseholdCalendarResponse,
   HouseholdNotificationsResponse,
 } from '../../src/types';
+import { getGeminiApiKey, getGeminiModel } from '../config/secrets';
 
 // Initialize Gemini Client with standard headers
 let genAIClient: GoogleGenAI | null = null;
 
 function getGeminiClient(): GoogleGenAI {
   if (!genAIClient) {
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = getGeminiApiKey();
     if (!apiKey) {
       console.warn('[GEMINI] Warning: GEMINI_API_KEY is not set in environment.');
     }

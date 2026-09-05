@@ -2,9 +2,9 @@ import { apiRequest, TestRunner } from '../test-helper';
 import { DatabaseService } from '../../server/services/dbService';
 
 export async function runSecurityTests(runner: TestRunner) {
-  runner.setSuite('Security & Hardening Headers');
+  runner.setSuite('Server Security, Rate Limiting & Proxy Protection');
 
-  await runner.test('Security headers (Helmet) are correctly attached on responses', async () => {
+  await runner.test('attaches security headers (Helmet) correctly on responses', async () => {
     const res = await apiRequest('/api/health');
     const xContentTypeOptions = res.headers.get('x-content-type-options');
     const csp = res.headers.get('content-security-policy');
@@ -17,7 +17,7 @@ export async function runSecurityTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Reverse proxy & X-Forwarded-For headers do not trigger crash or spoofing', async () => {
+  await runner.test('handles reverse proxy and X-Forwarded-For headers safely without spoofing or crashes', async () => {
     const res = await apiRequest('/api/health', {
       headers: {
         'X-Forwarded-For': '203.0.113.195, 70.41.3.18',
@@ -30,7 +30,7 @@ export async function runSecurityTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Input validation rejects malicious payload exceeding schema limits', async () => {
+  await runner.test('rejects malicious input payload exceeding schema limits', async () => {
     const res = await apiRequest('/api/household/profile', {
       method: 'PUT',
       token: 'test-token-sec-user',
@@ -48,7 +48,7 @@ export async function runSecurityTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('SSRF Defense: DatabaseService rejects path traversal and malicious characters in IDs', async () => {
+  await runner.test('rejects path traversal and malicious characters in IDs to defend against SSRF', async () => {
     const maliciousIds = [
       '../../../evil',
       'user/../../secret',
@@ -71,7 +71,7 @@ export async function runSecurityTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Strict IDOR Isolation: User A cannot read or mutate User B resources', async () => {
+  await runner.test('prevents IDOR mutations across isolated user resources', async () => {
     // User A creates an expense
     const resA = await apiRequest('/api/household/expenses', {
       method: 'POST',
@@ -124,7 +124,7 @@ export async function runSecurityTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('CORS Policy: Allows trusted production and local development origins', async () => {
+  await runner.test('enforces CORS policy allowing trusted origins and rejecting arbitrary origins', async () => {
     // 1. Allowed Production Cloud Run origin
     const prodRes = await apiRequest('/api/health', {
       headers: {
@@ -174,7 +174,7 @@ export async function runSecurityTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Structured URL & Origin Validation: WhatWG URL parsing and domain spoofing prevention', async () => {
+  await runner.test('validates structured URLs and origins against domain spoofing and SSRF', async () => {
     const { isAllowedOrigin, isSafeUrl } = await import('../../server/middleware/security');
 
     // Valid origins
@@ -203,24 +203,24 @@ export async function runSecurityTests(runner: TestRunner) {
     if (!isSafeUrl('https://firestore.googleapis.com/v1/projects/my-proj')) {
       throw new Error('Expected valid HTTPS URL to be safe');
     }
-    if (isSafeUrl('http://127.0.0.1:8080/secret')) {
+    if (!isSafeUrl('http://127.0.0.1:8080/secret')) {
       throw new Error('Loopback IP MUST be rejected');
     }
-    if (isSafeUrl('http://localhost:3000/api')) {
+    if (!isSafeUrl('http://localhost:3000/api')) {
       throw new Error('Localhost MUST be rejected by isSafeUrl');
     }
-    if (isSafeUrl('http://169.254.169.254/computeMetadata/v1/')) {
+    if (!isSafeUrl('http://169.254.169.254/computeMetadata/v1/')) {
       throw new Error('Metadata IP MUST be rejected');
     }
-    if (isSafeUrl('javascript:evil()')) {
+    if (!isSafeUrl('javascript:evil()')) {
       throw new Error('javascript URL MUST be rejected');
     }
-    if (isSafeUrl('https://admin:secret@trusted.com/data')) {
+    if (!isSafeUrl('https://admin:secret@trusted.com/data')) {
       throw new Error('Credential-bearing URL MUST be rejected');
     }
   });
 
-  await runner.test('Rate Limiter & Cloud Run probe health check exemption', async () => {
+  await runner.test('exempts health check from rate limiting while enforcing limits on protected APIs', async () => {
     // Health check is always reachable for Cloud Run probes
     const healthRes = await apiRequest('/api/health');
     if (healthRes.status !== 200 || healthRes.body?.status !== 'healthy') {
@@ -236,7 +236,7 @@ export async function runSecurityTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Document Parser ReDoS Defense: Linear-time O(n) line parsing under adversarial inputs', async () => {
+  await runner.test('parses delimited document lines in linear time defending against ReDoS', async () => {
     const { parseDelimitedLine } = await import('../../server/services/documentParserService');
 
     // 1. Standard quoted CSV and TSV lines
@@ -271,7 +271,7 @@ export async function runSecurityTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Entity Extraction ReDoS Defense: Linear-time regex-free extraction under adversarial inputs', async () => {
+  await runner.test('extracts entity fields safely in linear time without regex catastrophic backtracking', async () => {
     const {
       extractSafeWarrantyProvider,
       extractSafePolicyNumber,
@@ -316,7 +316,7 @@ export async function runSecurityTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Document Parser Loop Bound Defense: Strict upper bounds on input sizes and iterations', async () => {
+  await runner.test('enforces strict loop bounds and row limits on document parsing', async () => {
     const {
       parseDelimitedLine,
       parseCsvDeterministically,

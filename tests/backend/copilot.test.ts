@@ -1,12 +1,12 @@
 import { apiRequest, TestRunner } from '../test-helper';
 
 export async function runCopilotTests(runner: TestRunner) {
-  runner.setSuite('HouseMind AI Copilot Chat & Grounding');
+  runner.setSuite('Grounded Copilot Reasoning & Prompt Injection Defenses');
 
   const token = 'test-token-copilot-user';
 
   // Pre-seed some data
-  await runner.test('Seed Copilot test context records', async () => {
+  await runner.test('seeds initial expenses and assets for Copilot context grounding', async () => {
     await apiRequest('/api/household/expenses', {
       method: 'POST',
       token,
@@ -34,7 +34,7 @@ export async function runCopilotTests(runner: TestRunner) {
 
   let conversationId = '';
 
-  await runner.test('Execute Copilot grounded chat query', async () => {
+  await runner.test('executes grounded multi-entity Copilot chat queries accurately', async () => {
     const res = await apiRequest('/api/copilot/chat', {
       method: 'POST',
       token,
@@ -62,7 +62,7 @@ export async function runCopilotTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Continue Copilot conversation using existing conversationId', async () => {
+  await runner.test('continues existing multi-turn conversation maintaining conversationId state', async () => {
     const res = await apiRequest('/api/copilot/chat', {
       method: 'POST',
       token,
@@ -81,7 +81,7 @@ export async function runCopilotTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Retrieve conversation history list and thread details', async () => {
+  await runner.test('returns conversation history thread details and message lists', async () => {
     const listRes = await apiRequest('/api/copilot/conversations', { token });
     if (listRes.status !== 200) {
       throw new Error(`Expected 200 OK, got ${listRes.status}`);
@@ -100,7 +100,7 @@ export async function runCopilotTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Reject prompt injection payload safely without executing instructions', async () => {
+  await runner.test('rejects adversarial prompt injection attempts without executing attacker instructions', async () => {
     const res = await apiRequest('/api/copilot/chat', {
       method: 'POST',
       token,
@@ -119,7 +119,7 @@ export async function runCopilotTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Deny-by-default action policy: Refuses autonomous deletion and guides to UI', async () => {
+  await runner.test('enforces deny-by-default action policy refusing autonomous deletions and pointing to UI controls', async () => {
     const res = await apiRequest('/api/copilot/chat', {
       method: 'POST',
       token,
@@ -138,7 +138,7 @@ export async function runCopilotTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Financial security guardrail: Refuses autonomous payments and money transfers', async () => {
+  await runner.test('enforces financial security guardrails refusing autonomous bank transfers or payments', async () => {
     const res = await apiRequest('/api/copilot/chat', {
       method: 'POST',
       token,
@@ -157,7 +157,7 @@ export async function runCopilotTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Grounding test: Inquires about Household Health score', async () => {
+  await runner.test('synthesizes grounded household health scores and actionable improvement recommendations', async () => {
     const res = await apiRequest('/api/copilot/chat', {
       method: 'POST',
       token,

@@ -29,6 +29,7 @@ export interface SelectiveHouseholdContext {
   expenses: Array<Record<string, any>>;
   transactions: Array<Record<string, any>>;
   documents: Array<Record<string, any>>;
+  issues: Array<Record<string, any>>;
   notifications: HouseholdNotificationsResponse | null;
   healthReport: HouseholdHealthReport | null;
   calendarResponse: HouseholdCalendarResponse | null;
@@ -56,6 +57,8 @@ export interface DeterministicFacts {
   billsDueSoonCount: number;
   activeWarrantiesCount: number;
   totalAssetsCount: number;
+  openIssuesCount: number;
+  criticalIssuesCount: number;
   priorityItems: AgentPriorityItem[];
 }
 
@@ -261,6 +264,7 @@ export async function buildSelectiveHouseholdContext(
   let expenses: Array<Record<string, any>> = [];
   let transactions: Array<Record<string, any>> = [];
   let documents: Array<Record<string, any>> = [];
+  let issues: Array<Record<string, any>> = [];
   let notifications: HouseholdNotificationsResponse | null = null;
   let healthReport: HouseholdHealthReport | null = null;
   let calendarResponse: HouseholdCalendarResponse | null = null;
@@ -287,6 +291,7 @@ export async function buildSelectiveHouseholdContext(
         expenses: [],
         transactions: [],
         documents: [],
+        issues: [],
         notifications: null,
         healthReport: null,
         calendarResponse: null,
@@ -305,10 +310,11 @@ export async function buildSelectiveHouseholdContext(
         'expenses',
         'warranties',
         'documents',
+        'issues',
         'notifications',
         'calendar'
       );
-      const [prof, health, maints, utils, lns, cards, exps, wars, docs, notifs, cal] = await Promise.all([
+      const [prof, health, maints, utils, lns, cards, exps, wars, docs, isss, notifs, cal] = await Promise.all([
         profilePromise,
         HouseholdHealthService.getHouseholdHealth(userId, { includeAiExplanation: false }).catch(() => null),
         DatabaseService.listMaintenances(userId).catch(() => []),
@@ -318,6 +324,7 @@ export async function buildSelectiveHouseholdContext(
         DatabaseService.listExpenses(userId).catch(() => []),
         DatabaseService.listWarranties(userId).catch(() => []),
         DatabaseService.listDocuments(userId).catch(() => []),
+        DatabaseService.listIssues(userId).catch(() => []),
         NotificationService.getNotifications(userId).catch(() => null),
         CalendarService.getCalendarEvents(userId, { referenceDate: new Date() }).catch(() => null),
       ]);
@@ -330,25 +337,28 @@ export async function buildSelectiveHouseholdContext(
       expenses = exps;
       warranties = wars;
       documents = docs;
+      issues = isss;
       notifications = notifs;
       calendarResponse = cal;
       break;
     }
 
     case 'HOUSEHOLD_HEALTH': {
-      domainsConsulted.push('healthReport', 'properties', 'assets', 'expenses');
-      const [prof, health, props, asts, exps] = await Promise.all([
+      domainsConsulted.push('healthReport', 'properties', 'assets', 'expenses', 'issues');
+      const [prof, health, props, asts, exps, isss] = await Promise.all([
         profilePromise,
         HouseholdHealthService.getHouseholdHealth(userId, { includeAiExplanation: false }).catch(() => null),
         DatabaseService.listProperties(userId).catch(() => []),
         DatabaseService.listAssets(userId).catch(() => []),
         DatabaseService.listExpenses(userId).catch(() => []),
+        DatabaseService.listIssues(userId).catch(() => []),
       ]);
       profilePromise = Promise.resolve(prof);
       healthReport = health;
       properties = props;
       assets = asts;
       expenses = exps;
+      issues = isss;
       break;
     }
 
@@ -360,9 +370,10 @@ export async function buildSelectiveHouseholdContext(
         'loans',
         'creditCards',
         'expenses',
+        'issues',
         'notifications'
       );
-      const [prof, health, maints, utils, lns, cards, exps, notifs] = await Promise.all([
+      const [prof, health, maints, utils, lns, cards, exps, isss, notifs] = await Promise.all([
         profilePromise,
         HouseholdHealthService.getHouseholdHealth(userId, { includeAiExplanation: false }).catch(() => null),
         DatabaseService.listMaintenances(userId).catch(() => []),
@@ -370,6 +381,7 @@ export async function buildSelectiveHouseholdContext(
         DatabaseService.listLoans(userId).catch(() => []),
         DatabaseService.listCreditCards(userId).catch(() => []),
         DatabaseService.listExpenses(userId).catch(() => []),
+        DatabaseService.listIssues(userId).catch(() => []),
         NotificationService.getNotifications(userId).catch(() => null),
       ]);
       profilePromise = Promise.resolve(prof);
@@ -379,19 +391,21 @@ export async function buildSelectiveHouseholdContext(
       loans = lns;
       creditCards = cards;
       expenses = exps;
+      issues = isss;
       notifications = notifs;
       break;
     }
 
     case 'MAINTENANCE_WARRANTIES': {
-      domainsConsulted.push('properties', 'rooms', 'assets', 'warranties', 'maintenances');
-      const [prof, props, rms, asts, wars, maints] = await Promise.all([
+      domainsConsulted.push('properties', 'rooms', 'assets', 'warranties', 'maintenances', 'issues');
+      const [prof, props, rms, asts, wars, maints, isss] = await Promise.all([
         profilePromise,
         DatabaseService.listProperties(userId).catch(() => []),
         DatabaseService.listRooms(userId).catch(() => []),
         DatabaseService.listAssets(userId).catch(() => []),
         DatabaseService.listWarranties(userId).catch(() => []),
         DatabaseService.listMaintenances(userId).catch(() => []),
+        DatabaseService.listIssues(userId).catch(() => []),
       ]);
       profilePromise = Promise.resolve(prof);
       properties = props;
@@ -399,6 +413,7 @@ export async function buildSelectiveHouseholdContext(
       assets = asts;
       warranties = wars;
       maintenances = maints;
+      issues = isss;
       break;
     }
 
@@ -470,6 +485,7 @@ export async function buildSelectiveHouseholdContext(
         lns,
         cards,
         docs,
+        isss,
         notifs,
         health,
         cal,
@@ -486,6 +502,7 @@ export async function buildSelectiveHouseholdContext(
         DatabaseService.listLoans(userId).catch(() => []),
         DatabaseService.listCreditCards(userId).catch(() => []),
         DatabaseService.listDocuments(userId).catch(() => []),
+        DatabaseService.listIssues(userId).catch(() => []),
         NotificationService.getNotifications(userId).catch(() => null),
         HouseholdHealthService.getHouseholdHealth(userId, { includeAiExplanation: false }).catch(() => null),
         CalendarService.getCalendarEvents(userId, { referenceDate: new Date() }).catch(() => null),
@@ -502,6 +519,7 @@ export async function buildSelectiveHouseholdContext(
       loans = lns;
       creditCards = cards;
       documents = docs;
+      issues = isss;
       notifications = notifs;
       healthReport = health;
       calendarResponse = cal;
@@ -540,6 +558,7 @@ export async function buildSelectiveHouseholdContext(
     expenses,
     transactions,
     documents,
+    issues,
     notifications,
     healthReport,
     calendarResponse,
@@ -604,8 +623,29 @@ export function extractDeterministicFacts(context: SelectiveHouseholdContext): D
     (w) => w.status === 'active' && (!w.endDate || w.endDate >= todayStr)
   );
 
+  // Issues counts & critical items
+  const openIssues = (context.issues || []).filter(
+    (i) => !['resolved', 'verified', 'closed', 'cancelled'].includes(i.status)
+  );
+  const criticalIssues = openIssues.filter((i) => i.severity === 'critical' || !!i.safetyWarning);
+
   // Derive Priority Action Items
   const priorityItems: AgentPriorityItem[] = [];
+
+  // Priority 0: Critical Safety / High Urgency Household Issues
+  for (const iss of criticalIssues) {
+    priorityItems.push({
+      id: iss.id,
+      title: `Critical Issue: ${iss.title}`,
+      category: 'maintenance',
+      urgency: 'urgent',
+      reason: iss.safetyWarning
+        ? `Safety Warning: ${iss.safetyWarning}`
+        : `Critical severity issue reported on ${iss.reportedAt ? iss.reportedAt.split('T')[0] : 'recent date'}.`,
+      actionTab: 'maintenance',
+      amount: iss.estimatedCost || iss.actualCost || undefined,
+    });
+  }
 
   // Priority 1: Overdue Maintenance
   for (const m of overdueTasks) {
@@ -689,6 +729,8 @@ export function extractDeterministicFacts(context: SelectiveHouseholdContext): D
     billsDueSoonCount: context.expenses.filter((e) => e.dueDate && e.dueDate >= todayStr).length,
     activeWarrantiesCount: activeWarranties.length,
     totalAssetsCount: context.assets.length,
+    openIssuesCount: openIssues.length,
+    criticalIssuesCount: criticalIssues.length,
     priorityItems: priorityItems.slice(0, 4),
   };
 }

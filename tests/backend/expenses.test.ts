@@ -1,12 +1,12 @@
 import { apiRequest, TestRunner } from '../test-helper';
 
 export async function runExpensesTests(runner: TestRunner) {
-  runner.setSuite('Household Expenses CRUD');
+  runner.setSuite('Household Recurring Expenses & Cash Flow Lifecycle');
 
   const token = 'test-token-expense-user';
   let createdExpenseId = '';
 
-  await runner.test('Create valid recurring monthly expense', async () => {
+  await runner.test('creates recurring monthly expense item with metadata', async () => {
     const res = await apiRequest('/api/household/expenses', {
       method: 'POST',
       token,
@@ -34,7 +34,7 @@ export async function runExpensesTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('List expenses contains newly created item', async () => {
+  await runner.test('returns expense listings including newly created item', async () => {
     const res = await apiRequest('/api/household/expenses', { token });
     if (res.status !== 200) {
       throw new Error(`Expected 200 OK, got ${res.status}`);
@@ -45,7 +45,7 @@ export async function runExpensesTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Update expense amount and payment status', async () => {
+  await runner.test('updates recurring expense amount and payment status', async () => {
     const res = await apiRequest(`/api/household/expenses/${createdExpenseId}`, {
       method: 'PUT',
       token,
@@ -63,7 +63,7 @@ export async function runExpensesTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Delete expense removes item from collection', async () => {
+  await runner.test('deletes recurring expense removing it from collection', async () => {
     const delRes = await apiRequest(`/api/household/expenses/${createdExpenseId}`, {
       method: 'DELETE',
       token,
@@ -80,7 +80,7 @@ export async function runExpensesTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Reject invalid expense payload with negative amount', async () => {
+  await runner.test('rejects invalid expense payload with negative amount', async () => {
     const res = await apiRequest('/api/household/expenses', {
       method: 'POST',
       token,

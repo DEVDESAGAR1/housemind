@@ -1,12 +1,12 @@
 import { apiRequest, TestRunner } from '../test-helper';
 
 export async function runTransactionsTests(runner: TestRunner) {
-  runner.setSuite('Financial Transactions & Summary Ledger');
+  runner.setSuite('Financial Ledger & Transaction Integrity');
 
   const token = 'test-token-tx-user';
   let createdTxId = '';
 
-  await runner.test('Create manual income transaction (CREDIT)', async () => {
+  await runner.test('creates manual income transaction with cryptographic fingerprint', async () => {
     const res = await apiRequest('/api/transactions', {
       method: 'POST',
       token,
@@ -37,7 +37,7 @@ export async function runTransactionsTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Create manual expense transaction (DEBIT)', async () => {
+  await runner.test('creates manual expense debit transaction successfully', async () => {
     const res = await apiRequest('/api/transactions', {
       method: 'POST',
       token,
@@ -57,7 +57,7 @@ export async function runTransactionsTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Create manual transfer transaction (TRANSFER)', async () => {
+  await runner.test('creates manual transfer transaction successfully', async () => {
     const res = await apiRequest('/api/transactions', {
       method: 'POST',
       token,
@@ -77,7 +77,7 @@ export async function runTransactionsTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Compute deterministic financial summary (Credits, Debits, Net Cash Flow, Savings Rate)', async () => {
+  await runner.test('computes deterministic financial summary including net cash flow and savings rate', async () => {
     const res = await apiRequest('/api/transactions/summary', { token });
     if (res.status !== 200) {
       throw new Error(`Expected 200 OK, got ${res.status}`);
@@ -107,7 +107,7 @@ export async function runTransactionsTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Filter transactions by type and text search', async () => {
+  await runner.test('filters transactions accurately by type and keyword search', async () => {
     const filterRes = await apiRequest('/api/transactions?type=DEBIT', { token });
     if (filterRes.status !== 200) {
       throw new Error(`Expected 200 OK, got ${filterRes.status}`);
@@ -125,7 +125,7 @@ export async function runTransactionsTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Update transaction amount and category', async () => {
+  await runner.test('updates transaction amount and contextual notes', async () => {
     const res = await apiRequest(`/api/transactions/${createdTxId}`, {
       method: 'PUT',
       token,
@@ -143,7 +143,7 @@ export async function runTransactionsTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Delete transaction removes it from ledger', async () => {
+  await runner.test('deletes transaction record removing it from ledger', async () => {
     const res = await apiRequest(`/api/transactions/${createdTxId}`, {
       method: 'DELETE',
       token,

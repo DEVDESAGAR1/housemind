@@ -36,6 +36,7 @@ import {
   Property,
 } from '../types';
 import { formatCurrency } from '../config/locationCurrencyConfig';
+import { trackEvent } from '../lib/analytics';
 
 export interface GlobalUploadModalProps {
   isOpen: boolean;
@@ -289,6 +290,12 @@ export function GlobalUploadModal({
     setStep('processing');
     setProcessingStatusText('Uploading document securely...');
 
+    const fileExt = (selectedFile.name.split('.').pop() || 'other').toLowerCase();
+    trackEvent('document_intake_started', {
+      file_type: fileExt,
+      domain: domainHint || 'general',
+    });
+
     try {
       // 1. Upload to backend document analyzer
       setProcessingStatusText('Analyzing document with Gemini AI...');
@@ -343,6 +350,11 @@ export function GlobalUploadModal({
       setStep('review');
     } catch (err: any) {
       console.error('[GLOBAL_UPLOAD] Ingestion failed:', err);
+      trackEvent('document_intake_failed', {
+        file_type: fileExt,
+        error_category: 'document_processing_error',
+        result: 'failure',
+      });
       // Graceful fallback: Do not lose the upload; switch to manual review mode
       setIsManualEntryMode(true);
       setClassifiedDomain(domainHint || 'transaction');
@@ -500,6 +512,12 @@ export function GlobalUploadModal({
           destinationTab: destTab,
         });
       }
+
+      trackEvent('document_intake_completed', {
+        file_type: (selectedFile?.name.split('.').pop() || 'other').toLowerCase(),
+        domain: classifiedDomain,
+        result: 'success',
+      });
 
       setStep('success');
       addToast('success', 'Intake Completed', message);

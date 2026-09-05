@@ -638,6 +638,91 @@ export const HELP_ARTICLES: HelpArticle[] = [
       modalAction: 'profile',
     },
   },
+
+  // 13. Universal Household Issues & Resolution Intelligence
+  {
+    id: 'universal-issues-guide',
+    category: 'household-home',
+    title: 'Universal Household Issues, Tickets & Resolution Intelligence',
+    shortDescription: 'Track equipment breakdowns, recurring failure patterns, repair costs, and contractor visits.',
+    readTime: '4 min read',
+    iconName: 'Wrench',
+    keywords: ['issues', 'tickets', 'repairs', 'failures', 'breakdowns', 'resolution', 'recurring', 'service provider', 'contractor'],
+    contentSections: [
+      {
+        heading: 'Unified Issue Lifecycle: Reported → Triaged → Scheduled → In Progress → Resolved → Verified',
+        body: 'HouseMind tracks home malfunctions as structured tickets linked directly to affected equipment, warranties, and maintenance tasks.',
+        points: [
+          'Severity Levels: Critical (Safety Hazards), High, Medium, Low.',
+          'Safety Warnings: Leaks, gas odors, electrical sparks, and fire hazards are immediately elevated with prominent safety alerts.',
+          'Cost Tracking: Record estimated versus actual repair expenditure to build lifetime cost records.',
+        ],
+      },
+      {
+        heading: 'Recurrence Detection & Resolution Intelligence',
+        body: 'When an appliance experiences repeated malfunctions, Issue Intelligence flags recurring failure patterns ($N \\ge 2$) and aggregates historical repair costs to inform Repair vs. Replace decisions.',
+      },
+    ],
+    actionLink: {
+      label: 'View Household Issues',
+      targetTab: 'maintenance',
+    },
+  },
+
+  // 14. Cross-Domain Intelligence & Unified Actions
+  {
+    id: 'cross-domain-actions-guide',
+    category: 'command-center',
+    title: 'Cross-Domain Intelligence & Unified Action Center',
+    shortDescription: 'How HouseMind connects equipment, warranties, bills, and documents into strategic next steps.',
+    readTime: '4 min read',
+    iconName: 'Sparkles',
+    keywords: ['cross-domain', 'graph', 'unified actions', 'repair vs replace', 'recommendations', 'compound decisions'],
+    contentSections: [
+      {
+        heading: 'The Household Relationship Graph',
+        body: 'HouseMind continuously maps multi-domain connections across your home: [Property] → [Room] → [Asset] → [Warranty] → [Maintenance] → [Issue] → [Document].',
+      },
+      {
+        heading: 'Compound Action Recommendations',
+        body: 'Rather than showing disconnected alerts, the Unified Action Center synthesizes multi-signal decisions:',
+        points: [
+          'Repair vs. Replace Decisions: Synthesizes high cumulative repair costs (>40% of purchase price) and expiring warranties into a single strategic evaluation.',
+          'Approaching Warranty Claims: Prompts certified technician inspections before manufacturer policies expire.',
+          'Overdue Upkeep Risks: Prioritizes critical maintenance to avoid cascading equipment failures.',
+        ],
+      },
+    ],
+    actionLink: {
+      label: 'Open Command Center Actions',
+      targetTab: 'dashboard',
+    },
+  },
+
+  // 15. Morning Brief Popup Experience
+  {
+    id: 'morning-brief-guide',
+    category: 'command-center',
+    title: 'Morning Brief: Daily Entry Experience',
+    shortDescription: 'A concise daily entry briefing summarizing health score, attention items, and top actions.',
+    readTime: '2 min read',
+    iconName: 'Building2',
+    keywords: ['morning brief', 'daily brief', 'modal', 'popup', 'daily entry', 'briefing', 'dismissal'],
+    contentSections: [
+      {
+        heading: 'Daily Front Door to HouseMind',
+        body: 'Morning Brief pops up upon your first entry each day with a concise 4-part summary: Household Health Score, Top Attention Items, Recent Changes, and Top Recommended Action.',
+      },
+      {
+        heading: 'Persistent Daily Suppression & Manual Access',
+        body: 'Checking "Don\'t show today\'s brief again" suppresses the automated daily popup without affecting alerts or manual access via the 🌅 Brief button in the header.',
+      },
+    ],
+    actionLink: {
+      label: 'Open Command Center',
+      targetTab: 'dashboard',
+    },
+  },
 ];
 
 export function searchHelpArticles(query: string, categoryFilter?: HelpCategoryId): HelpArticle[] {

@@ -12,12 +12,13 @@ import {
   CreditCardAccount,
 } from '../../src/types';
 import crypto from 'crypto';
+import { getGeminiApiKey, getGeminiModel } from '../config/secrets';
 
 // Lazy Gemini client initialization
 let aiClient: GoogleGenAI | null = null;
 function getAI(): GoogleGenAI | null {
   if (!aiClient) {
-    const key = process.env.GEMINI_API_KEY;
+    const key = getGeminiApiKey();
     if (!key) return null;
     aiClient = new GoogleGenAI({
       apiKey: key,
@@ -164,7 +165,7 @@ Return ONLY a valid JSON object with the following structure:
 `;
 
       const response = await ai.models.generateContent({
-        model: process.env.GEMINI_MODEL || 'gemini-3.7-flash',
+        model: getGeminiModel('gemini-3.7-flash'),
         contents: prompt,
         config: {
           responseMimeType: 'application/json',

@@ -22,6 +22,7 @@ import {
   HouseholdHealthReport,
   HouseholdNotification,
   HouseholdIssue,
+  HouseholdMorningBrief,
 } from './types';
 import { Navbar, NavigationTab } from './components/Navbar';
 import { Dashboard } from './components/Dashboard';
@@ -42,11 +43,13 @@ import { ProfileModal } from './components/ProfileModal';
 import { SearchModal } from './components/SearchModal';
 import { NotificationCenterModal } from './components/notifications/NotificationCenterModal';
 import { NotificationPreferencesModal } from './components/notifications/NotificationPreferencesModal';
+import { MorningBriefModal } from './components/MorningBriefModal';
 import { LandingPage } from './components/LandingPage';
 import { HelpCenterView } from './components/help/HelpCenterView';
 import { FloatingHelpWidget } from './components/help/FloatingHelpWidget';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ToastContainer, ToastMessage } from './components/Toast';
+import { initializeAnalytics, trackEvent, trackPageView } from './lib/analytics';
 
 export default function App() {
   const [user, setUser] = useState<User | null>(() => {
@@ -111,6 +114,12 @@ export default function App() {
 
   // Contextual Copilot Navigation State
   const [copilotContext, setCopilotContext] = useState<{ initialPrompt?: string; initialDomain?: string } | undefined>(undefined);
+
+  // Phase 24.6: Morning Brief Modal State
+  const [morningBrief, setMorningBrief] = useState<HouseholdMorningBrief | null>(null);
+  const [isMorningBriefOpen, setIsMorningBriefOpen] = useState(false);
+  const [isLoadingMorningBrief, setIsLoadingMorningBrief] = useState(false);
+  const [hasCheckedAutoMorningBrief, setHasCheckedAutoMorningBrief] = useState(false);
 
   // Sub-tab states for compound views
   const [maintenanceSubTab, setMaintenanceSubTab] = useState<'maintenance' | 'warranties' | 'issues'>('maintenance');
@@ -274,6 +283,16 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  // Initialize Firebase Analytics on client mount
+  useEffect(() => {
+    initializeAnalytics();
+  }, []);
+
+  // Track page views on tab changes
+  useEffect(() => {
+    trackPageView(activeTab);
+  }, [activeTab]);
+
   // Toasts
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
@@ -288,6 +307,60 @@ export default function App() {
   const removeToast = (id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
+
+  // Phase 24.6: Morning Brief Handlers
+  const loadMorningBrief = useCallback(async () => {
+    try {
+      setIsLoadingMorningBrief(true);
+      const brief = await api.getMorningBrief();
+      setMorningBrief(brief);
+      return brief;
+    } catch (err) {
+      console.error('Failed to load morning brief:', err);
+      return null;
+    } finally {
+      setIsLoadingMorningBrief(false);
+    }
+  }, []);
+
+  const handleOpenMorningBrief = async () => {
+    trackEvent('morning_brief_viewed');
+    setIsMorningBriefOpen(true);
+    if (!morningBrief) {
+      await loadMorningBrief();
+    }
+  };
+
+  const handleDismissMorningBriefToday = async () => {
+    try {
+      const todayStr = new Date().toISOString().split('T')[0];
+      if (user?.uid) {
+        localStorage.setItem(`housemind_mb_dismissed_${user.uid}`, todayStr);
+      }
+      await api.dismissMorningBriefToday();
+      setMorningBrief((prev) => (prev ? { ...prev, isDismissedToday: true, lastDismissedDate: todayStr } : null));
+      addToast('info', 'Briefing Dismissed', "Today's morning brief will not pop up automatically again.");
+    } catch (err) {
+      console.error('Failed to dismiss morning brief today:', err);
+    }
+  };
+
+  // Proactive Morning Brief Auto-Presentation on Initial Daily Entry
+  useEffect(() => {
+    if (!user || hasCheckedAutoMorningBrief || isAuthChecking || isLoadingData) return;
+    const todayStr = new Date().toISOString().split('T')[0];
+    const localDismissed = typeof window !== 'undefined' && user?.uid && localStorage.getItem(`housemind_mb_dismissed_${user.uid}`);
+    const isDismissed = profile?.lastDismissedBriefDate === todayStr || localDismissed === todayStr;
+
+    setHasCheckedAutoMorningBrief(true);
+    if (!isDismissed) {
+      loadMorningBrief().then((brief) => {
+        if (brief) {
+          setIsMorningBriefOpen(true);
+        }
+      });
+    }
+  }, [user, profile, hasCheckedAutoMorningBrief, isAuthChecking, isLoadingData, loadMorningBrief]);
 
   // Fetch comprehensive household data
   const loadHouseholdData = useCallback(async () => {
@@ -428,11 +501,14 @@ export default function App() {
   const handleGoogleSignIn = async () => {
     setAuthError(null);
     setIsAuthenticating(true);
+    trackEvent('sign_in_started', { provider: 'google' });
     try {
       await signInWithPopup(auth, googleProvider);
+      trackEvent('sign_in_completed', { provider: 'google', result: 'success' });
       addToast('success', 'Welcome to HouseMind', 'Successfully signed in to your household vault.');
     } catch (err: unknown) {
       console.error('Sign-in error:', err);
+      trackEvent('sign_in_completed', { provider: 'google', result: 'failure' });
       const errorMsg = err instanceof Error ? err.message : 'Failed to sign in with Google';
       setAuthError(errorMsg);
       addToast('error', 'Authentication Failed', errorMsg);
@@ -443,6 +519,7 @@ export default function App() {
 
   const handleSignOut = async () => {
     try {
+      trackEvent('sign_out');
       await signOut(auth);
       addToast('info', 'Signed Out', 'You have been safely signed out.');
     } catch (err: unknown) {
@@ -482,6 +559,7 @@ export default function App() {
   ) => {
     const created = await api.createExpense(expenseData);
     setExpenses((prev) => [created, ...prev]);
+    trackEvent('expense_created', { category: expenseData.category || 'other' });
     addToast('success', 'Expense Created', `Added "${created.title}".`);
   };
 
@@ -503,6 +581,7 @@ export default function App() {
   ) => {
     const created = await api.createAsset(assetData);
     setAssets((prev) => [created, ...prev]);
+    trackEvent('asset_created', { category: assetData.category || 'appliance' });
     addToast('success', 'Asset Registered', `Added "${created.name}".`);
   };
 
@@ -632,13 +711,14 @@ export default function App() {
         isSeeding={isSeeding}
         onOpenGlobalUpload={() => handleOpenGlobalUpload()}
         onOpenSearch={() => setIsSearchOpen(true)}
+        onOpenMorningBrief={handleOpenMorningBrief}
         unreadNotificationCount={unreadNotificationCount}
         onOpenNotifications={() => setIsNotificationsOpen(true)}
         onOpenNotificationPreferences={() => setIsNotificationPreferencesOpen(true)}
       />
 
       {/* Main App Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-2.5 sm:px-6 lg:px-8 py-4 sm:py-8">
         <ErrorBoundary
           key={activeTab}
           resetKey={activeTab}
@@ -662,6 +742,7 @@ export default function App() {
               onUpdateInsightStatus={handleUpdateInsightStatus}
               isSeeding={isSeeding}
               onOpenGlobalUpload={() => handleOpenGlobalUpload()}
+              onOpenMorningBrief={handleOpenMorningBrief}
               healthReport={healthReport}
               isLoadingHealth={isLoadingHealth}
               onRefreshHealth={async () => {
@@ -939,6 +1020,23 @@ export default function App() {
           loadNotifications();
         }}
         addToast={addToast}
+      />
+
+      {/* Phase 24.6: Morning Brief Modal */}
+      <MorningBriefModal
+        isOpen={isMorningBriefOpen}
+        onClose={() => setIsMorningBriefOpen(false)}
+        brief={morningBrief}
+        isLoading={isLoadingMorningBrief}
+        onNavigateTab={(tab, subTab, entityId) => {
+          handleNavigateSubTab(tab as NavigationTab, subTab);
+        }}
+        onAskCopilot={(prompt, initialDomain) => {
+          setCopilotContext({ initialPrompt: prompt, initialDomain });
+          setActiveTab('copilot');
+        }}
+        onDismissToday={handleDismissMorningBriefToday}
+        currency={profile?.currency || 'USD'}
       />
 
       {/* Floating AI Copilot & Quick Help Assistant Widget */}

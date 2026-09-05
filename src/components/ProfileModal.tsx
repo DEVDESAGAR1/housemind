@@ -35,6 +35,7 @@ import {
   HouseholdDataSourcesSummary,
   NotificationPreferences,
 } from '../types';
+import { trackEvent } from '../lib/analytics';
 import {
   SUPPORTED_COUNTRIES,
   SUPPORTED_CURRENCIES,
@@ -308,6 +309,7 @@ export function ProfileModal({
     try {
       setIsExportingJson(true);
       const exportData = await api.exportHouseholdData();
+      trackEvent('data_exported', { export_type: 'json' });
       const jsonStr = JSON.stringify(exportData, null, 2);
       const blob = new Blob([jsonStr], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
@@ -331,6 +333,7 @@ export function ProfileModal({
     try {
       setIsExportingCsv(true);
       const exportData = await api.exportHouseholdData();
+      trackEvent('data_exported', { export_type: 'csv' });
       const expenses = exportData?.expenses || [];
       const loans = exportData?.loans || [];
       const creditCards = exportData?.creditCards || [];

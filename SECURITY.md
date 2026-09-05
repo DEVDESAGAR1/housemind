@@ -106,7 +106,11 @@ Client IPs are safely extracted using `getSafeClientIp` to prevent proxy spoofin
 
 ---
 
-## 6. Secret Management
+## 6. Secret Management & Production Hardening
 
-- **Client Configuration (`firebase-applet-config.json`)**: Contains public Firebase Web API keys and project IDs designed for client browser initialization. Firestore rules and App Check safeguard these resources.
-- **Server Configuration (`.env`)**: `GEMINI_API_KEY` and private service keys remain strictly on the backend and are never sent to or bundled in client scripts.
+- **Google Cloud Secret Manager**: Production server secrets (notably `GEMINI_API_KEY`) are stored in Google Cloud Secret Manager (`housemind-gemini-api-key`) and injected securely into the Cloud Run container runtime using native Secret Manager integration (`--set-secrets`).
+- **No Hardcoded or Committed Secrets**: Zero production API keys, service-account JSON keys, or private credential strings are committed to source control or baked into Docker images.
+- **Client Configuration Isolation (`firebase-applet-config.json`)**: Contains public Firebase Web identifiers (Project ID, App ID, Web API key) strictly required for client-side Firebase Web SDK initialization. Firestore Security Rules and App Check protect all backend database access.
+- **Application Default Credentials (ADC)**: Firebase Admin and Google Cloud services authenticate using Cloud Run's attached IAM Service Account (`housemind-runtime@...`) without requiring static service-account JSON keys.
+- **Least-Privilege IAM**: The runtime service account is granted only `roles/secretmanager.secretAccessor` on the specific required secret resource.
+- **Sanitized Observability & Errors**: Server error handlers and structured access loggers (`[API_ACCESS]`, `[SERVER_ERROR]`) strictly strip authentication tokens, authorization headers, request bodies, and sensitive query parameters. Health endpoints return operational state without leaking configuration details.

@@ -10,12 +10,13 @@ import {
   detectCurrencyFromText,
   getCurrencyInfo,
 } from '../../src/config/locationCurrencyConfig';
+import { getGeminiApiKey, getGeminiModel } from '../config/secrets';
 
 // Lazy Gemini Client initialization
 let aiClient: GoogleGenAI | null = null;
 function getAI(): GoogleGenAI | null {
   if (!aiClient) {
-    const key = process.env.GEMINI_API_KEY;
+    const key = getGeminiApiKey();
     if (!key) {
       return null;
     }
@@ -732,7 +733,7 @@ Return ONLY a valid JSON object strictly matching this schema:
     contents.push({ text: prompt });
 
     const response = await ai.models.generateContent({
-      model: process.env.GEMINI_MODEL || 'gemini-3.7-flash',
+      model: getGeminiModel('gemini-3.7-flash'),
       contents,
       config: {
         systemInstruction,

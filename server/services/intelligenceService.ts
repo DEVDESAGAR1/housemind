@@ -8,13 +8,14 @@ import {
   InsightStatus,
   GeminiInsightExplanation,
 } from '../../src/types';
+import { getGeminiApiKey, getGeminiModel } from '../config/secrets';
 
 // Lazy-initialized Gemini Client
 let genAIClient: GoogleGenAI | null = null;
 
 function getGeminiClient(): GoogleGenAI {
   if (!genAIClient) {
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = getGeminiApiKey();
     if (!apiKey) {
       console.warn('[INTELLIGENCE] Warning: GEMINI_API_KEY is not set.');
     }
@@ -698,7 +699,7 @@ You are tasked with providing a concise, homeowner-friendly explanation for a sp
 Do NOT include markdown backticks around the JSON. Return only the raw valid JSON string.`;
 
   const client = getGeminiClient();
-  const modelName = process.env.GEMINI_MODEL || 'gemini-3.7-flash';
+  const modelName = getGeminiModel('gemini-3.7-flash');
 
   let explanation: GeminiInsightExplanation;
 

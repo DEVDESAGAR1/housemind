@@ -92,6 +92,78 @@ export const AGENT_TOOL_DECLARATIONS: AgentToolDeclaration[] = [
       },
     },
   },
+  {
+    name: 'getHouseholdIssues',
+    description: 'Retrieves household issues, open/historical tickets, severity levels, and recurrence intelligence.',
+    category: 'READ',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        status: {
+          type: 'STRING',
+          description: 'Filter by ticket status (e.g. "open", "reported", "in_progress", "resolved").',
+        },
+        severity: {
+          type: 'STRING',
+          description: 'Filter by severity ("critical", "high", "medium", "low").',
+        },
+        assetId: {
+          type: 'STRING',
+          description: 'Optional asset ID to check issues for a specific appliance.',
+        },
+      },
+    },
+  },
+  {
+    name: 'getCrossDomainInsights',
+    description: 'Derives cross-domain household insights connecting assets, warranties, maintenance, issues, and finance.',
+    category: 'READ',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        priority: {
+          type: 'STRING',
+          description: 'Filter by priority ("critical", "overdue", "due_today", "warning", "due_soon").',
+        },
+        type: {
+          type: 'STRING',
+          description: 'Filter by insight type ("risk", "recurrence", "opportunity", "deadline", "cost", "missing_info", "positive_signal").',
+        },
+      },
+    },
+  },
+  {
+    name: 'getHouseholdTimeline',
+    description: 'Retrieves operational timeline of household events (repairs, maintenance, warranty changes, bills, documents).',
+    category: 'READ',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        domain: {
+          type: 'STRING',
+          description: 'Filter timeline by domain ("assets", "issues", "maintenance", "warranties", "finance", "documents").',
+        },
+      },
+    },
+  },
+  {
+    name: 'getUnifiedHouseholdActions',
+    description: 'Retrieves consolidated, prioritized, and deduplicated action recommendations answering "What should I do next?".',
+    category: 'READ',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        priority: {
+          type: 'STRING',
+          description: 'Filter by priority ("critical", "overdue", "due_today", "warning", "due_soon").',
+        },
+        domain: {
+          type: 'STRING',
+          description: 'Filter by household domain.',
+        },
+      },
+    },
+  },
 ];
 
 export class ToolExecutor {
@@ -228,6 +300,18 @@ export class ToolExecutor {
           break;
         case 'getRecentNotifications':
           data = await HouseholdTools.getRecentNotifications(userId, params);
+          break;
+        case 'getHouseholdIssues':
+          data = await HouseholdTools.getHouseholdIssues(userId, params);
+          break;
+        case 'getCrossDomainInsights':
+          data = await HouseholdTools.getCrossDomainInsights(userId, params);
+          break;
+        case 'getHouseholdTimeline':
+          data = await HouseholdTools.getHouseholdTimeline(userId, params);
+          break;
+        case 'getUnifiedHouseholdActions':
+          data = await HouseholdTools.getUnifiedHouseholdActions(userId, params);
           break;
         default:
           throw new Error(`Unhandled allowlisted tool: ${toolName}`);

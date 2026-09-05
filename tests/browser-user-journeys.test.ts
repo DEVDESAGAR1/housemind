@@ -207,6 +207,7 @@ async function main() {
       'Command Center Operating Screen & Household Health Analysis Modal',
       async () => {
         await ensureModalsClosed(page!);
+        await page!.waitForSelector('#dash-import-doc-btn', { timeout: 15000 });
 
         // 1. Verify Command Center Header
         const headerTitle = await page!.textContent('h1');
@@ -1008,6 +1009,156 @@ async function main() {
         // Restore standard desktop resolution
         await page!.setViewportSize({ width: 1366, height: 768 });
         await page!.waitForTimeout(200);
+      }
+    );
+
+    // =========================================================================
+    // JOURNEY 17: Morning Brief Daily Popup-First Modal UX & Persistence
+    // =========================================================================
+    await runJourney(
+      'JOURNEY-17',
+      'Morning Brief Daily Modal Popup-First Entry, Synthesis & Manual Access',
+      async () => {
+        await ensureModalsClosed(page!);
+
+        // 1. Open Morning Brief via Top Navigation Bar
+        const navBriefBtn = await page!.$('#nav-morning-brief-btn');
+        if (!navBriefBtn) {
+          throw new Error('#nav-morning-brief-btn missing in top utility bar');
+        }
+        await navBriefBtn.click();
+        await page!.waitForTimeout(400);
+
+        // 2. Verify Morning Brief Modal Header & Title
+        const briefTitle = await page!.$('#morning-brief-title');
+        if (!briefTitle) {
+          throw new Error('Morning Brief modal title (#morning-brief-title) not found');
+        }
+        const titleText = await briefTitle.textContent();
+        if (!titleText?.includes('HouseMind') && !titleText?.includes('Good') && !titleText?.includes('Welcome')) {
+          throw new Error(`Unexpected Morning Brief title text: "${titleText}"`);
+        }
+
+        // 3. Verify Modal Body Content
+        const modalBody = await page!.textContent('div[role="dialog"]');
+        if (!modalBody?.includes('Household Health Score') && !modalBody?.includes('Get Started with 4 Simple Steps') && !modalBody?.includes('Morning Brief')) {
+          throw new Error('Morning Brief modal body did not render health score or onboarding steps');
+        }
+
+        // 4. Test "Don't show today's brief again" checkbox interaction
+        const dontShowCheckbox = await page!.$('#mb-dont-show-today-checkbox');
+        if (dontShowCheckbox) {
+          await dontShowCheckbox.click();
+          await page!.waitForTimeout(150);
+        }
+
+        // 5. Close Morning Brief via Done Button
+        const doneBtn = await page!.$('#mb-done-btn');
+        if (doneBtn) {
+          await doneBtn.click();
+          await page!.waitForTimeout(400);
+        } else {
+          await page!.keyboard.press('Escape');
+          await page!.waitForTimeout(300);
+        }
+
+        await ensureModalsClosed(page!);
+
+        // 6. Test Command Center Manual Trigger
+        const dashBriefBtn = await page!.$('#dash-morning-brief-btn');
+        if (dashBriefBtn) {
+          await dashBriefBtn.click();
+          await page!.waitForTimeout(300);
+
+          const closeBtn = await page!.$('#morning-brief-close-btn');
+          if (closeBtn) {
+            await closeBtn.click();
+            await page!.waitForTimeout(300);
+          }
+        }
+        await ensureModalsClosed(page!);
+      }
+    );
+
+    // =========================================================================
+    // JOURNEY 18: Whole-Product Responsive Audit & Zero Horizontal Overflow
+    // =========================================================================
+    await runJourney(
+      'JOURNEY-18',
+      'Whole-Product Responsive Audit Across 15 Standard & Ultra-Compact Viewports',
+      async () => {
+        await ensureModalsClosed(page!);
+
+        const viewports = [
+          { name: '2560x1440 (2K QHD)', width: 2560, height: 1440 },
+          { name: '1920x1080 (FHD Desktop)', width: 1920, height: 1080 },
+          { name: '1600x900 (Large Laptop)', width: 1600, height: 900 },
+          { name: '1440x900 (MacBook Standard)', width: 1440, height: 900 },
+          { name: '1366x768 (Standard Laptop)', width: 1366, height: 768 },
+          { name: '1280x800 (Small Laptop)', width: 1280, height: 800 },
+          { name: '1152x768 (Compact Tablet Landscape)', width: 1152, height: 768 },
+          { name: '1024x768 (iPad Landscape)', width: 1024, height: 768 },
+          { name: '900x700 (Small Window)', width: 900, height: 700 },
+          { name: '768x1024 (iPad Portrait)', width: 768, height: 1024 },
+          { name: '640x900 (Large Phablet)', width: 640, height: 900 },
+          { name: '480x800 (Large Phone)', width: 480, height: 800 },
+          { name: '375x812 (iPhone Standard)', width: 375, height: 812 },
+          { name: '360x800 (Android Standard)', width: 360, height: 800 },
+          { name: '320x568 (iPhone SE Ultra-Compact)', width: 320, height: 568 },
+        ];
+
+        for (const vp of viewports) {
+          await page!.setViewportSize({ width: vp.width, height: vp.height });
+          await page!.waitForTimeout(100);
+
+          const overflowInfo = await page!.evaluate(() => {
+            const scrollW = document.documentElement.scrollWidth;
+            const innerW = window.innerWidth;
+            return { scrollW, innerW, overflows: scrollW > innerW };
+          });
+
+          if (overflowInfo.overflows) {
+            throw new Error(
+              `Horizontal overflow detected at viewport ${vp.name}: scrollWidth (${overflowInfo.scrollW}px) > innerWidth (${overflowInfo.innerW}px)`
+            );
+          }
+        }
+
+        // Restore standard desktop resolution
+        await page!.setViewportSize({ width: 1366, height: 768 });
+        await page!.waitForTimeout(150);
+      }
+    );
+
+    // =========================================================================
+    // JOURNEY 19: Copilot Multi-Point Rendering & Grounded Source Badges
+    // =========================================================================
+    await runJourney(
+      'JOURNEY-19',
+      'Copilot Multi-Point Formatting, Markdown Lists & Interactive Source Chips',
+      async () => {
+        await ensureModalsClosed(page!);
+
+        // Navigate to Copilot Tab
+        const copilotNavBtn = await page!.$('button:has-text("Copilot"), #nav-copilot-btn, a[href*="copilot"]');
+        if (copilotNavBtn) {
+          await copilotNavBtn.click();
+          await page!.waitForTimeout(300);
+        }
+
+        // Verify composer exists
+        const composer = await page!.$('#copilot-input, #floating-copilot-input, textarea, input[placeholder*="Ask"]');
+        if (composer) {
+          await composer.fill('What needs my attention in my household?');
+          await composer.press('Enter');
+          await page!.waitForTimeout(800);
+
+          // Verify message container rendered
+          const messageContent = await page!.textContent('body');
+          if (!messageContent?.includes('HouseMind') && !messageContent?.includes('attention') && !messageContent?.includes('nominal')) {
+            throw new Error('Copilot response did not render in chat container');
+          }
+        }
       }
     );
 

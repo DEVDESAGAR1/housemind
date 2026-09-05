@@ -1,0 +1,27 @@
+# Git & System
+.git
+.github
+.DS_Store
+
+# Environment & Credentials (NEVER bake secrets into Docker images)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.cert
+service-account*.json
+
+# Dependencies & Build artifacts
+node_modules
+dist
+coverage
+test-results
+tmp
+
+# Logs & Temporary files
+*.log
+npm-debug.log*
+
+# Test files (excluded from production image)
+tests

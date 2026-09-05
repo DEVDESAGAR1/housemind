@@ -358,17 +358,104 @@ export const webLimiter = rateLimit({
   },
 });
 
+// Safe Server Error Categories for Production Observability
+export type ServerErrorCategory =
+  | 'authentication_error'
+  | 'authorization_error'
+  | 'validation_error'
+  | 'not_found'
+  | 'rate_limit'
+  | 'upstream_ai_error'
+  | 'document_processing_error'
+  | 'database_error'
+  | 'internal_error';
+
+/**
+ * Categorizes server-side failures into standardized observability buckets.
+ */
+export function classifyServerError(
+  statusCode: number,
+  code?: string,
+  message?: string
+): ServerErrorCategory {
+  if (statusCode === 401 || code === 'UNAUTHORIZED' || code === 'AUTH_FAILED') {
+    return 'authentication_error';
+  }
+  if (statusCode === 403 || code === 'FORBIDDEN' || code === 'TENANT_MISMATCH') {
+    return 'authorization_error';
+  }
+  if (statusCode === 404 || code === 'NOT_FOUND') {
+    return 'not_found';
+  }
+  if (statusCode === 429 || code === 'TOO_MANY_REQUESTS' || code === 'RATE_LIMITED') {
+    return 'rate_limit';
+  }
+  if (statusCode === 400 || code === 'VALIDATION_ERROR' || code === 'BAD_REQUEST') {
+    return 'validation_error';
+  }
+  if (
+    /^(?:GEMINI|AI_|UPSTREAM_AI)/i.test(code || '') ||
+    code === 'GEMINI_UPSTREAM_ERROR' ||
+    code === 'AI_ERROR' ||
+    (message && /gemini|upstream.*ai|ai_model|llm/i.test(message))
+  ) {
+    return 'upstream_ai_error';
+  }
+  if (
+    /^(?:DOC|DOCUMENT|UPLOAD|OCR)/i.test(code || '') ||
+    code?.includes('OCR') ||
+    code?.includes('DOCUMENT') ||
+    code?.includes('UPLOAD') ||
+    (message && /ocr|document|upload|parse/i.test(message))
+  ) {
+    return 'document_processing_error';
+  }
+  if (
+    /^(?:DB|FIRESTORE|DATABASE)/i.test(code || '') ||
+    code?.includes('FIRESTORE') ||
+    code?.includes('DATABASE') ||
+    (message && /database|firestore/i.test(message))
+  ) {
+    return 'database_error';
+  }
+  return 'internal_error';
+}
+
+/**
+ * Strips sensitive query strings from URL before structured logging.
+ */
+export function sanitizeLogUrl(rawUrl: string): string {
+  try {
+    const urlObj = new URL(rawUrl, 'http://localhost');
+    // Drop sensitive params if present
+    const sensitiveKeys = ['token', 'key', 'apiKey', 'secret', 'password', 'auth'];
+    sensitiveKeys.forEach((k) => urlObj.searchParams.delete(k));
+    return urlObj.pathname + (urlObj.search ? urlObj.search : '');
+  } catch {
+    return rawUrl.split('?')[0] || rawUrl;
+  }
+}
+
 // Structured Request Logger with format-string safety
 export function requestLogger(req: Request, res: Response, next: NextFunction): void {
   const start = Date.now();
   const method = req.method;
-  const url = req.originalUrl;
+  const rawUrl = req.originalUrl;
 
   res.on('finish', () => {
     const duration = Date.now() - start;
     const status = res.statusCode;
+    const cleanUrl = sanitizeLogUrl(rawUrl);
+
     // Log without sensitive query params, body data, or authorization tokens
-    console.log('[API_ACCESS]', { method, url, status, durationMs: duration });
+    console.log('[API_ACCESS]', {
+      timestamp: new Date().toISOString(),
+      severity: status >= 500 ? 'ERROR' : status >= 400 ? 'WARNING' : 'INFO',
+      method,
+      url: cleanUrl,
+      status,
+      durationMs: duration,
+    });
   });
 
   next();
@@ -382,19 +469,26 @@ export function errorHandler(
   _next: NextFunction
 ): void {
   const statusCode = err.status || err.statusCode || 500;
-  
-  // Log error internally with stack for debugging on server, never sent to client
+  const errorCode = err.code || (statusCode === 500 ? 'INTERNAL_SERVER_ERROR' : 'BAD_REQUEST');
+  const errorCategory = classifyServerError(statusCode, errorCode, err.message);
+
+  // Log structured error internally for Cloud Run logging, never sending internal traces to client
   console.error('[SERVER_ERROR]', {
+    timestamp: new Date().toISOString(),
+    severity: statusCode >= 500 ? 'ERROR' : 'WARNING',
     method: req.method,
-    url: req.originalUrl,
+    url: sanitizeLogUrl(req.originalUrl),
+    status: statusCode,
+    errorCategory,
+    code: errorCode,
     message: err.message || 'Unknown error',
-    code: err.code || 'INTERNAL_ERROR',
   });
 
   res.status(statusCode).json({
     success: false,
     error: {
-      code: err.code || (statusCode === 500 ? 'INTERNAL_SERVER_ERROR' : 'BAD_REQUEST'),
+      code: errorCode,
+      category: errorCategory,
       message: statusCode === 500 ? 'An unexpected server error occurred.' : (err.message || 'Invalid request.'),
     },
   });

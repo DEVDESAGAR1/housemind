@@ -1,12 +1,12 @@
 import { apiRequest, TestRunner } from '../test-helper';
 
 export async function runAssetsTests(runner: TestRunner) {
-  runner.setSuite('Household Assets CRUD');
+  runner.setSuite('Home Spaces & Assets Lifecycle Management');
 
   const token = 'test-token-asset-user';
   let createdAssetId = '';
 
-  await runner.test('Create valid appliance asset record', async () => {
+  await runner.test('creates appliance asset record with specifications and lifespan metadata', async () => {
     const res = await apiRequest('/api/household/assets', {
       method: 'POST',
       token,
@@ -38,7 +38,7 @@ export async function runAssetsTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('List assets contains created asset record', async () => {
+  await runner.test('returns asset listings including newly created item', async () => {
     const res = await apiRequest('/api/household/assets', { token });
     if (res.status !== 200) {
       throw new Error(`Expected 200 OK, got ${res.status}`);
@@ -49,7 +49,7 @@ export async function runAssetsTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Update asset status and notes', async () => {
+  await runner.test('updates asset operating status and maintenance notes', async () => {
     const res = await apiRequest(`/api/household/assets/${createdAssetId}`, {
       method: 'PUT',
       token,
@@ -67,7 +67,7 @@ export async function runAssetsTests(runner: TestRunner) {
     }
   });
 
-  await runner.test('Delete asset removes record', async () => {
+  await runner.test('deletes asset record removing it from collection', async () => {
     const delRes = await apiRequest(`/api/household/assets/${createdAssetId}`, {
       method: 'DELETE',
       token,

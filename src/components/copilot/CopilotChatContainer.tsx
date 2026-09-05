@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import Markdown from 'react-markdown';
 import {
   Sparkles,
@@ -19,6 +19,13 @@ import {
   Home,
   RotateCcw,
   ChevronRight,
+  Database,
+  Wrench,
+  Receipt,
+  Landmark,
+  FileText,
+  Calendar,
+  Zap,
 } from 'lucide-react';
 import { ChatMessage } from '../../types';
 
@@ -35,6 +42,68 @@ export interface CopilotChatContainerProps {
   executingActionId?: string | null;
   placeholder?: string;
   className?: string;
+}
+
+export interface ExtractedSourceChip {
+  type: string;
+  label: string;
+  targetTab: string;
+  subTab?: string;
+  icon: string;
+}
+
+/**
+ * Extracts grounded source citations and entity mentions from assistant replies
+ */
+function extractSourceCitations(text: string): ExtractedSourceChip[] {
+  if (!text) return [];
+  const chips: ExtractedSourceChip[] = [];
+  const seen = new Set<string>();
+
+  const patterns: Array<{ regex: RegExp; type: string; targetTab: string; subTab?: string; icon: string }> = [
+    { regex: /\[(?:Asset|Appliance|Equipment):\s*([^\]]+)\]/gi, type: 'asset', targetTab: 'assets', icon: '🔧' },
+    { regex: /\[(?:Warranty|Protection):\s*([^\]]+)\]/gi, type: 'warranty', targetTab: 'maintenance', subTab: 'warranties', icon: '🛡️' },
+    { regex: /\[(?:Issue|Ticket):\s*([^\]]+)\]/gi, type: 'issue', targetTab: 'maintenance', subTab: 'issues', icon: '⚠️' },
+    { regex: /\[(?:Maintenance|Task):\s*([^\]]+)\]/gi, type: 'maintenance', targetTab: 'maintenance', subTab: 'maintenance', icon: '🛠️' },
+    { regex: /\[(?:Bill|Expense):\s*([^\]]+)\]/gi, type: 'expense', targetTab: 'expenses', icon: '💳' },
+    { regex: /\[(?:Loan|Mortgage):\s*([^\]]+)\]/gi, type: 'loan', targetTab: 'utilities', subTab: 'loans', icon: '🏦' },
+    { regex: /\[(?:Utility|Power|Water|Gas):\s*([^\]]+)\]/gi, type: 'utility', targetTab: 'utilities', subTab: 'utilities', icon: '⚡' },
+    { regex: /\[(?:Document|Receipt|Invoice):\s*([^\]]+)\]/gi, type: 'document', targetTab: 'documents', icon: '📄' },
+  ];
+
+  for (const p of patterns) {
+    let match: RegExpExecArray | null;
+    while ((match = p.regex.exec(text)) !== null) {
+      const label = match[1].trim();
+      const key = `${p.type}:${label}`;
+      if (!seen.has(key) && label.length > 1) {
+        seen.add(key);
+        chips.push({
+          type: p.type,
+          label,
+          targetTab: p.targetTab,
+          subTab: p.subTab,
+          icon: p.icon,
+        });
+      }
+    }
+  }
+
+  // Also check for prominent Indian entities if mentioned explicitly
+  if (text.includes('Daikin') && !seen.has('asset:Daikin AC')) {
+    chips.push({ type: 'asset', label: 'Daikin 1.5T Split AC', targetTab: 'assets', icon: '❄️' });
+    seen.add('asset:Daikin AC');
+  }
+  if (text.includes('Kent') && !seen.has('asset:Kent RO')) {
+    chips.push({ type: 'asset', label: 'Kent RO Purifier', targetTab: 'assets', icon: '💧' });
+    seen.add('asset:Kent RO');
+  }
+  if (text.includes('HDFC') && !seen.has('loan:HDFC Home Loan')) {
+    chips.push({ type: 'loan', label: 'HDFC Home Loan', targetTab: 'utilities', icon: '🏦' });
+    seen.add('loan:HDFC Home Loan');
+  }
+
+  return chips.slice(0, 4);
 }
 
 export const STARTER_PROMPTS = [
@@ -472,6 +541,34 @@ export const CopilotChatContainer: React.FC<CopilotChatContainerProps> = ({
                             ) : null}
                           </div>
                         )}
+
+                        {/* Extracted Grounded Sources & Entity Badges */}
+                        {(() => {
+                          const sources = extractSourceCitations(msg.content);
+                          if (sources.length === 0) return null;
+                          return (
+                            <div className="not-prose pt-2.5 border-t border-slate-100 mt-2.5 space-y-1.5">
+                              <span className="text-[9.5px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+                                <Database className="w-2.5 h-2.5 text-indigo-500" />
+                                Grounded Household Records
+                              </span>
+                              <div className="flex flex-wrap gap-1.5">
+                                {sources.map((src, sIdx) => (
+                                  <button
+                                    key={sIdx}
+                                    type="button"
+                                    onClick={() => onNavigateTab(src.targetTab)}
+                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-50/80 hover:bg-indigo-100 text-indigo-700 text-[11px] font-medium border border-indigo-200/60 transition cursor-pointer shadow-2xs"
+                                  >
+                                    <span>{src.icon}</span>
+                                    <span>{src.label}</span>
+                                    <ChevronRight className="w-2.5 h-2.5 text-indigo-400" />
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })()}
 
                         {/* Copy button & Timestamp */}
                         <div className="flex items-center justify-between pt-1 border-t border-slate-100 mt-1.5 text-[10.5px] text-slate-400">

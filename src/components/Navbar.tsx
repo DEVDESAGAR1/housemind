@@ -26,6 +26,7 @@ import {
   Plus,
   Landmark,
   CreditCard,
+  Sun,
 } from 'lucide-react';
 import { User } from 'firebase/auth';
 import { HouseholdProfile } from '../types';
@@ -68,6 +69,7 @@ interface NavbarProps {
   isSeeding: boolean;
   onOpenGlobalUpload?: () => void;
   onOpenSearch?: () => void;
+  onOpenMorningBrief?: () => void;
   unreadNotificationCount?: number;
   onOpenNotifications?: () => void;
   onOpenNotificationPreferences?: () => void;
@@ -88,6 +90,7 @@ export function Navbar({
   isSeeding,
   onOpenGlobalUpload,
   onOpenSearch,
+  onOpenMorningBrief,
   unreadNotificationCount = 0,
   onOpenNotifications,
   onOpenNotificationPreferences,
@@ -214,24 +217,24 @@ export function Navbar({
       id="main-navbar-header"
       className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200"
     >
-      <div className="w-full max-w-[1720px] mx-auto px-3 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 gap-2 sm:gap-4">
+      <div className="w-full max-w-[1720px] mx-auto px-2 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16 gap-1 sm:gap-4">
           
           {/* ========================================================= */}
           {/* 1. BRAND                                                  */}
           {/* ========================================================= */}
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 min-w-0">
             <button
               id="nav-brand-btn"
               onClick={() => handleTabSelect('dashboard')}
-              className="flex items-center gap-2 sm:gap-2.5 text-left group cursor-pointer focus:outline-hidden"
+              className="flex items-center gap-1.5 sm:gap-2.5 text-left group cursor-pointer focus:outline-hidden"
               title="Return to Command Center"
             >
-              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-xs shadow-indigo-600/20 group-hover:scale-105 transition-transform shrink-0">
+              <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-xs shadow-indigo-600/20 group-hover:scale-105 transition-transform shrink-0">
                 <Building2 className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
               <div>
-                <span className="font-bold text-slate-900 tracking-tight text-sm md:text-base block group-hover:text-indigo-600 transition-colors leading-tight">
+                <span className="font-bold text-slate-900 tracking-tight text-xs sm:text-base block group-hover:text-indigo-600 transition-colors leading-tight">
                   HouseMind
                 </span>
                 <span className="hidden sm:block text-[11px] text-slate-500 font-medium truncate max-w-[110px] sm:max-w-[140px] leading-tight">
@@ -664,7 +667,7 @@ export function Navbar({
                 onClick={() => toggleMenu('add')}
                 aria-expanded={openMenu === 'add'}
                 title="Add new household record or document"
-                className="inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-xs shadow-indigo-600/20 transition cursor-pointer shrink-0"
+                className="inline-flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-3 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-xs shadow-indigo-600/20 transition cursor-pointer shrink-0"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Add</span>
@@ -769,7 +772,21 @@ export function Navbar({
               )}
             </div>
 
-            {/* 3b. Search Button (Visible on sm+; in mobile drawer for small screens) */}
+            {/* 3b. Morning Brief Manual Access Button */}
+            {onOpenMorningBrief && (
+              <button
+                id="nav-morning-brief-btn"
+                type="button"
+                onClick={onOpenMorningBrief}
+                title="Open Today's Morning Brief"
+                className="inline-flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2.5 py-1.5 text-xs font-bold text-amber-900 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/60 border border-amber-200/80 dark:border-amber-800/80 rounded-xl transition cursor-pointer shrink-0"
+              >
+                <Sun className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                <span className="hidden sm:inline">Brief</span>
+              </button>
+            )}
+
+            {/* 3c. Search Button (Visible on sm+; in mobile drawer for small screens) */}
             {onOpenSearch && (
               <button
                 id="global-search-btn"
@@ -803,10 +820,10 @@ export function Navbar({
                 type="button"
                 onClick={() => toggleMenu('profile')}
                 aria-expanded={openMenu === 'profile'}
-                className="flex items-center gap-1.5 p-1 sm:p-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 border border-slate-200 rounded-xl transition cursor-pointer"
+                className="flex items-center gap-1 sm:gap-1.5 p-0.5 sm:p-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 border border-slate-200 rounded-xl transition cursor-pointer"
                 title="Account, Settings & Data Controls"
               >
-                <div className="w-7 h-7 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600 overflow-hidden shrink-0">
+                <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600 overflow-hidden shrink-0">
                   {user.photoURL ? (
                     <img
                       src={user.photoURL}
@@ -933,10 +950,10 @@ export function Navbar({
               type="button"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               aria-expanded={isMobileMenuOpen}
-              className="lg:hidden p-1.5 sm:p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition cursor-pointer shrink-0"
+              className="lg:hidden p-1 sm:p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition cursor-pointer shrink-0"
               title="Toggle navigation menu"
             >
-              {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              {isMobileMenuOpen ? <X className="w-4 h-4 sm:w-5 sm:h-5" /> : <Menu className="w-4 h-4 sm:w-5 sm:h-5" />}
             </button>
           </div>
         </div>
@@ -976,6 +993,21 @@ export function Navbar({
                 Primary Sections
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-1">
+                {/* Morning Brief */}
+                {onOpenMorningBrief && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsMobileMenuOpen(false);
+                      onOpenMorningBrief();
+                    }}
+                    className="flex items-center gap-2.5 p-2.5 rounded-xl text-xs font-bold text-amber-900 bg-amber-50 hover:bg-amber-100 transition cursor-pointer text-left"
+                  >
+                    <Sun className="w-4 h-4 text-amber-600 shrink-0" />
+                    <span>🌅 Morning Brief</span>
+                  </button>
+                )}
+
                 {/* Command Center */}
                 <button
                   type="button"

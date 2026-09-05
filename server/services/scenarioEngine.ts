@@ -13,13 +13,14 @@ import {
   HouseholdExpense,
   FinancialTransaction,
 } from '../../src/types';
+import { getGeminiApiKey, getGeminiModel } from '../config/secrets';
 
 // Lazy-initialized Gemini Client
 let genAIClient: GoogleGenAI | null = null;
 
 function getGeminiClient(): GoogleGenAI {
   if (!genAIClient) {
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = getGeminiApiKey();
     if (!apiKey) {
       console.warn('[SCENARIO ENGINE] Warning: GEMINI_API_KEY is not set.');
     }
@@ -611,7 +612,7 @@ Your role is to analyze a hypothetical What-If household scenario that has ALREA
 Return ONLY the raw JSON string without markdown formatting.`;
 
   const client = getGeminiClient();
-  const modelName = process.env.GEMINI_MODEL || 'gemini-3.7-flash';
+  const modelName = getGeminiModel('gemini-3.7-flash');
 
   let explanation: ScenarioGeminiExplanation;
 
