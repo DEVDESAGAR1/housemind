@@ -34,6 +34,7 @@ export interface CopilotViewProps {
   onNavigateTab: (tab: string, subTab?: string, entityId?: string) => void;
   initialPrompt?: string;
   initialDomain?: string;
+  onRefreshNotifications?: () => void;
 }
 
 export const CopilotView: React.FC<CopilotViewProps> = ({
@@ -43,6 +44,7 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
   onNavigateTab,
   initialPrompt,
   initialDomain,
+  onRefreshNotifications,
 }) => {
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
@@ -235,6 +237,8 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
       // If navigation action and target tab is specified, trigger navigation
       if (executionResult.actionType === 'navigateTab' && executionResult.postState?.tab) {
         onNavigateTab(executionResult.postState.tab);
+      } else if (executionResult.actionType === 'markNotificationRead' || executionResult.actionType === 'markAllNotificationsRead') {
+        onRefreshNotifications?.();
       }
     } catch (err: any) {
       console.error('Failed to approve action:', err);
@@ -297,24 +301,18 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
   return (
     <div className="space-y-6 animate-in fade-in duration-150">
       {/* 1. Header & Grounding Context Bar */}
-      <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-xs flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center space-x-2.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-600 to-indigo-800 flex items-center justify-center text-white shadow-xs">
-              <Sparkles className="w-5 h-5 text-indigo-200" />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                HouseMind Copilot
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/60">
-                  Gemini Intelligence
-                </span>
-              </h1>
-              <p className="text-xs text-slate-500">
-                Grounded on your verified household database, appliances, and recurring bills.
-              </p>
-            </div>
-          </div>
+          <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
+            <Sparkles className="w-6 h-6 text-indigo-600" />
+            <span>HouseMind Copilot</span>
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/60">
+              Gemini Intelligence
+            </span>
+          </h1>
+          <p className="text-xs text-slate-500 mt-1">
+            Grounded on your verified household database, appliances, and recurring bills.
+          </p>
         </div>
 
         {/* Live Grounding Summary Badges & Activity Trigger */}

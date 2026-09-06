@@ -262,7 +262,6 @@ export function MaintenanceWarrantiesView({
     if (activeSubTab === 'maintenance' || !activeSubTab) {
       const matchTask = tasks.find((t) => t.id === targetedEntityId);
       if (matchTask) {
-        handleOpenEditTask(matchTask);
         onClearTargetedEntity?.();
         return;
       }
@@ -272,7 +271,6 @@ export function MaintenanceWarrantiesView({
     if (activeSubTab === 'warranties') {
       const matchWarranty = warranties.find((w) => w.id === targetedEntityId);
       if (matchWarranty) {
-        handleOpenEditWarranty(matchWarranty);
         onClearTargetedEntity?.();
         return;
       }
@@ -282,7 +280,6 @@ export function MaintenanceWarrantiesView({
     const matchWarrantyFallback = warranties.find((w) => w.id === targetedEntityId);
     if (matchWarrantyFallback) {
       setActiveSubTab('warranties');
-      handleOpenEditWarranty(matchWarrantyFallback);
       onClearTargetedEntity?.();
       return;
     }
@@ -290,7 +287,6 @@ export function MaintenanceWarrantiesView({
     const matchTaskFallback = tasks.find((t) => t.id === targetedEntityId);
     if (matchTaskFallback) {
       setActiveSubTab('maintenance');
-      handleOpenEditTask(matchTaskFallback);
       onClearTargetedEntity?.();
       return;
     }

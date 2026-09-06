@@ -946,6 +946,7 @@ export default function App() {
               }}
               initialPrompt={copilotContext?.initialPrompt}
               initialDomain={copilotContext?.initialDomain}
+              onRefreshNotifications={loadNotifications}
             />
           )}
 

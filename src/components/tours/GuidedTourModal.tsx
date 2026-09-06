@@ -162,17 +162,18 @@ export function GuidedTourModal({
   if (targetRect) {
     const margin = 14;
     const popoverWidth = Math.min(390, window.innerWidth - 32);
+    const popoverHeightEstimate = 220;
 
     let top = targetRect.bottom + margin;
     let left = Math.max(16, Math.min(targetRect.left, window.innerWidth - popoverWidth - 16));
 
-    // If bottom is out of bounds, place above
-    if (top + 260 > window.innerHeight && targetRect.top > 260) {
-      top = Math.max(16, targetRect.top - 260 - margin);
+    // If it doesn't fit below, but fits above
+    if (top + popoverHeightEstimate > window.innerHeight && targetRect.top > popoverHeightEstimate + margin) {
+      top = targetRect.top - popoverHeightEstimate - margin;
+    } else if (top + popoverHeightEstimate > window.innerHeight) {
+      // It doesn't fit above or below perfectly, stick it to the bottom of the screen
+      top = Math.max(16, window.innerHeight - popoverHeightEstimate - 16);
     }
-
-    // Keep within safe viewport boundaries
-    top = Math.max(16, Math.min(top, window.innerHeight - 280));
 
     popoverStyle = {
       ...popoverStyle,
@@ -200,7 +201,7 @@ export function GuidedTourModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 overflow-hidden select-none pointer-events-auto"
+      className="fixed inset-0 z-[100] select-none pointer-events-none"
       role="dialog"
       aria-modal="true"
       aria-label={`Guided Tour: ${tour.title}`}
@@ -233,7 +234,7 @@ export function GuidedTourModal({
         <rect
           width="100%"
           height="100%"
-          fill="rgba(2, 6, 23, 0.78)"
+          fill="rgba(2, 6, 23, 0.6)"
           mask="url(#guided-tour-mask)"
         />
       </svg>

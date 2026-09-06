@@ -368,7 +368,6 @@ export function UtilitiesDebtsView({
     const matchUtil = utilities.find((u) => u.id === targetedEntityId);
     if (matchUtil) {
       setActiveTab('utilities');
-      handleOpenEditUtility(matchUtil);
       onClearTargetedEntity?.();
       return;
     }
@@ -376,7 +375,6 @@ export function UtilitiesDebtsView({
     const matchLoan = loans.find((l) => l.id === targetedEntityId);
     if (matchLoan) {
       setActiveTab('loans');
-      handleOpenEditLoan(matchLoan);
       onClearTargetedEntity?.();
       return;
     }
@@ -384,7 +382,6 @@ export function UtilitiesDebtsView({
     const matchCard = creditCards.find((c) => c.id === targetedEntityId);
     if (matchCard) {
       setActiveTab('cards');
-      handleOpenEditCard(matchCard);
       onClearTargetedEntity?.();
       return;
     }
