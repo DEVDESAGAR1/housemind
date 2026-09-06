@@ -127,6 +127,7 @@ export function UpcomingScheduleSection({
 
     // 3. Utilities
     for (const u of safeUtilities) {
+      if (u.isPaidThisMonth) continue;
       const targetDate = u.nextDueDate;
       if (targetDate) {
         const ds = getDateStatus(targetDate);

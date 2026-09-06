@@ -224,13 +224,14 @@ export function UtilitiesDebtsView({
   };
 
   const handleToggleUtilityPaid = async (u: UtilityAccount) => {
+    if (u.isPaidThisMonth) return; // Prevent repeated payment actions
     try {
       await api.updateUtility(u.id, {
-        isPaidThisMonth: !u.isPaidThisMonth,
+        isPaidThisMonth: true,
       });
       addToast(
         'success',
-        u.isPaidThisMonth ? 'Marked Unpaid' : 'Bill Marked Paid',
+        'Bill Marked Paid',
         `Updated ${u.name} status.`
       );
       await onRefresh();
@@ -681,15 +682,16 @@ export function UtilitiesDebtsView({
 
                     <button
                       type="button"
+                      disabled={!!util.isPaidThisMonth}
                       onClick={() => handleToggleUtilityPaid(util)}
-                      className={`w-full py-1.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                      className={`w-full py-1.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${
                         util.isPaidThisMonth
-                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                          : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                          ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
+                          : 'bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer'
                       }`}
                     >
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                      <span>{util.isPaidThisMonth ? 'Paid for this Cycle' : 'Mark Bill Paid'}</span>
+                      <CheckCircle2 className={`w-3.5 h-3.5 ${util.isPaidThisMonth ? 'text-slate-400' : 'text-slate-500'}`} />
+                      <span>{util.isPaidThisMonth ? 'Paid' : 'Mark Bill Paid'}</span>
                     </button>
                   </div>
                 </div>

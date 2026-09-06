@@ -1,7 +1,7 @@
 # HouseMind Quality Assurance, Verification & Testing Suite
 
-> **Verification Status:** ALL 394 AUTOMATED TESTS PASSING (100%)  
-> **Total Test Suites:** 46 Domains & Subsystems across 7 Architectural Layers • **Test Harness:** Pure Node.js / TypeScript (`tsx`)  
+> **Verification Status:** ALL 401 AUTOMATED TESTS PASSING (100%)  
+> **Total Test Suites:** 47 Domains & Subsystems across 7 Architectural Layers • **Test Harness:** Pure Node.js / TypeScript (`tsx`)  
 > **Browser Journeys:** 25 Interactive Playwright Browser User Journeys (100% Passed)
 
 ---
@@ -23,7 +23,7 @@ The testing architecture adheres to four core principles:
 
 ### Primary Verification Suite (`npm test`)
 
-The primary test runner (`tests/run-all.ts`) executes all 46 backend, security, intelligence, and integration test suites against an in-memory full-stack test harness.
+The primary test runner (`tests/run-all.ts`) executes all 47 backend, security, intelligence, and integration test suites against an in-memory full-stack test harness.
 
 ```bash
 # Run the complete automated test suite
@@ -36,8 +36,8 @@ npm test
 ===============================================================
   TEST EXECUTION SUMMARY
 ===============================================================
-  Total Tests Executed: 394
-  Passed:               394 (100%)
+  Total Tests Executed: 401
+  Passed:               401 (100%)
   Failed:               0
 ===============================================================
 ALL TESTS PASSED SUCCESSFULLY.
@@ -47,7 +47,7 @@ ALL TESTS PASSED SUCCESSFULLY.
 
 ## 3. Test Suites Breakdown Across 7 Architectural Layers
 
-The 394 automated tests are organized into 46 distinct test suites across 7 architectural layers:
+The 401 automated tests are organized into 47 distinct test suites across 7 architectural layers:
 
 ### Layer 1: Deterministic Mathematical & Structural Unit Tests (`tests/unit/`)
 | # | Suite Name | File | Focus Areas |
@@ -55,6 +55,7 @@ The 394 automated tests are organized into 46 distinct test suites across 7 arch
 | **1** | Financial Math & Amortization | `unit/financial-math.test.ts` | EMI loan formulas, monthly burn rate, credit utilization, zero-interest edge cases |
 | **2** | Guided Tour Structure & Target Selectors | `unit/tour-validator.test.ts` | 11 walkthrough definitions, step progression integrity, valid target selectors |
 | **3** | Household Health Scoring Algorithm | `unit/health-calculator.test.ts` | 4 pillars (Financial, Asset, Maintenance, Urgency), 0-100 composite scoring, provisional state |
+| **4** | Browser Identity, Favicon & Paid Bill State | `unit/browser-identity-paid-bill.test.ts` | Document head metadata, SVG brand favicon, dynamic route tab titles, paid bill lifecycle & cross-domain sync |
 
 ### Layer 2: Core Domain & Service Foundations (`tests/backend/`)
 | # | Suite Name | File | Focus Areas |

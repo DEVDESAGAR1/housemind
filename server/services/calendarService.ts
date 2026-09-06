@@ -136,11 +136,14 @@ export class CalendarService {
       if (!targetIso) continue;
 
       const daysDiff = calculateDaysDiff(targetIso, todayIso);
-      const isPaid = util.isAutoPay && daysDiff > 0;
+      const isPaid = !!util.isPaidThisMonth || (util.isAutoPay && daysDiff > 0);
       let status: HouseholdCalendarEventStatus = 'upcoming';
       let priority: HouseholdCalendarEventPriority = 'normal';
 
-      if (daysDiff < 0) {
+      if (isPaid) {
+        status = 'paid';
+        priority = 'normal';
+      } else if (daysDiff < 0) {
         status = 'overdue';
         priority = 'critical';
       } else if (daysDiff === 0) {

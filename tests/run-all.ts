@@ -4,6 +4,7 @@ import { TestRunner, stopTestServer } from './test-helper';
 import { runFinancialMathUnitTests } from './unit/financial-math.test';
 import { runTourValidatorUnitTests } from './unit/tour-validator.test';
 import { runHealthCalculatorUnitTests } from './unit/health-calculator.test';
+import { runBrowserIdentityPaidBillTests } from './unit/browser-identity-paid-bill.test';
 
 // Backend & Domain Integration Suites
 import { runAuthTests } from './backend/auth.test';
@@ -74,6 +75,9 @@ async function main() {
 
     console.log('\n--- 3. Unit: Household Health Composite Scoring & Weighting ---');
     await runHealthCalculatorUnitTests(runner);
+
+    console.log('\n--- 4. Unit: Browser Identity, Favicon & Paid Bill Lifecycle ---');
+    await runBrowserIdentityPaidBillTests(runner);
 
     // =========================================================================
     // LAYER 2: CORE DOMAIN INTEGRATION SUITES

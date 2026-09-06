@@ -148,7 +148,7 @@ HouseMind organizes household management into 24 cooperating subsystems:
 6. **Universal Issues & Tickets**: Lifecycle management for household problems (reported, in-progress, resolved) with severity ratings, contractor estimates, safety flags, and equipment linkage.
 
 ### Financial Infrastructure
-7. **Utilities**: Tracks electricity, gas, water, internet, and trash accounts with billing cycles, meter reads, and usage anomalies.
+7. **Utilities**: Tracks electricity, gas, water, internet, and trash accounts with billing cycles, meter reads, payment due days, and payment status lifecycle (`Mark Bill Paid` ➔ `Paid`). Marking bills paid persists `isPaidThisMonth`, suppresses active bill notifications, marks calendar events as paid, and preserves full bill history with active edit/delete capabilities.
 8. **Expenses**: Manages recurring operational expenses (homeowner insurance, HOA fees, property taxes) with payment frequencies and auto-pay tracking.
 9. **Loans**: Tracks amortized mortgages, home improvement loans, principal balances, interest rates, and monthly EMI payments.
 10. **Credit Cards**: Tracks revolving household credit lines, statement cycles, utilization rates, and payment due dates.

@@ -182,6 +182,7 @@ export class NotificationService {
       // Utilities
       const utilities = Array.from(store.utilities.values());
       for (const util of utilities) {
+        if (util.isPaidThisMonth) continue;
         const targetDate = util.nextDueDate || (util.dueDateDay ? `${todayIso.slice(0, 7)}-${String(util.dueDateDay).padStart(2, '0')}` : null);
         if (!targetDate) continue;
         const dueIso = parseIsoDay(targetDate);

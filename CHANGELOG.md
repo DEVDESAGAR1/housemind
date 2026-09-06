@@ -4,6 +4,22 @@ All notable changes to the HouseMind platform are documented in this file. The p
 
 Repository: [https://github.com/DEVDESAGAR1/housemind](https://github.com/DEVDESAGAR1/housemind)
 
+## [v2.6.1] - 2026-09-06
+
+### Added
+- **Browser Tab Identity, Favicon & Basic Metadata**:
+  - Configured root HTML title to `HouseMind — AI-Powered Household Intelligence`.
+  - Added dynamic route-specific tab title synchronization across all household views (`HouseMind — Command Center`, `HouseMind — Calendar`, `HouseMind — Assets`, `HouseMind — Finances`, `HouseMind — Utilities & Debt`, `HouseMind — Help Center`, etc.).
+  - Added standalone `public/favicon.svg` matching HouseMind's indigo `#4f46e5` brand mark with `Building2` architectural glyph.
+  - Configured basic application metadata (`description`, `viewport`, `theme-color: #4f46e5`) while strictly stripping extraneous Open Graph and Twitter card tags.
+- **Paid Bill Lifecycle & Cross-Domain Synchronization**:
+  - Implemented one-click payment transition (`✓ Mark Bill Paid` ➔ `✓ Paid`) within Household Utilities, Mortgages & Debt.
+  - Paid control renders visually muted and disabled to prevent repeat submissions while keeping bill details, provider information, and Edit/Delete controls fully readable and interactive.
+  - Suppressed active bill due notifications in `NotificationService` for paid utility bills.
+  - Synchronized calendar event statuses to `paid` in `CalendarService` and omitted paid bills from pending schedule lists in `UpcomingScheduleSection`.
+- **Automated Test Suite Expansion**:
+  - Added `tests/unit/browser-identity-paid-bill.test.ts` bringing total test suite count to 401 tests across 47 suites (100% passing).
+
 ---
 
 ## [v2.6.0] - 2026-09-06

@@ -360,6 +360,25 @@ export default function App() {
     initializeAnalytics();
   }, []);
 
+  // Synchronize browser tab title on active tab change
+  useEffect(() => {
+    const TAB_TITLES: Record<string, string> = {
+      dashboard: 'HouseMind — Command Center',
+      calendar: 'HouseMind — Calendar',
+      properties: 'HouseMind — Properties',
+      assets: 'HouseMind — Assets',
+      maintenance: 'HouseMind — Maintenance',
+      utilities: 'HouseMind — Utilities & Debt',
+      finances: 'HouseMind — Finances',
+      expenses: 'HouseMind — Finances',
+      documents: 'HouseMind — Documents',
+      simulator: 'HouseMind — Scenario Simulator',
+      copilot: 'HouseMind — Household Copilot',
+      help: 'HouseMind — Help Center',
+    };
+    document.title = TAB_TITLES[activeTab] || 'HouseMind — AI-Powered Household Intelligence';
+  }, [activeTab]);
+
   // Track page views on tab changes
   useEffect(() => {
     trackPageView(activeTab);
