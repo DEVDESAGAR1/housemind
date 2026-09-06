@@ -7,10 +7,14 @@ export async function runSecurityTests(runner: TestRunner) {
   await runner.test('attaches security headers (Helmet) correctly on responses', async () => {
     const res = await apiRequest('/api/health');
     const xContentTypeOptions = res.headers.get('x-content-type-options');
+    const xFrameOptions = res.headers.get('x-frame-options');
     const csp = res.headers.get('content-security-policy');
 
     if (!xContentTypeOptions || xContentTypeOptions !== 'nosniff') {
       throw new Error(`Expected X-Content-Type-Options: nosniff, got ${xContentTypeOptions}`);
+    }
+    if (!xFrameOptions || xFrameOptions.toUpperCase() !== 'SAMEORIGIN') {
+      throw new Error(`Expected X-Frame-Options: SAMEORIGIN, got ${xFrameOptions}`);
     }
     if (!csp) {
       throw new Error('Expected Content-Security-Policy header to be present');

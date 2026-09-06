@@ -202,4 +202,47 @@ export async function runBrowserIdentityPaidBillTests(runner: TestRunner): Promi
       throw new Error('Paid utility calendar event must have status "paid" and isPaid true.');
     }
   });
+
+  await runner.test('footer_branding_and_auth_state_separation_verified', () => {
+    const footerPath = path.resolve(process.cwd(), 'src', 'components', 'Footer.tsx');
+    const footerCode = fs.readFileSync(footerPath, 'utf-8');
+
+    // Verify branding
+    if (!footerCode.includes('HouseMind — Privacy-First Household Operating System')) {
+      throw new Error('Footer branding must be "HouseMind — Privacy-First Household Operating System"');
+    }
+    if (footerCode.includes('HouseMind — Enterprise Zero-Trust Household Operating System')) {
+      throw new Error('Footer must not contain legacy "Enterprise Zero-Trust" branding');
+    }
+
+    // Verify logged-out public product items
+    const loggedOutProductItems = [
+      'Command Center',
+      'Household Intelligence',
+      'Asset & Maintenance Management',
+      'Documents & Upload',
+      'Financial Intelligence',
+    ];
+    for (const item of loggedOutProductItems) {
+      if (!footerCode.includes(`<li className="text-slate-400">${item}</li>`)) {
+        throw new Error(`Logged-out product item "${item}" must be present as descriptive text.`);
+      }
+    }
+
+    // Verify logged-out resources shows Story of HouseMind linking to Hashnode and hides Health Diagnostics Guide / Guided Tours
+    const hashnodeUrl = 'https://sagardev.hashnode.dev/from-a-lost-warranty-to-housemind-building-an-ai-powered-household-operating-system';
+    if (!footerCode.includes('Story of HouseMind') || !footerCode.includes(hashnodeUrl)) {
+      throw new Error('Public footer must contain "Story of HouseMind" linking directly to the Hashnode article.');
+    }
+
+    // Verify logged-in resources retains Help Center & FAQs, Guided Tours, and Health Diagnostics Guide
+    if (!footerCode.includes('Help Center & FAQs') || !footerCode.includes("onOpenTour('health')") || !footerCode.includes("Health Diagnostics Guide")) {
+      throw new Error('Help Center & FAQs, Guided Tours, and Health Diagnostics Guide should remain available when authenticated.');
+    }
+
+    // Verify Account section has Sign In with Google for logged-out and Sign Out for logged-in
+    if (!footerCode.includes('Sign In with Google') || !footerCode.includes('Sign Out')) {
+      throw new Error('Footer must conditionally render Sign In with Google vs Sign Out based on auth state.');
+    }
+  });
 }

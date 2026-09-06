@@ -102,10 +102,10 @@ export function Footer({
             ) : (
               <>
                 <li className="text-slate-400">Command Center</li>
-                <li className="text-slate-400">4-Pillar Health Score</li>
-                <li className="text-slate-400">Equipment Lifecycles</li>
-                <li className="text-slate-400">OCR Document Ingestion</li>
-                <li className="text-slate-400">Grounded Copilot AI</li>
+                <li className="text-slate-400">Household Intelligence</li>
+                <li className="text-slate-400">Asset & Maintenance Management</li>
+                <li className="text-slate-400">Documents & Upload</li>
+                <li className="text-slate-400">Financial Intelligence</li>
               </>
             )}
           </ul>
@@ -118,45 +118,63 @@ export function Footer({
             <span>Resources</span>
           </div>
           <ul className="space-y-2 text-xs">
-            {onOpenTour && (
+            {isAuthenticated ? (
+              <>
+                {onOpenTour && (
+                  <li>
+                    <button
+                      onClick={() => onOpenTour('overview')}
+                      className="hover:text-purple-300 transition cursor-pointer text-left flex items-center gap-1"
+                    >
+                      <Compass className="w-3 h-3 text-purple-400" />
+                      <span>Guided Tours</span>
+                    </button>
+                  </li>
+                )}
+                {onOpenHelpCenter && (
+                  <li>
+                    <button
+                      onClick={onOpenHelpCenter}
+                      className="hover:text-purple-300 transition cursor-pointer text-left"
+                    >
+                      Help Center & FAQs
+                    </button>
+                  </li>
+                )}
+                {onOpenHelpFloating && (
+                  <li>
+                    <button
+                      onClick={onOpenHelpFloating}
+                      className="hover:text-purple-300 transition cursor-pointer text-left"
+                    >
+                      Ask Help & Support
+                    </button>
+                  </li>
+                )}
+                {onOpenTour && (
+                  <li>
+                    <button
+                      onClick={() => onOpenTour('health')}
+                      className="hover:text-purple-300 transition cursor-pointer text-left"
+                    >
+                      Health Diagnostics Guide
+                    </button>
+                  </li>
+                )}
+              </>
+            ) : (
               <li>
-                <button
-                  onClick={() => onOpenTour('overview')}
-                  className="hover:text-purple-300 transition cursor-pointer text-left flex items-center gap-1"
+                <a
+                  href="https://sagardev.hashnode.dev/from-a-lost-warranty-to-housemind-building-an-ai-powered-household-operating-system"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-purple-300 transition cursor-pointer text-left flex items-center gap-1 text-slate-400"
                 >
-                  <Compass className="w-3 h-3 text-purple-400" />
-                  <span>Guided Tours</span>
-                </button>
+                  <BookOpen className="w-3 h-3 text-purple-400" />
+                  <span>Story of HouseMind</span>
+                </a>
               </li>
             )}
-            {onOpenHelpCenter && (
-              <li>
-                <button
-                  onClick={onOpenHelpCenter}
-                  className="hover:text-purple-300 transition cursor-pointer text-left"
-                >
-                  Help Center & FAQs
-                </button>
-              </li>
-            )}
-            {onOpenHelpFloating && (
-              <li>
-                <button
-                  onClick={onOpenHelpFloating}
-                  className="hover:text-purple-300 transition cursor-pointer text-left"
-                >
-                  Ask Help & Support
-                </button>
-              </li>
-            )}
-            <li>
-              <button
-                onClick={() => onOpenTour?.('health')}
-                className="hover:text-purple-300 transition cursor-pointer text-left"
-              >
-                Health Diagnostics Guide
-              </button>
-            </li>
           </ul>
         </div>
 
@@ -259,8 +277,6 @@ export function Footer({
                     </button>
                   </li>
                 )}
-                <li className="text-slate-400">Zero-Trust Multitenant</li>
-                <li className="text-slate-400">Google Cloud Run Deployed</li>
               </>
             )}
           </ul>
@@ -271,7 +287,7 @@ export function Footer({
       <div className="max-w-7xl mx-auto pt-6 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-400 gap-4">
         <div className="flex items-center gap-2">
           <ShieldCheck className="w-4 h-4 text-emerald-500 shrink-0" />
-          <span>HouseMind — Enterprise Zero-Trust Household Operating System</span>
+          <span>HouseMind — Privacy-First Household Operating System</span>
         </div>
         <div>
           HouseMind &copy; {new Date().getFullYear()} • Built for Cloud Run AI Challenge

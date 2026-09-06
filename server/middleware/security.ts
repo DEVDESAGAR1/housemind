@@ -48,7 +48,7 @@ export const helmetMiddleware = helmet({
   crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
   crossOriginResourcePolicy: { policy: 'cross-origin' },
   dnsPrefetchControl: { allow: false },
-  frameguard: false,
+  frameguard: { action: 'sameorigin' },
   hidePoweredBy: true,
   hsts: { maxAge: 31536000, includeSubDomains: true, preload: true },
   ieNoOpen: true,

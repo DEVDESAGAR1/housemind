@@ -5,7 +5,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.8-blue.svg)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-19-61dafb.svg)](https://react.dev/)
 [![Express](https://img.shields.io/badge/Express-4.21-lightgrey.svg)](https://expressjs.com/)
-[![Tests](https://img.shields.io/badge/Tests-394%2F394%20Passed%20(100%25)-success.svg)](docs/TESTING.md)
+[![Tests](https://img.shields.io/badge/Tests-402%2F402%20Passed%20(100%25)-success.svg)](docs/TESTING.md)
 [![Playwright](https://img.shields.io/badge/Browser%20Journeys-25%2F25%20Passed%20(100%25)-success.svg)](docs/TESTING.md)
 [![Gemini](https://img.shields.io/badge/Grounded%20AI-Gemini%20API-orange.svg)](https://ai.google.dev/)
 [![Security](https://img.shields.io/badge/Security-Secret%20Manager%20%7C%20Tenant%20Isolated-blueviolet.svg)](SECURITY.md)
@@ -40,9 +40,42 @@ Actionable Household Decisions (Unified Actions, Morning Brief, Scenario Models)
 
 ---
 
-## 2. How to Explore HouseMind
+## 2. ⚡ Judge & Evaluator Fast-Track Verification Guide
 
-Follow this recommended 8-step evaluation path to experience the full breadth and depth of the platform:
+> **Quick Evaluation Summary for Judges**: Follow this 3-minute evaluation path to inspect HouseMind's 24 connected household domains, deterministic calculations, grounded Gemini intelligence, multimodal document intake, and privacy-first architecture.
+
+### Quick Start (Local Setup in 60 Seconds)
+```bash
+# 1. Install dependencies & start development server
+npm install
+npm run dev
+# 2. Open http://localhost:3000 in your browser
+```
+
+### Fast-Track Verification Checklist
+
+| Step | Action | What to Observe / Verify |
+| :--- | :--- | :--- |
+| **1. Sign In** | Click **Sign In with Google** (or use the test user) | Authenticated session with per-tenant data isolation (`/users/{userId}/*`). |
+| **2. Seed Demo Household** | Click **Load Demo Data** in the Command Center onboarding banner or Profile Menu | Populates **The Sharma Household** (Whitefield Villa, Bengaluru) with connected properties, rooms, HVAC assets, active issues, loans, and warranties. |
+| **3. Command Center & Health Index** | Navigate to **Command Center** | • **Household Health Score (0–100)** computed dynamically across 4 pillars (Financial Safety, Asset Condition, Maintenance Readiness, Issue Urgency).<br>• **Needs Attention & Unified Actions** synthesizing multi-signal opportunities (e.g., Repair vs. Replace). |
+| **4. Grounded AI Copilot** | Click **Copilot** in top navigation | • Grounded conversational AI querying 13 deterministic read-only tools.<br>• Ask: *"What assets need attention and are my warranties expiring soon?"*<br>• Notice source citations and strict mutation sandboxing (no destructive write permissions via chat). |
+| **5. Multimodal Document Intake** | Click **Upload & Scan** (or via Documents) | • Upload any invoice/receipt (PDF, PNG, JPG).<br>• Two-stage human-in-the-loop review pipeline: AI extraction is presented for human edit & confirmation before committing to the ledger. |
+| **6. Cross-Domain Intelligence & What-If Simulator** | Inspect Living Room AC in **Assets** / **Issues** | • Observe the 9-year-old Daikin AC: expired warranty + historical repair spend exceeding 65% of replacement cost.<br>• Click **What-If Simulator** to model 12-month net cash flow impact of new replacement vs. emergency repair. |
+| **7. Privacy & Demo Purge** | Profile Menu ➔ **Profile & Preferences** | • Export full JSON data vault / CSV ledger.<br>• Click **Remove Demo Data** to cleanly purge sample records without affecting user data. |
+
+### Automated QA Verification for Evaluators
+```bash
+npm test            # Run all 402 automated test suites (100% Passing)
+npm run lint        # Static TypeScript type check (0 errors)
+npm run build       # Production client & server build verification
+```
+
+---
+
+## 3. How to Deep-Dive Explore HouseMind
+
+Follow this comprehensive 8-step evaluation path to explore every corner of the platform:
 
 ### Step 1: Sign In
 Authenticate using the supported Google Sign-In flow powered by Firebase Authentication. Each authenticated user is strictly isolated within their own tenant boundary.
@@ -96,7 +129,7 @@ Experience how HouseMind's intelligence layers assist daily decision-making:
 
 ---
 
-## 3. Key Capabilities Across 24 Household Domains
+## 4. Key Capabilities Across 24 Household Domains
 
 HouseMind organizes household management into three core operational pillars:
 
@@ -124,7 +157,7 @@ HouseMind organizes household management into three core operational pillars:
 
 ---
 
-## 4. The Grounded AI Differentiator
+## 5. The Grounded AI Differentiator
 
 > **HouseMind never asks Gemini to guess or calculate household facts.**
 
@@ -152,7 +185,7 @@ Action Proposal (Requires Human User Confirmation to Execute)
 
 ---
 
-## 5. Realistic Showcase Scenario
+## 6. Realistic Showcase Scenario
 
 To demonstrate how these domains interconnect in practice, HouseMind includes a realistic, localized showcase dataset (**The Sharma Household — Whitefield Villa, Bengaluru, India**):
 
@@ -164,7 +197,7 @@ To demonstrate how these domains interconnect in practice, HouseMind includes a 
 
 ---
 
-## 6. System Architecture & Tech Stack
+## 7. System Architecture & Tech Stack
 
 ```mermaid
 flowchart LR
@@ -204,7 +237,7 @@ flowchart LR
 
 ---
 
-## 7. Security & Privacy by Design
+## 8. Security & Privacy by Design
 
 - **Tenant Isolation**: Every database operation is strictly scoped to `/users/{userId}/*`. Cross-tenant data access is structurally impossible.
 - **Google Cloud Secret Manager**: Production API keys are resolved at runtime via Secret Manager (`housemind-gemini-api-key`). Zero credentials exist in client bundles, repository commits, or Docker layers.
@@ -217,7 +250,7 @@ For detailed specifications, see [SECURITY.md](SECURITY.md) and [PRIVACY.md](PRI
 
 ---
 
-## 8. Quick Start & Local Development
+## 9. Quick Start & Local Development
 
 ### Prerequisites
 - Node.js 20.x or higher
@@ -241,12 +274,12 @@ The application will be accessible at `http://localhost:3000`.
 
 ---
 
-## 9. Quality Assurance & Verification Suite
+## 10. Quality Assurance & Verification Suite
 
 HouseMind includes an automated test harness and browser journey suite covering all 24 domains:
 
 ```bash
-# 1. Run the complete automated test suite (394 tests across 46 suites)
+# 1. Run the complete automated test suite (402 tests across 47 suites)
 npm test
 
 # 2. Run the Playwright browser user-journeys suite (25 journeys)
@@ -265,8 +298,8 @@ npm run build
 ===============================================================
   TEST EXECUTION SUMMARY
 ===============================================================
-  Total Tests Executed: 394
-  Passed:               394 (100%)
+  Total Tests Executed: 402
+  Passed:               402 (100%)
   Failed:               0
 ===============================================================
 ALL TESTS PASSED SUCCESSFULLY.
@@ -276,17 +309,17 @@ For the complete testing breakdown and Playwright browser journey specifications
 
 ---
 
-## 10. Comprehensive Documentation Directory
+## 11. Comprehensive Documentation Directory
 
 | Document | Description |
 | :--- | :--- |
 | **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** | Full technical specification, 24 domain subsystems, dynamic graph model, and complete REST API reference |
-| **[docs/TESTING.md](docs/TESTING.md)** | Testing philosophy, 46 test suites breakdown (394 tests), and 25 Playwright browser user journeys |
+| **[docs/TESTING.md](docs/TESTING.md)** | Testing philosophy, 47 test suites breakdown (402 tests), and 25 Playwright browser user journeys |
 | **[docs/USER-JOURNEYS.md](docs/USER-JOURNEYS.md)** | Detailed walkthroughs of the 6 end-to-end homeowner user workflows |
 | **[SECURITY.md](SECURITY.md)** | Security architecture, STRIDE threat model, defense-in-depth, Secret Manager, and AI safety protocols |
 | **[PRIVACY.md](PRIVACY.md)** | Data governance, context minimization, two-stage document staging, and telemetry boundaries |
 | **[DEPLOYMENT.md](DEPLOYMENT.md)** | Production Cloud Run deployment guide, Secret Manager provisioning, Docker instructions, and secret rotation |
-| **[CHANGELOG.md](CHANGELOG.md)** | Semantic release notes detailing platform milestones up to v2.6.0 |
+| **[CHANGELOG.md](CHANGELOG.md)** | Semantic release notes detailing platform milestones up to v2.6.2 |
 | **[CONTRIBUTING.md](CONTRIBUTING.md)** | Code of conduct, development setup, code standards, and pull request workflow |
 | **[docs/historical/AUDIT_REPORT.md](docs/historical/AUDIT_REPORT.md)** | Archived historical security audit and CodeQL remediation log |
 

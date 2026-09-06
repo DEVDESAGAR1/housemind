@@ -4,6 +4,26 @@ All notable changes to the HouseMind platform are documented in this file. The p
 
 Repository: [https://github.com/DEVDESAGAR1/housemind](https://github.com/DEVDESAGAR1/housemind)
 
+## [v2.6.2] - 2026-09-06
+
+### Added
+- **Judge & Evaluator Fast-Track Verification Guide**:
+  - Added dedicated Section 2 to `README.md` enabling hackathon and competition evaluators to rapidly verify HouseMind in under 3 minutes.
+  - Summarized local setup, 1-click seed of **The Sharma Household** showcase data, core cross-domain flows, grounded AI sandboxing, and automated verification commands.
+
+### Changed
+- **Focused Footer Authentication Separation & Navigation**:
+  - **Logged-Out (Public)**: Product items displayed as concise non-navigational highlights; Resources provides direct public link to *Story of HouseMind* on Hashnode; Account column displays *Sign In with Google*.
+  - **Logged-In (Authenticated)**: Full interactive household domain navigation (`onNavigateTab`), full resources (including *Help Center & FAQs*, *Guided Tours*, and *Health Diagnostics Guide*), profile settings, and sign-out actions.
+  - **Footer Branding**: Updated tagline to `"HouseMind — Privacy-First Household Operating System"` with consistent security shield iconography.
+- **Security Middleware Clickjacking Hardening**:
+  - Configured Helmet `frameguard: { action: 'sameorigin' }` in `server/middleware/security.ts` ensuring CodeQL compliance and clickjacking mitigation while permitting same-origin framing.
+
+### Testing
+- Expanded test suite to **402 passing automated tests across 47 suites** (`npm test`), verified zero TypeScript errors (`npm run lint`), and captured all 4 visual & responsive footer states via Playwright.
+
+---
+
 ## [v2.6.1] - 2026-09-06
 
 ### Added

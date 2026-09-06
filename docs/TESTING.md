@@ -1,6 +1,6 @@
 # HouseMind Quality Assurance, Verification & Testing Suite
 
-> **Verification Status:** ALL 401 AUTOMATED TESTS PASSING (100%)  
+> **Verification Status:** ALL 402 AUTOMATED TESTS PASSING (100%)  
 > **Total Test Suites:** 47 Domains & Subsystems across 7 Architectural Layers • **Test Harness:** Pure Node.js / TypeScript (`tsx`)  
 > **Browser Journeys:** 25 Interactive Playwright Browser User Journeys (100% Passed)
 
@@ -15,7 +15,7 @@ The testing architecture adheres to four core principles:
 1. **Zero-Mock Business Logic**: Financial calculations (burn rate, net cash flow, EMI amortization), health scoring, and graph edge traversal run through actual production services rather than mocked stubs.
 2. **Strict Multi-Tenant Isolation Verification**: Every suite creates multiple isolated test tenants and verifies that cross-tenant read, write, or mutation attempts are strictly denied.
 3. **Deterministic Fallback Guarantees**: Copilot and Morning Brief test suites simulate both upstream AI connectivity and simulated upstream quota depletion (`RESOURCE_EXHAUSTED` 429), verifying that the system degrades gracefully into deterministic factual narratives without crashing or hallucinating.
-4. **Permanent Regression Defense**: Critical bug fixes (SSRF URL traversal, polynomial ReDoS regex, date formatting, format string sanitization, CORS origin checks, CSP frameAncestors) have dedicated regression tests ensuring past issues never reoccur.
+4. **Permanent Regression Defense**: Critical bug fixes (SSRF URL traversal, polynomial ReDoS regex, date formatting, format string sanitization, CORS origin checks, CSP frameAncestors, Helmet frameguard) have dedicated regression tests ensuring past issues never reoccur.
 
 ---
 
@@ -36,8 +36,8 @@ npm test
 ===============================================================
   TEST EXECUTION SUMMARY
 ===============================================================
-  Total Tests Executed: 401
-  Passed:               401 (100%)
+  Total Tests Executed: 402
+  Passed:               402 (100%)
   Failed:               0
 ===============================================================
 ALL TESTS PASSED SUCCESSFULLY.
@@ -47,7 +47,7 @@ ALL TESTS PASSED SUCCESSFULLY.
 
 ## 3. Test Suites Breakdown Across 7 Architectural Layers
 
-The 401 automated tests are organized into 47 distinct test suites across 7 architectural layers:
+The 402 automated tests are organized into 47 distinct test suites across 7 architectural layers:
 
 ### Layer 1: Deterministic Mathematical & Structural Unit Tests (`tests/unit/`)
 | # | Suite Name | File | Focus Areas |
@@ -55,13 +55,13 @@ The 401 automated tests are organized into 47 distinct test suites across 7 arch
 | **1** | Financial Math & Amortization | `unit/financial-math.test.ts` | EMI loan formulas, monthly burn rate, credit utilization, zero-interest edge cases |
 | **2** | Guided Tour Structure & Target Selectors | `unit/tour-validator.test.ts` | 11 walkthrough definitions, step progression integrity, valid target selectors |
 | **3** | Household Health Scoring Algorithm | `unit/health-calculator.test.ts` | 4 pillars (Financial, Asset, Maintenance, Urgency), 0-100 composite scoring, provisional state |
-| **4** | Browser Identity, Favicon & Paid Bill State | `unit/browser-identity-paid-bill.test.ts` | Document head metadata, SVG brand favicon, dynamic route tab titles, paid bill lifecycle & cross-domain sync |
+| **4** | Browser Identity, Favicon, Paid Bill & Footer Auth | `unit/browser-identity-paid-bill.test.ts` | Document head metadata, SVG brand favicon, dynamic route tab titles, paid bill lifecycle, footer authentication separation |
 
 ### Layer 2: Core Domain & Service Foundations (`tests/backend/`)
 | # | Suite Name | File | Focus Areas |
 | :--- | :--- | :--- | :--- |
-| **4** | Authentication & Authorization | `backend/auth.test.ts` | JWT bearer token verification, missing token rejection, expired tokens, tenant ID extraction |
-| **5** | Security & Rate Limiting | `backend/security.test.ts` | IP spoofing defense, tiered sliding-window rate limiters, SSRF path traversal blocking, CORS regex rules |
+| **5** | Authentication & Authorization | `backend/auth.test.ts` | JWT bearer token verification, missing token rejection, expired tokens, tenant ID extraction |
+| **6** | Security & Rate Limiting | `backend/security.test.ts` | IP spoofing defense, tiered sliding-window rate limiters, SSRF path traversal blocking, CORS regex rules, Helmet SAMEORIGIN frameguard |
 | **6** | Household Profile Management | `backend/profile.test.ts` | Currency localization, country benchmarks, profile CRUD, square footage updates |
 | **7** | Recurring Expenses Lifecycle | `backend/expenses.test.ts` | Bill frequency calculation, auto-pay flags, active/paused statuses, monthly normalization |
 | **8** | Home Assets & Equipment | `backend/assets.test.ts` | Asset lifecycle, age calculation, lifespan estimates, replacement cost projection, condition scoring |
