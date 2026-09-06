@@ -231,7 +231,21 @@ export async function runBrowserIdentityPaidBillTests(runner: TestRunner): Promi
 
     // Verify logged-out resources shows Story of HouseMind linking to Hashnode and hides Health Diagnostics Guide / Guided Tours
     const hashnodeUrl = 'https://sagardev.hashnode.dev/from-a-lost-warranty-to-housemind-building-an-ai-powered-household-operating-system';
-    if (!footerCode.includes('Story of HouseMind') || !footerCode.includes(hashnodeUrl)) {
+    const expectedHashnode = new URL(hashnodeUrl);
+    const expectedHashnodeKey = `${expectedHashnode.origin}${expectedHashnode.pathname}`.replace(/\/$/, '');
+    const hrefMatches = footerCode.match(/href=["']([^"']+)["']/g) ?? [];
+    const hasExactHashnodeLink = hrefMatches
+      .map((hrefAttr) => hrefAttr.match(/href=["']([^"']+)["']/)?.[1] ?? '')
+      .some((hrefValue) => {
+        try {
+          const parsed = new URL(hrefValue);
+          const parsedKey = `${parsed.origin}${parsed.pathname}`.replace(/\/$/, '');
+          return parsedKey === expectedHashnodeKey;
+        } catch {
+          return false;
+        }
+      });
+    if (!footerCode.includes('Story of HouseMind') || !hasExactHashnodeLink) {
       throw new Error('Public footer must contain "Story of HouseMind" linking directly to the Hashnode article.');
     }
 
