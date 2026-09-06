@@ -67,7 +67,7 @@ export function LandingPage({ onSignIn, isAuthenticating, authError }: LandingPa
             <div className="flex items-center gap-2">
               <span className="font-extrabold text-xl text-white tracking-tight">HouseMind</span>
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-950/90 text-indigo-300 border border-indigo-800/80 shadow-xs uppercase tracking-wider">
-                v2.5
+                v2.6
               </span>
             </div>
             <span className="text-[11px] text-slate-400 font-medium hidden sm:block">

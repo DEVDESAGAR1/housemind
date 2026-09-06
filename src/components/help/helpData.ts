@@ -797,17 +797,17 @@ export function searchHelpArticles(query: string, categoryFilter?: HelpCategoryI
     if (!normalized) return true;
 
     // Match title
-    if (article.title.toLowerCase().includes(normalized)) return true;
+    if ((article.title || '').toLowerCase().includes(normalized)) return true;
     // Match short description
-    if (article.shortDescription.toLowerCase().includes(normalized)) return true;
+    if ((article.shortDescription || '').toLowerCase().includes(normalized)) return true;
     // Match keywords
-    if (article.keywords.some((k) => k.toLowerCase().includes(normalized))) return true;
+    if (Array.isArray(article.keywords) && article.keywords.some((k) => (k || '').toLowerCase().includes(normalized))) return true;
     // Match section headings and bodies
-    return article.contentSections.some(
+    return (article.contentSections || []).some(
       (sec) =>
-        sec.heading.toLowerCase().includes(normalized) ||
-        sec.body.toLowerCase().includes(normalized) ||
-        (sec.points && sec.points.some((p) => p.toLowerCase().includes(normalized)))
+        (sec.heading || '').toLowerCase().includes(normalized) ||
+        (sec.body || '').toLowerCase().includes(normalized) ||
+        (Array.isArray(sec.points) && sec.points.some((p) => (p || '').toLowerCase().includes(normalized)))
     );
   });
 }

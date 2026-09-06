@@ -239,7 +239,7 @@ export function GlobalUploadModal({
     }
 
     // Validate extension
-    const ext = '.' + file.name.split('.').pop()?.toLowerCase();
+    const ext = '.' + (file?.name ? file.name.split('.').pop()?.toLowerCase() || '' : '');
     if (!SUPPORTED_EXTENSIONS.includes(ext)) {
       setFileError(`Unsupported file format "${ext}". Supported: PDF, CSV, JPG, PNG, XLSX, TXT.`);
       return;
@@ -248,9 +248,10 @@ export function GlobalUploadModal({
     setSelectedFile(file);
 
     // Check duplicate against existing local documents
+    const fileNameLower = (file?.name || '').toLowerCase();
     const match = documents.find(
       (d) =>
-        d.fileName?.toLowerCase() === file.name.toLowerCase() &&
+        (d.fileName || '').toLowerCase() === fileNameLower &&
         d.fileSize &&
         Math.abs(d.fileSize - file.size) < 50
     );
@@ -290,7 +291,7 @@ export function GlobalUploadModal({
     setStep('processing');
     setProcessingStatusText('Uploading document securely...');
 
-    const fileExt = (selectedFile.name.split('.').pop() || 'other').toLowerCase();
+    const fileExt = (selectedFile?.name ? selectedFile.name.split('.').pop() || 'other' : 'other').toLowerCase();
     trackEvent('document_intake_started', {
       file_type: fileExt,
       domain: domainHint || 'general',
@@ -304,7 +305,10 @@ export function GlobalUploadModal({
         domainHint ? mapDomainToDocumentType(domainHint) : undefined
       );
 
-      const doc = uploadRes.document;
+      const doc = uploadRes?.document || (uploadRes as any)?.data?.document || (uploadRes as any)?.doc;
+      if (!doc) {
+        throw new Error(uploadRes?.message || 'Upload succeeded but no document record was returned by the server.');
+      }
       setProcessedDoc(doc);
 
       // Determine classification
@@ -334,7 +338,7 @@ export function GlobalUploadModal({
           const entityRes = await api.extractEntityFromDoc(
             doc.id,
             detectedDomain,
-            `File name: ${selectedFile.name}`
+            `File name: ${selectedFile?.name || 'Uploaded Document'}`
           );
           setEntityFields(entityRes.extractedFields || {});
           setConfidenceScore(entityRes.confidenceScore || 0.85);
@@ -342,7 +346,7 @@ export function GlobalUploadModal({
           setExtractionWarnings(entityRes.warnings || []);
         } catch {
           // Fallback to basic fields from filename/summary
-          setEntityFields(buildDefaultEntityFields(detectedDomain, selectedFile.name, doc));
+          setEntityFields(buildDefaultEntityFields(detectedDomain, selectedFile?.name || 'Uploaded Document', doc));
           setConfidenceScore(0.7);
         }
       }
@@ -358,13 +362,28 @@ export function GlobalUploadModal({
       // Graceful fallback: Do not lose the upload; switch to manual review mode
       setIsManualEntryMode(true);
       setClassifiedDomain(domainHint || 'transaction');
-      setEntityFields(buildDefaultEntityFields(domainHint || 'asset', selectedFile.name));
+      setEntityFields(buildDefaultEntityFields(domainHint || 'asset', selectedFile?.name || 'Uploaded Document'));
       setStep('review');
-      addToast(
-        'info',
-        'Manual Review Mode',
-        "AI could not parse all fields automatically. You can review and enter details manually."
-      );
+      
+      const isQuota =
+        err?.isResourceExhausted ||
+        err?.code === 'RESOURCE_EXHAUSTED' ||
+        String(err?.message || '').includes('429') ||
+        String(err?.message || '').includes('prepayment credits are depleted');
+
+      if (isQuota) {
+        addToast(
+          'info',
+          'Standard Intake Mode',
+          'AI processing quota is currently depleted. Standard manual review mode is active so you can inspect and save your document.'
+        );
+      } else {
+        addToast(
+          'info',
+          'Manual Review Mode',
+          'AI could not parse all fields automatically. You can review and enter details manually.'
+        );
+      }
     }
   };
 
@@ -514,7 +533,7 @@ export function GlobalUploadModal({
       }
 
       trackEvent('document_intake_completed', {
-        file_type: (selectedFile?.name.split('.').pop() || 'other').toLowerCase(),
+        file_type: (selectedFile?.name ? selectedFile.name.split('.').pop() || 'other' : 'other').toLowerCase(),
         domain: classifiedDomain,
         result: 'success',
       });

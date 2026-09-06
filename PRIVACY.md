@@ -92,7 +92,7 @@ HouseMind utilizes Google Analytics 4 (standard free tier) strictly for high-lev
 HouseMind provides clear, accessible controls within the **Privacy Center** (`Profile > Privacy & Data Controls`):
 
 1. **Surgical Demo Data Removal (`POST /api/household/demo-remove`)**:
-   If you explored the platform using the starter showcase dataset, you can surgically purge all sample records (`isDemo: true`) with a single click. Any personal properties, expenses, or assets you added yourself remain completely untouched.
+   If you explored the platform using the seeded demo dataset, you can surgically purge all sample records (`isDemo: true`) with a single click in the Profile menu (`Remove Demo Data`). Any personal properties, expenses, or assets you added yourself remain completely untouched.
 2. **Complete Account Wipe (`POST /api/household/reset-data`)**:
    You can delete your entire household record collection at any time. To prevent accidental loss, this action requires typing an explicit confirmation phrase (`DELETE ALL DATA`). Once confirmed, all documents, properties, assets, transactions, and settings are permanently erased from the database.
 3. **Document Purging**:

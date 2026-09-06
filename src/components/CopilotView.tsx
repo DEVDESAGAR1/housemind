@@ -350,15 +350,19 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
     }
     let resolvedEntityId = entityIdentifier;
     if (entityIdentifier) {
-      const lower = entityIdentifier.toLowerCase();
+      const lower = String(entityIdentifier).toLowerCase().trim();
       if (tab === 'assets') {
         const match = assets.find(
-          (a) => a.id === entityIdentifier || a.name.toLowerCase().includes(lower) || (a.brand && lower.includes(a.brand.toLowerCase()))
+          (a) =>
+            a &&
+            (a.id === entityIdentifier ||
+              (a.name || '').toLowerCase().includes(lower) ||
+              (Boolean(a.brand) && lower.includes((a.brand || '').toLowerCase())))
         );
         if (match) resolvedEntityId = match.id;
       } else if (tab === 'expenses') {
         const match = expenses.find(
-          (e) => e.id === entityIdentifier || e.title.toLowerCase().includes(lower)
+          (e) => e && (e.id === entityIdentifier || (e.title || '').toLowerCase().includes(lower))
         );
         if (match) resolvedEntityId = match.id;
       }

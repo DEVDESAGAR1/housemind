@@ -99,20 +99,41 @@ async function getAuthHeader(): Promise<HeadersInit> {
 }
 
 async function handleResponse<T>(res: Response): Promise<T> {
-  const json: ApiResponse<T> = await res.json().catch(() => ({
+  const json: any = await res.json().catch(() => ({
     success: false,
     error: { code: 'NETWORK_ERROR', message: 'Failed to parse server response' },
   }));
 
   if (!res.ok || !json.success) {
-    const errorMsg = json.error?.message || `Request failed with status ${res.status}`;
+    let errorMsg = json.error?.message || `Request failed with status ${res.status}`;
+    let isQuotaDepleted = false;
+    if (typeof errorMsg === 'string' && errorMsg.trim().startsWith('{')) {
+      try {
+        const parsed = JSON.parse(errorMsg);
+        if (parsed?.error?.message) {
+          if (parsed?.error?.code === 429 || parsed?.error?.status === 'RESOURCE_EXHAUSTED') {
+            isQuotaDepleted = true;
+          }
+          errorMsg = parsed.error.message;
+        } else if (parsed?.message) {
+          errorMsg = parsed.message;
+        }
+      } catch {
+        // preserve original errorMsg
+      }
+    }
     const err = new Error(errorMsg);
-    (err as any).code = json.error?.code || 'UNKNOWN_ERROR';
+    (err as any).code = isQuotaDepleted ? 'RESOURCE_EXHAUSTED' : (json.error?.code || 'UNKNOWN_ERROR');
     (err as any).details = json.error?.details;
+    (err as any).isResourceExhausted =
+      isQuotaDepleted ||
+      errorMsg.includes('prepayment credits are depleted') ||
+      errorMsg.includes('RESOURCE_EXHAUSTED') ||
+      errorMsg.includes('429');
     throw err;
   }
 
-  return json.data as T;
+  return (json.data !== undefined ? json.data : json) as T;
 }
 
 export async function apiGet<T>(url: string): Promise<ApiResponse<T>> {

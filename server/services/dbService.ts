@@ -434,7 +434,7 @@ export class DatabaseService {
       calendarEvents = calRes.events.filter(
         (ev) =>
           ev.sourceId === assetId ||
-          (ev.metadata?.assetName && ev.metadata.assetName.toLowerCase() === asset.name.toLowerCase()) ||
+          (ev.metadata?.assetName && asset?.name && String(ev.metadata.assetName).toLowerCase() === String(asset.name).toLowerCase()) ||
           (ev.metadata?.assetId && ev.metadata.assetId === assetId) ||
           warIds.has(ev.sourceId) ||
           maintIds.has(ev.sourceId) ||
@@ -3607,7 +3607,7 @@ export class DatabaseService {
       {
         id: 'src_demo_seed',
         sourceType: 'demo_seed',
-        name: 'Sample Household Starter Dataset',
+        name: 'Sample Household Demo Dataset',
         description: 'Deterministic demo records including sample properties, mortgage, utilities, warranties, and maintenance tasks.',
         status: demoRecordsCount > 0 ? 'active' : 'disconnected',
         statusLabel: demoRecordsCount > 0 ? `${demoRecordsCount} Demo Record(s) Active` : 'Clean (No Demo Data)',

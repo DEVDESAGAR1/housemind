@@ -73,7 +73,7 @@ export async function getUserTransactions(
     const term = filters.search.toLowerCase();
     transactions = transactions.filter(
       (t) =>
-        t.description.toLowerCase().includes(term) ||
+        (t.description || '').toLowerCase().includes(term) ||
         (t.merchant && t.merchant.toLowerCase().includes(term)) ||
         (t.category && t.category.toLowerCase().includes(term)) ||
         (t.account && t.account.toLowerCase().includes(term)) ||

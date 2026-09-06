@@ -254,11 +254,11 @@ export function resolveCopilotAction(
   // 2. EXISTING ENTITY VIEW / DETAIL ACTIONS
   // ==========================================
   if (entityId) {
-    const lowerId = entityId.toLowerCase();
+    const lowerId = String(entityId).toLowerCase().trim();
 
     // Check Property
     const propMatch = (context.properties || []).find(
-      (p) => p.id === entityId || p.name.toLowerCase() === lowerId
+      (p) => p && (p.id === entityId || (p.name || '').toLowerCase() === lowerId)
     );
     if (propMatch) {
       return {
@@ -272,9 +272,10 @@ export function resolveCopilotAction(
     // Check Asset
     const assetMatch = (context.assets || []).find(
       (a) =>
-        a.id === entityId ||
-        a.name.toLowerCase() === lowerId ||
-        (a.brand && lowerId.includes(a.brand.toLowerCase()))
+        a &&
+        (a.id === entityId ||
+          (a.name || '').toLowerCase() === lowerId ||
+          (Boolean(a.brand) && lowerId.includes((a.brand || '').toLowerCase())))
     );
     if (assetMatch) {
       return {
@@ -287,7 +288,7 @@ export function resolveCopilotAction(
 
     // Check Maintenance Task
     const taskMatch = (context.tasks || []).find(
-      (t) => t.id === entityId || t.title.toLowerCase() === lowerId
+      (t) => t && (t.id === entityId || (t.title || '').toLowerCase() === lowerId)
     );
     if (taskMatch) {
       return {
@@ -302,9 +303,10 @@ export function resolveCopilotAction(
     // Check Warranty
     const warrantyMatch = (context.warranties || []).find(
       (w) =>
-        w.id === entityId ||
-        (w.title && w.title.toLowerCase() === lowerId) ||
-        (w.providerName && w.providerName.toLowerCase() === lowerId)
+        w &&
+        (w.id === entityId ||
+          (w.title && (w.title || '').toLowerCase() === lowerId) ||
+          (w.providerName && (w.providerName || '').toLowerCase() === lowerId))
     );
     if (warrantyMatch) {
       return {
@@ -318,7 +320,7 @@ export function resolveCopilotAction(
 
     // Check Issue
     const issueMatch = (context.issues || []).find(
-      (i) => i.id === entityId || i.title.toLowerCase() === lowerId
+      (i) => i && (i.id === entityId || (i.title || '').toLowerCase() === lowerId)
     );
     if (issueMatch) {
       return {
@@ -333,9 +335,10 @@ export function resolveCopilotAction(
     // Check Utility
     const utilMatch = (context.utilities || []).find(
       (u) =>
-        u.id === entityId ||
-        u.providerName.toLowerCase() === lowerId ||
-        u.utilityType.toLowerCase() === lowerId
+        u &&
+        (u.id === entityId ||
+          (u.providerName || '').toLowerCase() === lowerId ||
+          (u.utilityType || '').toLowerCase() === lowerId)
     );
     if (utilMatch) {
       return {
@@ -349,7 +352,7 @@ export function resolveCopilotAction(
 
     // Check Loan
     const loanMatch = (context.loans || []).find(
-      (l) => l.id === entityId || l.name.toLowerCase() === lowerId
+      (l) => l && (l.id === entityId || (l.name || '').toLowerCase() === lowerId)
     );
     if (loanMatch) {
       return {
@@ -363,7 +366,7 @@ export function resolveCopilotAction(
 
     // Check Card
     const cardMatch = (context.creditCards || []).find(
-      (c) => c.id === entityId || c.cardName.toLowerCase() === lowerId
+      (c) => c && (c.id === entityId || (c.cardName || '').toLowerCase() === lowerId)
     );
     if (cardMatch) {
       return {
@@ -377,7 +380,7 @@ export function resolveCopilotAction(
 
     // Check Expense
     const expenseMatch = (context.expenses || []).find(
-      (e) => e.id === entityId || e.title.toLowerCase() === lowerId
+      (e) => e && (e.id === entityId || (e.title || '').toLowerCase() === lowerId)
     );
     if (expenseMatch) {
       return {
@@ -390,7 +393,7 @@ export function resolveCopilotAction(
 
     // Check Document
     const docMatch = (context.documents || []).find(
-      (d) => d.id === entityId || d.fileName.toLowerCase() === lowerId
+      (d) => d && (d.id === entityId || (d.fileName || '').toLowerCase() === lowerId)
     );
     if (docMatch) {
       return {

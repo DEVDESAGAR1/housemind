@@ -24,6 +24,7 @@ import {
   extractEntityFromDocSchema,
   saveExtractedEntitySchema,
 } from '../schemas';
+import { isResourceExhaustedError, recordGeminiQuotaExhausted } from '../config/secrets';
 
 export const documentsRouter = Router();
 
@@ -232,17 +233,17 @@ documentsRouter.post(
 
       // Check for existing identical document
       const existingDocs = await DatabaseService.listDocuments(userId);
+      const originalNameLower = (file.originalname || '').toLowerCase();
       const matchingDoc = existingDocs.find(
         (d) =>
-          d.fileName?.toLowerCase() === file.originalname.toLowerCase() &&
+          (d.fileName || '').toLowerCase() === originalNameLower &&
           d.fileSize &&
           Math.abs(d.fileSize - file.size) < 10
       );
 
       const duplicatesCount = candidatesWithDupCheck.filter((c) => c.isDuplicate).length;
 
-      res.status(201).json({
-        success: true,
+      const payload = {
         document: documentRecord,
         candidatesCount: candidatesWithDupCheck.length,
         duplicatesCount,
@@ -251,16 +252,26 @@ documentsRouter.post(
         message: matchingDoc
           ? 'This document may already exist in your vault. Please review candidate information.'
           : 'Document analyzed successfully. Please review and confirm the transactions.',
+      };
+
+      res.status(201).json({
+        success: true,
+        data: payload,
+        ...payload,
       });
     } catch (err: any) {
       console.error('Error during document upload/parse:', err);
+      const isQuota = isResourceExhaustedError(err);
+      if (isQuota) {
+        recordGeminiQuotaExhausted();
+      }
       res.status(500).json({
         success: false,
         error: {
-          code: 'EXTRACTION_FAILED',
-          message:
-            err.message ||
-            "We couldn't read this statement. Please check that the file is not corrupted and try again.",
+          code: isQuota ? 'RESOURCE_EXHAUSTED' : 'EXTRACTION_FAILED',
+          message: isQuota
+            ? 'AI processing quota currently depleted. Standard manual intake mode is available.'
+            : (err.message || "We couldn't read this statement. Please check that the file is not corrupted and try again."),
         },
       });
     }

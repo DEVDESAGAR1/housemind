@@ -378,7 +378,9 @@ Would you like me to mark it as read? Please review the action approval card bel
 
       if (pendingTasks.length > 0) {
         const words = lower.split(/\s+/);
-        let matchedTask = pendingTasks.find((t) => words.some((w) => w.length > 3 && t.title.toLowerCase().includes(w))) || pendingTasks[0];
+        let matchedTask =
+          pendingTasks.find((t) => words.some((w) => w.length > 3 && (t.title || '').toLowerCase().includes(w))) ||
+          pendingTasks[0];
 
         const proposal = await ActionExecutor.proposeAction(userId, 'completeMaintenanceTask', {
           title: `Mark "${matchedTask.title}" as Completed`,

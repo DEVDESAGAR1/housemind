@@ -607,10 +607,10 @@ export class CalendarService {
       const q = options.searchQuery.toLowerCase().trim();
       filtered = filtered.filter(
         (ev) =>
-          ev.title.toLowerCase().includes(q) ||
-          ev.subtitle.toLowerCase().includes(q) ||
-          ev.eventType.toLowerCase().includes(q) ||
-          (ev.metadata && Object.values(ev.metadata).some((v) => String(v).toLowerCase().includes(q)))
+          (ev.title || '').toLowerCase().includes(q) ||
+          (ev.subtitle || '').toLowerCase().includes(q) ||
+          (ev.eventType || '').toLowerCase().includes(q) ||
+          (ev.metadata && Object.values(ev.metadata).some((v) => String(v || '').toLowerCase().includes(q)))
       );
     }
 

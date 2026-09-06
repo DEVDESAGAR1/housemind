@@ -219,10 +219,6 @@ export function trackEvent(
       return;
     }
 
-    if (!analyticsInstance) {
-      return; // Analytics disabled or not yet initialized
-    }
-
     // Validate event name (lowercase alphanumeric + underscores, 1-40 chars)
     const normalizedEvent = eventName.trim().toLowerCase();
     if (!/^[a-z][a-z0-9_]{1,39}$/.test(normalizedEvent)) {
@@ -230,7 +226,16 @@ export function trackEvent(
     }
 
     const sanitizedParams = sanitizeAnalyticsParams(params);
-    logEvent(analyticsInstance, normalizedEvent, sanitizedParams);
+
+    // Track via Firebase Analytics SDK if initialized
+    if (analyticsInstance) {
+      logEvent(analyticsInstance, normalizedEvent, sanitizedParams);
+    }
+
+    // Also dispatch to Google tag (gtag.js) if available
+    if (typeof (window as any).gtag === 'function') {
+      (window as any).gtag('event', normalizedEvent, sanitizedParams);
+    }
   } catch (err) {
     // Fail-safe: analytics errors must NEVER crash the application
     console.warn('[ANALYTICS] Event tracking notice:', err);
@@ -261,7 +266,7 @@ export function trackPageView(pageName: string): void {
  * Checks if analytics is currently active and ready in the client.
  */
 export function isAnalyticsEnabled(): boolean {
-  return analyticsInstance !== null;
+  return analyticsInstance !== null || (typeof window !== 'undefined' && typeof (window as any).gtag === 'function');
 }
 
 /**

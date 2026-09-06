@@ -44,10 +44,10 @@ function deterministicFallbackExtractor(
 
   if (!matchedAsset) {
     matchedAsset = existingAssets.find((a) => {
-      const nameMatch = a.name.toLowerCase();
-      const brandMatch = a.brand?.toLowerCase();
+      const nameMatch = (a.name || '').toLowerCase();
+      const brandMatch = (a.brand || '').toLowerCase();
       return (
-        lower.includes(nameMatch) ||
+        (nameMatch && lower.includes(nameMatch)) ||
         (brandMatch && brandMatch.length > 2 && lower.includes(brandMatch))
       );
     });

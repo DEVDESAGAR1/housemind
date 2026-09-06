@@ -7,7 +7,7 @@
 [![Express](https://img.shields.io/badge/Express-4.21-lightgrey.svg)](https://expressjs.com/)
 [![Tests](https://img.shields.io/badge/Tests-394%2F394%20Passed%20(100%25)-success.svg)](docs/TESTING.md)
 [![Playwright](https://img.shields.io/badge/Browser%20Journeys-25%2F25%20Passed%20(100%25)-success.svg)](docs/TESTING.md)
-[![Gemini](https://img.shields.io/badge/Grounded%20AI-Gemini%202.5%20Flash-orange.svg)](https://ai.google.dev/)
+[![Gemini](https://img.shields.io/badge/Grounded%20AI-Gemini%20API-orange.svg)](https://ai.google.dev/)
 [![Security](https://img.shields.io/badge/Security-Secret%20Manager%20%7C%20Tenant%20Isolated-blueviolet.svg)](SECURITY.md)
 
 ---
@@ -40,7 +40,63 @@ Actionable Household Decisions (Unified Actions, Morning Brief, Scenario Models)
 
 ---
 
-## 2. Key Capabilities Across 24 Household Domains
+## 2. How to Explore HouseMind
+
+Follow this recommended 8-step evaluation path to experience the full breadth and depth of the platform:
+
+### Step 1: Sign In
+Authenticate using the supported Google Sign-In flow powered by Firebase Authentication. Each authenticated user is strictly isolated within their own tenant boundary.
+
+### Step 2: Load Demo Data
+If starting with an empty household, click **Load Demo Data** (available via the Command Center onboarding banner or the user Profile menu). This populates a coherent, realistic household dataset (**The Sharma Household**) spanning properties, assets, warranties, maintenance cadences, utilities, loans, and documents.
+> *Note: Demo data is seeded example data for comprehensive evaluation—it is not a separate demo/guest authentication mode. All demo records can be purged at any time with a single click.*
+
+### Step 3: Start at the Command Center
+Navigate to **Command Center** in the top navigation bar. It serves as the household's executive cockpit:
+- **Household Health Score**: Real-time 0–100 operational vitality score computed across 4 pillars.
+- **Needs Attention**: Immediate high-priority items requiring action (overdue bills, critical maintenance, expiring warranties).
+- **Unified Actions**: Compound decision cards synthesizing multi-signal opportunities (e.g., Repair vs. Replace, approaching warranty claim deadlines).
+- **Upcoming Schedule**: Chronological 7-day, 14-day, and 30-day timeline of financial and upkeep commitments.
+- **Domain Snapshots**: Real-time status cards for Home, Assets, Finances, and Upkeep.
+- **Recent Activity**: Audit trail of completed tasks, updated records, and newly ingested documents.
+
+### Step 4: Explore Household Domains
+Use the main application navigation to inspect the underlying operational records:
+- **Properties**: Multi-property structures, room allocations, square footage, and climate benchmarks.
+- **Assets**: Equipment registry (HVAC, plumbing, electrical, appliances) tracking condition scores, expected lifespans, serial numbers, and replacement costs.
+- **Maintenance & Upkeep**: Scheduled maintenance cadences, manufacturer and extended warranty policies, and universal issue tickets with contractor estimates.
+- **Utilities & Debt**: Utility accounts, closed-form amortized mortgage schedules with monthly EMI breakdowns, and revolving credit card utilization monitors.
+- **Finances**: Net cash flow, recurring expense categorization, and financial ledger summaries.
+- **Documents**: Secure document vault for stored receipts, warranties, closing documents, and manuals.
+
+### Step 5: Try Upload & Scan (Document Intake)
+Experience the 6-step human-in-the-loop document intake engine:
+1. Click **Upload & Scan** in the top navigation bar (or via the Documents view).
+2. **Upload**: Drag and drop a receipt, invoice, or warranty document (supported formats: PDF, PNG, JPG, WebP up to 10MB).
+3. **Extract**: Multimodal Gemini vision AI parses vendor, transaction date, line items, monetary amounts, equipment model numbers, and warranty durations.
+4. **Review**: Extracted fields are displayed alongside confidence indicators.
+5. **Edit**: Modify any field, select linked properties or assets, or adjust category tags.
+6. **Confirm & Save**: Choose whether to save extracted entities (Asset, Warranty, Expense, or Task) or archive as document-only. *No AI extraction commits to your permanent database without explicit human approval.*
+
+### Step 6: Explore Household Intelligence
+Experience how HouseMind's intelligence layers assist daily decision-making:
+- **Household Health Engine**: Inspect positive signals (completed maintenance, active warranties) and risk deductions (overdue bills, past-due service) across the 4 pillars.
+- **Cross-Domain Intelligence**: Observe how the system links physical assets (`Daikin AC`) to active issues (`Compressor Vibration`), warranties, and cumulative repair spend.
+- **Unified Actions**: Review compound recommendations (such as Repair vs. Replace triggered when cumulative repairs exceed 40% of replacement cost).
+- **Morning Briefing**: Click the **🌅 Brief** button in the top navigation bar to open the daily 4-part briefing summarizing health score, urgent attention items, upcoming commitments, and top recommended action.
+- **Household Copilot**: Click **Copilot** in navigation to converse with the grounded assistant. Copilot queries factual records via 13 read-only tools and provides source-grounded responses with deterministic fallback protection.
+
+### Step 7: Explore Calendar & Notifications
+- **Unified Calendar**: Click **Calendar** in navigation to view derived events (bills, maintenance, loans, warranties) in Month Grid or Agenda Timeline views, complete with monthly cash flow obligation totals.
+- **Notification Center**: Click the bell icon in the header to review Critical, Warning, and Info alerts with read/unread states, and navigate directly to the affected record. Advance lead notice windows can be customized in Profile preferences.
+
+### Step 8: Explore Help & Privacy Controls
+- **Help Center**: Click **Help Center** in navigation (or the `?` icon) for practical guides, searchable documentation, and operational overviews.
+- **Privacy & Data Governance**: Open the Profile menu (top right) -> `Profile & Preferences > Data Vault & Export` to export a complete JSON household backup, download a Financial Ledger CSV, surgically purge seeded sample records via **Remove Demo Data**, or perform an account reset.
+
+---
+
+## 3. Key Capabilities Across 24 Household Domains
 
 HouseMind organizes household management into three core operational pillars:
 
@@ -68,7 +124,7 @@ HouseMind organizes household management into three core operational pillars:
 
 ---
 
-## 3. The Grounded AI Differentiator
+## 4. The Grounded AI Differentiator
 
 > **HouseMind never asks Gemini to guess or calculate household facts.**
 
@@ -83,7 +139,7 @@ Relationships / Intelligence (Cross-Domain Graph Traversal)
         ↓
 Grounded Read Tools (get_assets, get_issues, get_warranties, ...)
         ↓
-Gemini 2.5 Flash Synthesis (Source-Grounded Natural Language Explanation)
+Gemini API Synthesis (Source-Grounded Natural Language Explanation)
         ↓
 Action Proposal (Requires Human User Confirmation to Execute)
 ```
@@ -96,7 +152,7 @@ Action Proposal (Requires Human User Confirmation to Execute)
 
 ---
 
-## 4. Realistic Showcase Scenario
+## 5. Realistic Showcase Scenario
 
 To demonstrate how these domains interconnect in practice, HouseMind includes a realistic, localized showcase dataset (**The Sharma Household — Whitefield Villa, Bengaluru, India**):
 
@@ -104,11 +160,11 @@ To demonstrate how these domains interconnect in practice, HouseMind includes a 
 - **The Issue**: A recurring refrigerant leak ticket (`₹18,000` contractor repair estimate) logged against the unit.
 - **The Compounding Risk**: The Cross-Domain Intelligence engine reveals that the warranty expired 14 months ago and historical repairs already total `₹24,500` (combined repair costs exceed 65% of the `₹65,000` replacement price).
 - **The Actionable Outcome**: The Morning Brief flags this critical threshold and directs the homeowner to the **What-If Simulator**, projecting the 12-month net financial impact of replacement versus continuing emergency repairs.
-- **Clean Sample Governance**: The starter dataset can be explored freely and surgically purged at any time (`Profile > Privacy & Data Controls > Remove Sample Data`) without altering user-created records.
+- **Clean Sample Governance**: The demo dataset can be explored freely and surgically purged at any time (`Profile > Remove Demo Data`) without altering user-created records.
 
 ---
 
-## 5. System Architecture & Tech Stack
+## 6. System Architecture & Tech Stack
 
 ```mermaid
 flowchart LR
@@ -127,7 +183,7 @@ flowchart LR
     subgraph Cloud["Google Cloud Platform Infrastructure"]
         Firestore[(Cloud Firestore: /users/userId/*)]
         SecretMgr[Cloud Secret Manager: housemind-gemini-api-key]
-        GeminiAPI[Gemini 2.5 Flash via @google/genai SDK]
+        GeminiAPI[Gemini API via @google/genai SDK]
     end
 
     Client -->|HTTPS + Bearer JWT| Server
@@ -148,7 +204,7 @@ flowchart LR
 
 ---
 
-## 6. Security & Privacy by Design
+## 7. Security & Privacy by Design
 
 - **Tenant Isolation**: Every database operation is strictly scoped to `/users/{userId}/*`. Cross-tenant data access is structurally impossible.
 - **Google Cloud Secret Manager**: Production API keys are resolved at runtime via Secret Manager (`housemind-gemini-api-key`). Zero credentials exist in client bundles, repository commits, or Docker layers.
@@ -161,7 +217,7 @@ For detailed specifications, see [SECURITY.md](SECURITY.md) and [PRIVACY.md](PRI
 
 ---
 
-## 7. Quick Start & Local Development
+## 8. Quick Start & Local Development
 
 ### Prerequisites
 - Node.js 20.x or higher
@@ -185,7 +241,7 @@ The application will be accessible at `http://localhost:3000`.
 
 ---
 
-## 8. Quality Assurance & Verification Suite
+## 9. Quality Assurance & Verification Suite
 
 HouseMind includes an automated test harness and browser journey suite covering all 24 domains:
 
@@ -220,7 +276,7 @@ For the complete testing breakdown and Playwright browser journey specifications
 
 ---
 
-## 9. Comprehensive Documentation Directory
+## 10. Comprehensive Documentation Directory
 
 | Document | Description |
 | :--- | :--- |
