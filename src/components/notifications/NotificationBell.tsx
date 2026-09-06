@@ -14,7 +14,8 @@ export function NotificationBell({
 }: NotificationBellProps) {
   return (
     <button
-      id="notification-bell-btn"
+      id="nav-notifications-btn"
+      data-tour="notifications-bell"
       onClick={onClick}
       type="button"
       className={`relative p-1.5 sm:p-2.5 text-slate-600 hover:text-slate-900 bg-white/80 hover:bg-slate-100 rounded-xl sm:rounded-2xl border border-slate-200/80 transition-all duration-150 shadow-xs cursor-pointer focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 active:scale-95 ${className}`}

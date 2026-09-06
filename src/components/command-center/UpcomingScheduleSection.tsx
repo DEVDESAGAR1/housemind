@@ -276,7 +276,8 @@ export function UpcomingScheduleSection({
 
   return (
     <div
-      id="household-command-center-upcoming-schedule"
+      id="command-center-upcoming-schedule"
+      data-tour="upcoming-schedule"
       className="bg-white rounded-3xl border border-slate-200/90 shadow-xs p-6 sm:p-7 space-y-5"
     >
       {/* Header */}

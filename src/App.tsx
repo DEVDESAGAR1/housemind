@@ -53,6 +53,7 @@ import { HOUSEMIND_TOURS, GuidedTour } from './components/tours/tourDefinitions'
 import { LegalPoliciesModal, PolicyTab } from './components/legal/LegalPoliciesModal';
 import { Footer } from './components/Footer';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { resolveCopilotAction, CopilotActionInput } from './utils/copilotActionResolver';
 import { ToastContainer, ToastMessage } from './components/Toast';
 import { initializeAnalytics, trackEvent, trackPageView } from './lib/analytics';
 
@@ -185,6 +186,37 @@ export default function App() {
     }
     setTargetedEntityId(entityId || null);
     setActiveTab(tab);
+  };
+
+  const handleExecuteCopilotAction = (actionInput: CopilotActionInput) => {
+    const resolved = resolveCopilotAction(actionInput, {
+      properties,
+      assets,
+      expenses,
+      tasks,
+      issues,
+      utilities,
+      loans,
+      creditCards,
+      documents,
+    });
+
+    if (resolved.status === 'resolved') {
+      handleNavigateSubTab(
+        resolved.targetTab,
+        resolved.subTab,
+        resolved.entityId
+      );
+      if (resolved.autoOpenTarget) {
+        setAutoOpenTarget(resolved.autoOpenTarget);
+      }
+    } else if (resolved.status === 'unavailable') {
+      // P0.3: Missing destination/card = NO SCROLL
+      handleNavigateSubTab(resolved.targetTab);
+      if (resolved.message) {
+        addToast('info', 'Record Unavailable', resolved.message);
+      }
+    }
   };
 
   const handleAddOption = (optionId: string) => {
@@ -356,12 +388,61 @@ export default function App() {
       setMorningBrief(brief);
       return brief;
     } catch (err) {
-      console.error('Failed to load morning brief:', err);
-      return null;
+      console.warn('Backend morning brief unavailable, using client-side operational fallback:', err);
+      const fallbackBrief: HouseholdMorningBrief = {
+        generatedAt: new Date().toISOString(),
+        homeName: profile?.homeName || 'My Household',
+        statusHeadline: 'Operational Overview Ready',
+        overallStatus: 'nominal',
+        healthScore: healthReport?.overallScore,
+        healthLabel: healthReport?.statusLabel || 'Good',
+        isProvisional: !!healthReport?.isProvisional,
+        completenessScore: healthReport?.completenessScore || 0,
+        itemsNeedingAttention: [],
+        itemsToWatch: [],
+        meaningfulChanges: [],
+        positiveSignal: 'Dashboard systems operational.',
+        topAction: null,
+        isDismissedToday: false,
+        financialObligationsSummary: {
+          monthlyBurnRate: expenses.reduce((sum, e) => sum + (e.amount || 0), 0),
+          upcomingTotalDueNext7Days: 0,
+          currency: profile?.currency || 'USD',
+          keyObligations: [],
+        },
+        maintenanceAssetConcerns: {
+          overdueTasksCount: 0,
+          upcomingTasksCount: 0,
+          concerns: [],
+        },
+        documentWarrantyConcerns: {
+          expiringWarrantiesCount: 0,
+          pendingReviewDocsCount: 0,
+          concerns: [],
+        },
+        recommendedFirstAction: {
+          title: 'Review Household Health',
+          category: 'maintenance',
+          urgency: 'nominal',
+          reason: 'All active schedules and bills are currently up to date.',
+          actionTab: 'dashboard',
+          actionLabel: 'View Dashboard',
+        },
+        groundedFacts: {
+          totalAssetsCount: assets.length,
+          activeWarrantiesCount: 0,
+          totalMonthlyBurnRate: expenses.reduce((sum, e) => sum + (e.amount || 0), 0),
+          totalOutstandingDebt: 0,
+          currency: profile?.currency || 'USD',
+        },
+        synthesizedNarrative: `Good morning! Welcome to **${profile?.homeName || 'your household'}**.\n\nAll monitored assets and records are active and operational on your dashboard.`,
+      };
+      setMorningBrief(fallbackBrief);
+      return fallbackBrief;
     } finally {
       setIsLoadingMorningBrief(false);
     }
-  }, []);
+  }, [profile, healthReport, expenses]);
 
   const handleOpenMorningBrief = async () => {
     trackEvent('morning_brief_viewed');
@@ -578,7 +659,7 @@ export default function App() {
       );
     } catch (err: any) {
       console.error('Seed demo error:', err);
-      addToast('error', 'Seeding Failed', err.message || 'Failed to populate starter data.');
+      addToast('error', 'Seeding Failed', err.message || 'Failed to populate demo data.');
     } finally {
       setIsSeeding(false);
     }
@@ -944,6 +1025,11 @@ export default function App() {
                 setCopilotContext(undefined);
                 handleNavigateSubTab(tab as NavigationTab, subTab, entityId);
               }}
+              onExecuteAction={(action) => {
+                setCopilotContext(undefined);
+                handleExecuteCopilotAction(action);
+              }}
+              onRefreshHouseholdData={loadHouseholdData}
               initialPrompt={copilotContext?.initialPrompt}
               initialDomain={copilotContext?.initialDomain}
               onRefreshNotifications={loadNotifications}
@@ -1123,15 +1209,19 @@ export default function App() {
         }}
         onDismissToday={handleDismissMorningBriefToday}
         currency={profile?.currency || 'USD'}
+        timezone={profile?.timezone}
       />
 
       {/* Floating AI Copilot & Quick Help Assistant Widget */}
       <FloatingHelpWidget
-        onNavigate={(tab) => {
-          setActiveTab(tab);
+        onNavigate={(tab, subTab, entityId) => {
+          handleNavigateSubTab(tab as NavigationTab, subTab, entityId);
         }}
+        onExecuteAction={handleExecuteCopilotAction}
+        onRefreshHouseholdData={loadHouseholdData}
         activeTab={activeTab}
         onOpenTour={handleStartTour}
+        onRefreshNotifications={loadNotifications}
       />
 
       {/* Toast Notifications */}

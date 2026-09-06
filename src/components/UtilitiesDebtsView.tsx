@@ -439,7 +439,11 @@ export function UtilitiesDebtsView({
   return (
     <div className="space-y-6">
       {/* Header with Quick Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div
+        id="utilities-page-header"
+        data-tour="utilities-manager"
+        className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+      >
         <div>
           <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
             <Zap className="w-6 h-6 text-amber-500" />

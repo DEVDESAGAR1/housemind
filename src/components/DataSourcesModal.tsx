@@ -374,7 +374,7 @@ export function DataSourcesModal({ isOpen, onClose, onDataChanged }: DataSources
                     Data Governance & Deletion Controls
                   </h4>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    You have absolute control over your household data. Delete starter demo records or perform a complete account data wipe.
+                    You have absolute control over your household data. Delete demo records or perform a complete account data wipe.
                   </p>
                 </div>
 
@@ -390,7 +390,7 @@ export function DataSourcesModal({ isOpen, onClose, onDataChanged }: DataSources
                   <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-xl space-y-2">
                     <div className="flex items-center gap-2 text-amber-900 text-xs font-semibold">
                       <AlertTriangle className="w-4 h-4 text-amber-600" />
-                      <span>Confirm Removal of Starter / Demo Data?</span>
+                      <span>Confirm Removal of Demo Data?</span>
                     </div>
                     <p className="text-[11px] text-amber-800 leading-relaxed">
                       This will delete only pre-seeded sample expenses, assets, transactions, documents, and what-if scenarios ({totalDemoRecords} records). All your custom created records ({totalUserRecords} records) will remain untouched.

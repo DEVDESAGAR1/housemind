@@ -328,9 +328,9 @@ export function CalendarView({
   const selectedDayEvents = selectedDayIso ? eventsByDay.get(selectedDayIso) || [] : [];
 
   return (
-    <div className="space-y-6 pb-12">
+    <div id="unified-calendar-container" data-tour="unified-calendar" className="space-y-6 pb-12">
       {/* 1. Header Toolbar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 rounded-3xl bg-white border border-slate-200/80 shadow-xs">
+      <div id="calendar-page-header" className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 rounded-3xl bg-white border border-slate-200/80 shadow-xs">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shadow-xs">
             <CalendarIcon className="w-6 h-6" />

@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { HouseholdMorningBrief, MorningBriefItem } from '../types';
 import { WhyAmISeeingThisModal, WhyEvidencePayload } from './WhyAmISeeingThisModal';
+import { getContextualGreeting } from '../utils/greeting';
 
 interface MorningBriefModalProps {
   isOpen: boolean;
@@ -27,6 +28,7 @@ interface MorningBriefModalProps {
   onAskCopilot: (prompt: string, initialDomain?: string) => void;
   onDismissToday?: () => Promise<void>;
   currency?: string;
+  timezone?: string;
 }
 
 export function MorningBriefModal({
@@ -38,6 +40,7 @@ export function MorningBriefModal({
   onNavigateTab,
   onAskCopilot,
   onDismissToday,
+  timezone,
 }: MorningBriefModalProps) {
   const [showEvidence, setShowEvidence] = useState(false);
   const [dontShowTodayChecked, setDontShowTodayChecked] = useState(false);
@@ -100,9 +103,8 @@ export function MorningBriefModal({
     }
   };
 
-  // Compute greeting based on time of day
-  const hour = new Date().getHours();
-  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  // Compute contextual greeting and brief title based on configured timezone or local time
+  const { greeting, briefTitle } = getContextualGreeting(timezone);
 
   const todayFormatted = new Date().toLocaleDateString(undefined, {
     weekday: 'long',
@@ -170,7 +172,7 @@ export function MorningBriefModal({
             <div className="space-y-1.5">
               <div className="flex flex-wrap items-center gap-2 text-amber-100 text-xs font-semibold tracking-wide uppercase">
                 <Sun className="w-4 h-4 text-amber-200 animate-spin-slow" />
-                <span>Morning Brief</span>
+                <span>{briefTitle}</span>
                 <span className="opacity-60">•</span>
                 <span>{todayFormatted}</span>
                 <span className="opacity-60">•</span>

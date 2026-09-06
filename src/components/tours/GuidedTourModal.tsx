@@ -26,6 +26,7 @@ export function GuidedTourModal({
 }: GuidedTourModalProps) {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
+  const [popoverSize, setPopoverSize] = useState<{ width: number; height: number }>({ width: 390, height: 260 });
   const modalRef = useRef<HTMLDivElement>(null);
 
   // Reset step index on tour change
@@ -35,6 +36,21 @@ export function GuidedTourModal({
 
   const step: TourStep | undefined = tour?.steps[currentStepIndex];
 
+  // Helper to query element by priority order if comma-separated
+  const findTargetElement = useCallback((selectorStr?: string): HTMLElement | null => {
+    if (!selectorStr) return null;
+    const parts = selectorStr.split(',').map((s) => s.trim()).filter(Boolean);
+    for (const part of parts) {
+      try {
+        const found = document.querySelector<HTMLElement>(part);
+        if (found) return found;
+      } catch {
+        // continue
+      }
+    }
+    return null;
+  }, []);
+
   // Measure target element rect without triggering scrolling
   const measureTargetRect = useCallback(() => {
     if (!step?.targetSelector) {
@@ -43,7 +59,7 @@ export function GuidedTourModal({
     }
 
     try {
-      const el = document.querySelector(step.targetSelector);
+      const el = findTargetElement(step.targetSelector);
       if (el) {
         setTargetRect(el.getBoundingClientRect());
       } else {
@@ -52,7 +68,7 @@ export function GuidedTourModal({
     } catch {
       setTargetRect(null);
     }
-  }, [step?.targetSelector]);
+  }, [step?.targetSelector, findTargetElement]);
 
   // Handle step transitions: navigate tab, scroll target into view once if needed, then measure
   useEffect(() => {
@@ -66,16 +82,30 @@ export function GuidedTourModal({
     const scrollTimer = setTimeout(() => {
       if (step.targetSelector) {
         try {
-          const el = document.querySelector(step.targetSelector);
+          const el = findTargetElement(step.targetSelector);
           if (el) {
             const rect = el.getBoundingClientRect();
-            const isOutOfView =
-              rect.top < 60 ||
-              rect.bottom > window.innerHeight - 60 ||
-              rect.left < 0 ||
-              rect.right > window.innerWidth;
-            if (isOutOfView) {
-              el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            const preferred = step.placement || 'bottom';
+            const popoverH = 270;
+
+            const needsScroll =
+              rect.top < 80 ||
+              (preferred === 'bottom' && rect.bottom + popoverH + 24 > window.innerHeight) ||
+              (preferred === 'top' && rect.top - popoverH - 24 < 64) ||
+              rect.bottom > window.innerHeight;
+
+            if (needsScroll) {
+              if (preferred === 'bottom') {
+                // Scroll element near top of screen (84px below navbar) to maximize room below
+                const targetScrollY = window.scrollY + rect.top - 84;
+                window.scrollTo({ top: Math.max(0, targetScrollY), behavior: 'smooth' });
+              } else if (preferred === 'top') {
+                // Scroll element towards bottom to maximize room above
+                const targetScrollY = window.scrollY + rect.bottom - (window.innerHeight - 84);
+                window.scrollTo({ top: Math.max(0, targetScrollY), behavior: 'smooth' });
+              } else {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              }
             }
           }
         } catch {
@@ -83,11 +113,17 @@ export function GuidedTourModal({
         }
       }
       measureTargetRect();
-    }, 160);
+    }, 150);
 
     // Dynamic listeners to update rect during user scroll/resize (WITHOUT triggering scrollIntoView)
     const handleViewportChange = () => {
       measureTargetRect();
+      if (modalRef.current) {
+        const rect = modalRef.current.getBoundingClientRect();
+        if (rect.width > 0 && rect.height > 0) {
+          setPopoverSize({ width: rect.width, height: rect.height });
+        }
+      }
     };
 
     window.addEventListener('resize', handleViewportChange, { passive: true });
@@ -160,25 +196,47 @@ export function GuidedTourModal({
   };
 
   if (targetRect) {
-    const margin = 14;
+    const margin = 16;
     const popoverWidth = Math.min(390, window.innerWidth - 32);
-    const popoverHeightEstimate = 220;
+    const popoverHeight = Math.max(240, popoverSize.height);
 
-    let top = targetRect.bottom + margin;
+    const fitsBelow = targetRect.bottom + popoverHeight + margin <= window.innerHeight;
+    const fitsAbove = targetRect.top - popoverHeight - margin >= 64; // 64px navbar clearance
+    const fitsRight = targetRect.right + popoverWidth + margin <= window.innerWidth;
+    const fitsLeft = targetRect.left - popoverWidth - margin >= 16;
+
+    let top = 0;
     let left = Math.max(16, Math.min(targetRect.left, window.innerWidth - popoverWidth - 16));
 
-    // If it doesn't fit below, but fits above
-    if (top + popoverHeightEstimate > window.innerHeight && targetRect.top > popoverHeightEstimate + margin) {
-      top = targetRect.top - popoverHeightEstimate - margin;
-    } else if (top + popoverHeightEstimate > window.innerHeight) {
-      // It doesn't fit above or below perfectly, stick it to the bottom of the screen
-      top = Math.max(16, window.innerHeight - popoverHeightEstimate - 16);
+    const preferred = step.placement || 'bottom';
+
+    if (preferred === 'top' && fitsAbove) {
+      top = targetRect.top - popoverHeight - margin;
+    } else if ((preferred === 'bottom' || preferred === 'top') && fitsBelow) {
+      top = targetRect.bottom + margin;
+    } else if (fitsAbove) {
+      top = targetRect.top - popoverHeight - margin;
+    } else if (fitsRight) {
+      left = targetRect.right + margin;
+      top = Math.max(70, Math.min(targetRect.top, window.innerHeight - popoverHeight - 16));
+    } else if (fitsLeft) {
+      left = targetRect.left - popoverWidth - margin;
+      top = Math.max(70, Math.min(targetRect.top, window.innerHeight - popoverHeight - 16));
+    } else {
+      // Pick side with maximum vertical clearance
+      const spaceAbove = targetRect.top;
+      const spaceBelow = window.innerHeight - targetRect.bottom;
+      if (spaceAbove >= spaceBelow) {
+        top = Math.max(70, targetRect.top - popoverHeight - margin);
+      } else {
+        top = Math.min(window.innerHeight - popoverHeight - 16, targetRect.bottom + margin);
+      }
     }
 
     popoverStyle = {
       ...popoverStyle,
-      top: `${top}px`,
-      left: `${left}px`,
+      top: `${Math.round(top)}px`,
+      left: `${Math.round(left)}px`,
       width: `${popoverWidth}px`,
     };
   } else {
@@ -201,6 +259,7 @@ export function GuidedTourModal({
 
   return (
     <div
+      id="guided-tour-modal"
       className="fixed inset-0 z-[100] select-none pointer-events-none"
       role="dialog"
       aria-modal="true"
@@ -242,6 +301,7 @@ export function GuidedTourModal({
       {/* Target Spotlight Highlight Ring Outline */}
       {targetRect && (
         <div
+          id="guided-tour-spotlight"
           className="fixed border-2 border-indigo-400 bg-indigo-500/10 rounded-2xl ring-4 ring-indigo-500/20 pointer-events-none animate-pulse"
           style={{
             top: `${spotY}px`,
@@ -255,6 +315,7 @@ export function GuidedTourModal({
 
       {/* Step Popover Card */}
       <div
+        id="guided-tour-popover"
         ref={modalRef}
         style={popoverStyle}
         className="bg-slate-900/95 border border-indigo-500/40 rounded-3xl p-5 sm:p-6 shadow-2xl shadow-indigo-950/80 text-white backdrop-blur-xl animate-in fade-in zoom-in-95 duration-200 pointer-events-auto"
@@ -277,6 +338,7 @@ export function GuidedTourModal({
           </div>
 
           <button
+            id="guided-tour-btn-exit"
             onClick={onClose}
             className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
             aria-label="Exit tour"
@@ -306,6 +368,7 @@ export function GuidedTourModal({
         {/* Action Controls */}
         <div className="flex items-center justify-between pt-3 border-t border-slate-800 gap-2">
           <button
+            id="guided-tour-btn-skip"
             onClick={handleSkip}
             className="text-xs text-slate-400 hover:text-slate-200 transition px-2 py-1.5 rounded-lg hover:bg-slate-800 cursor-pointer flex items-center gap-1"
           >
@@ -316,6 +379,7 @@ export function GuidedTourModal({
           <div className="flex items-center gap-2">
             {!isFirstStep && (
               <button
+                id="guided-tour-btn-prev"
                 onClick={handlePrev}
                 className="px-3 py-1.5 rounded-xl border border-slate-700 bg-slate-800 text-xs font-semibold text-slate-200 hover:bg-slate-700 transition cursor-pointer flex items-center gap-1"
               >
@@ -325,6 +389,7 @@ export function GuidedTourModal({
             )}
 
             <button
+              id="guided-tour-btn-next"
               onClick={handleNext}
               className="px-4 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs font-bold text-white transition shadow-md shadow-indigo-600/30 cursor-pointer flex items-center gap-1"
             >

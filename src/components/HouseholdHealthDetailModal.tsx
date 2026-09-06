@@ -456,37 +456,37 @@ export function HouseholdHealthDetailModal({
                 <div className="p-3 bg-white rounded-xl border border-slate-200 space-y-1">
                   <span className="text-[10.5px] font-semibold text-slate-500">Properties</span>
                   <div className="text-lg font-bold text-slate-900">
-                    {healthReport.dataCompletenessDetails.propertiesCount}
+                    {healthReport.dataCompletenessDetails?.propertiesCount ?? 0}
                   </div>
                 </div>
                 <div className="p-3 bg-white rounded-xl border border-slate-200 space-y-1">
                   <span className="text-[10.5px] font-semibold text-slate-500">Rooms</span>
                   <div className="text-lg font-bold text-slate-900">
-                    {healthReport.dataCompletenessDetails.roomsCount}
+                    {healthReport.dataCompletenessDetails?.roomsCount ?? 0}
                   </div>
                 </div>
                 <div className="p-3 bg-white rounded-xl border border-slate-200 space-y-1">
                   <span className="text-[10.5px] font-semibold text-slate-500">Assets & Appliances</span>
                   <div className="text-lg font-bold text-slate-900">
-                    {healthReport.dataCompletenessDetails.assetsCount}
+                    {healthReport.dataCompletenessDetails?.assetsCount ?? 0}
                   </div>
                 </div>
                 <div className="p-3 bg-white rounded-xl border border-slate-200 space-y-1">
                   <span className="text-[10.5px] font-semibold text-slate-500">Warranties</span>
                   <div className="text-lg font-bold text-slate-900">
-                    {healthReport.dataCompletenessDetails.warrantiesCount}
+                    {healthReport.dataCompletenessDetails?.warrantiesCount ?? 0}
                   </div>
                 </div>
                 <div className="p-3 bg-white rounded-xl border border-slate-200 space-y-1">
                   <span className="text-[10.5px] font-semibold text-slate-500">Recurring Bills</span>
                   <div className="text-lg font-bold text-slate-900">
-                    {healthReport.dataCompletenessDetails.expensesCount}
+                    {healthReport.dataCompletenessDetails?.expensesCount ?? 0}
                   </div>
                 </div>
                 <div className="p-3 bg-white rounded-xl border border-slate-200 space-y-1">
                   <span className="text-[10.5px] font-semibold text-slate-500">Digitized Documents</span>
                   <div className="text-lg font-bold text-slate-900">
-                    {healthReport.dataCompletenessDetails.documentsCount}
+                    {healthReport.dataCompletenessDetails?.documentsCount ?? 0}
                   </div>
                 </div>
               </div>

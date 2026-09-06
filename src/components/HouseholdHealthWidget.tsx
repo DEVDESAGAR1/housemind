@@ -136,16 +136,16 @@ export function HouseholdHealthWidget({
   };
 
   // Critical or warning signals count
-  const criticalSignals = healthReport.topSignals.filter((s) => s.status === 'critical');
-  const warningSignals = healthReport.topSignals.filter((s) => s.status === 'warning');
+  const criticalSignals = (healthReport.topSignals || []).filter((s) => s.status === 'critical');
+  const warningSignals = (healthReport.topSignals || []).filter((s) => s.status === 'warning');
 
   const handleOpenWhyScore = () => {
-    const cats = healthReport.categories;
+    const cats = healthReport.categories || ({} as any);
     setActiveWhyEvidence({
       title: `Household Health Score: ${score}/100`,
       category: 'System Health Index',
       badge: {
-        label: isProvisionalEmpty ? 'Unrated' : healthReport.statusLabel,
+        label: isProvisionalEmpty ? 'Unrated' : healthReport.statusLabel || 'Operational',
         variant: score >= 80 ? 'success' : score >= 60 ? 'warning' : 'critical',
       },
       whatDetected: isProvisionalEmpty
@@ -162,7 +162,7 @@ export function HouseholdHealthWidget({
       whyItMatters:
         'Your Household Health Score is a deterministic index reflecting total operational stability, proactive warranty protection, debt ratios, and preventive maintenance compliance.',
       whatToDoNext:
-        healthReport.recommendations[0]?.description ||
+        healthReport.recommendations?.[0]?.description ||
         'Resolve overdue maintenance and register missing warranties to increase your score.',
       sources: [
         { title: 'Assets & Equipment', domain: 'assets', route: 'assets' },
@@ -179,7 +179,8 @@ export function HouseholdHealthWidget({
 
   return (
     <div
-      id="household-health-intelligence-widget"
+      id="command-center-health-widget"
+      data-tour="health-widget"
       className="bg-white rounded-3xl border border-slate-200/90 shadow-xs p-6 sm:p-7 space-y-6 relative overflow-hidden"
     >
       {/* Top Header */}
@@ -250,7 +251,11 @@ export function HouseholdHealthWidget({
       {/* Main Score & 4 Category Dimensions Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
         {/* Left: Big Score & Completeness */}
-        <div className="lg:col-span-4 bg-slate-50/70 rounded-2xl p-5 border border-slate-200/80 flex flex-col justify-between space-y-4">
+        <div
+          id="command-center-health-score"
+          data-tour="health-score"
+          className="lg:col-span-4 bg-slate-50/70 rounded-2xl p-5 border border-slate-200/80 flex flex-col justify-between space-y-4"
+        >
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Overall Score</span>
             <span className="text-[11px] font-semibold text-slate-600 bg-white px-2 py-0.5 rounded-md border border-slate-200">
@@ -332,8 +337,8 @@ export function HouseholdHealthWidget({
               ></div>
             </div>
             <div className="text-[10.5px] text-slate-500 flex items-center justify-between">
-              <span>{healthReport.dataCompletenessDetails.assetsCount} assets • {healthReport.dataCompletenessDetails.expensesCount} bills</span>
-              <span>{healthReport.dataCompletenessDetails.propertiesCount} properties</span>
+              <span>{healthReport.dataCompletenessDetails?.assetsCount ?? 0} assets • {healthReport.dataCompletenessDetails?.expensesCount ?? 0} bills</span>
+              <span>{healthReport.dataCompletenessDetails?.propertiesCount ?? 0} properties</span>
             </div>
           </div>
         </div>
@@ -357,9 +362,9 @@ export function HouseholdHealthWidget({
               </div>
               <div className="text-right">
                 <span className="text-base font-bold text-slate-900">
-                  {isProvisionalEmpty && healthReport.dataCompletenessDetails.propertiesCount === 0
+                  {isProvisionalEmpty && (healthReport.dataCompletenessDetails?.propertiesCount ?? 0) === 0
                     ? '--'
-                    : healthReport.categories.home.score}
+                    : healthReport.categories?.home?.score ?? 0}
                 </span>
                 <span className="text-xs text-slate-400">/100</span>
               </div>
@@ -369,15 +374,15 @@ export function HouseholdHealthWidget({
                 className="bg-amber-500 h-full rounded-full"
                 style={{
                   width: `${
-                    isProvisionalEmpty && healthReport.dataCompletenessDetails.propertiesCount === 0
+                    isProvisionalEmpty && (healthReport.dataCompletenessDetails?.propertiesCount ?? 0) === 0
                       ? 10
-                      : healthReport.categories.home.score
+                      : healthReport.categories?.home?.score ?? 0
                   }%`,
                 }}
               ></div>
             </div>
             <p className="text-[11px] text-slate-600 line-clamp-1">
-              {healthReport.categories.home.summary}
+              {healthReport.categories?.home?.summary || 'Operational'}
             </p>
           </div>
 
@@ -398,9 +403,9 @@ export function HouseholdHealthWidget({
               </div>
               <div className="text-right">
                 <span className="text-base font-bold text-slate-900">
-                  {isProvisionalEmpty && healthReport.dataCompletenessDetails.assetsCount === 0
+                  {isProvisionalEmpty && (healthReport.dataCompletenessDetails?.assetsCount ?? 0) === 0
                     ? '--'
-                    : healthReport.categories.assets.score}
+                    : healthReport.categories?.assets?.score ?? 0}
                 </span>
                 <span className="text-xs text-slate-400">/100</span>
               </div>
@@ -410,15 +415,15 @@ export function HouseholdHealthWidget({
                 className="bg-blue-500 h-full rounded-full"
                 style={{
                   width: `${
-                    isProvisionalEmpty && healthReport.dataCompletenessDetails.assetsCount === 0
+                    isProvisionalEmpty && (healthReport.dataCompletenessDetails?.assetsCount ?? 0) === 0
                       ? 10
-                      : healthReport.categories.assets.score
+                      : healthReport.categories?.assets?.score ?? 0
                   }%`,
                 }}
               ></div>
             </div>
             <p className="text-[11px] text-slate-600 line-clamp-1">
-              {healthReport.categories.assets.summary}
+              {healthReport.categories?.assets?.summary || 'Operational'}
             </p>
           </div>
 
@@ -439,9 +444,9 @@ export function HouseholdHealthWidget({
               </div>
               <div className="text-right">
                 <span className="text-base font-bold text-slate-900">
-                  {isProvisionalEmpty && healthReport.dataCompletenessDetails.expensesCount === 0
+                  {isProvisionalEmpty && (healthReport.dataCompletenessDetails?.expensesCount ?? 0) === 0
                     ? '--'
-                    : healthReport.categories.finances.score}
+                    : healthReport.categories?.finances?.score ?? 0}
                 </span>
                 <span className="text-xs text-slate-400">/100</span>
               </div>
@@ -451,15 +456,15 @@ export function HouseholdHealthWidget({
                 className="bg-emerald-500 h-full rounded-full"
                 style={{
                   width: `${
-                    isProvisionalEmpty && healthReport.dataCompletenessDetails.expensesCount === 0
+                    isProvisionalEmpty && (healthReport.dataCompletenessDetails?.expensesCount ?? 0) === 0
                       ? 10
-                      : healthReport.categories.finances.score
+                      : healthReport.categories?.finances?.score ?? 0
                   }%`,
                 }}
               ></div>
             </div>
             <p className="text-[11px] text-slate-600 line-clamp-1">
-              {healthReport.categories.finances.summary}
+              {healthReport.categories?.finances?.summary || 'Operational'}
             </p>
           </div>
 
@@ -480,9 +485,9 @@ export function HouseholdHealthWidget({
               </div>
               <div className="text-right">
                 <span className="text-base font-bold text-slate-900">
-                  {isProvisionalEmpty && healthReport.dataCompletenessDetails.documentsCount === 0
+                  {isProvisionalEmpty && (healthReport.dataCompletenessDetails?.documentsCount ?? 0) === 0
                     ? '--'
-                    : healthReport.categories.documents.score}
+                    : healthReport.categories?.documents?.score ?? 0}
                 </span>
                 <span className="text-xs text-slate-400">/100</span>
               </div>
@@ -492,22 +497,22 @@ export function HouseholdHealthWidget({
                 className="bg-indigo-500 h-full rounded-full"
                 style={{
                   width: `${
-                    isProvisionalEmpty && healthReport.dataCompletenessDetails.documentsCount === 0
+                    isProvisionalEmpty && (healthReport.dataCompletenessDetails?.documentsCount ?? 0) === 0
                       ? 10
-                      : healthReport.categories.documents.score
+                      : healthReport.categories?.documents?.score ?? 0
                   }%`,
                 }}
               ></div>
             </div>
             <p className="text-[11px] text-slate-600 line-clamp-1">
-              {healthReport.categories.documents.summary}
+              {healthReport.categories?.documents?.summary || 'Operational'}
             </p>
           </div>
         </div>
       </div>
 
       {/* Top Priority Action Recommendations */}
-      {healthReport.recommendations.length > 0 && (
+      {Boolean(healthReport.recommendations && healthReport.recommendations.length > 0) && (
         <div className="bg-slate-50/80 rounded-2xl p-4 border border-slate-200/80 space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
@@ -519,7 +524,7 @@ export function HouseholdHealthWidget({
               onClick={onOpenDetailModal}
               className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 transition cursor-pointer"
             >
-              View all ({healthReport.recommendations.length}) →
+              View all ({healthReport.recommendations?.length || 0}) →
             </button>
           </div>
 

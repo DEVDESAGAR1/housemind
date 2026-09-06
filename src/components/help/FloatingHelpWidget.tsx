@@ -8,20 +8,33 @@ import {
   ChevronRight,
   Bot,
   Maximize2,
+  Plus,
+  RefreshCw,
 } from 'lucide-react';
 import { NavigationTab } from '../Navbar';
 import { api } from '../../lib/api';
 import { ChatMessage } from '../../types';
 import { HELP_ARTICLES } from './helpData';
 import { CopilotChatContainer } from '../copilot/CopilotChatContainer';
+import { CopilotActionInput } from '../../utils/copilotActionResolver';
 
 interface FloatingHelpWidgetProps {
-  onNavigate: (tab: NavigationTab) => void;
+  onNavigate: (tab: NavigationTab, subTab?: string, entityId?: string) => void;
+  onExecuteAction?: (action: CopilotActionInput) => void;
+  onRefreshHouseholdData?: () => void;
   activeTab?: NavigationTab;
   onOpenTour?: (tourId: string) => void;
+  onRefreshNotifications?: () => void;
 }
 
-export function FloatingHelpWidget({ onNavigate, activeTab, onOpenTour }: FloatingHelpWidgetProps) {
+export function FloatingHelpWidget({
+  onNavigate,
+  onExecuteAction,
+  onRefreshHouseholdData,
+  activeTab,
+  onOpenTour,
+  onRefreshNotifications,
+}: FloatingHelpWidgetProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [activeMode, setActiveMode] = useState<'copilot' | 'help'>('copilot');
 
@@ -115,9 +128,28 @@ export function FloatingHelpWidget({ onNavigate, activeTab, onOpenTour }: Floati
         return next;
       });
 
-      if (executionResult.actionType === 'navigateTab' && executionResult.postState?.tab) {
-        setIsOpen(false);
-        onNavigate(executionResult.postState.tab as NavigationTab);
+      if (executionResult.success) {
+        if (executionResult.actionType === 'navigateTab' && executionResult.postState?.tab) {
+          setIsOpen(false);
+          if (onExecuteAction) {
+            onExecuteAction({
+              actionType: 'navigate',
+              tab: executionResult.postState.tab,
+              subTab: executionResult.postState.subTab,
+              entityId: executionResult.postState.entityId,
+            });
+          } else {
+            onNavigate(executionResult.postState.tab as NavigationTab, executionResult.postState.subTab, executionResult.postState.entityId);
+          }
+        } else if (
+          executionResult.actionType === 'markNotificationRead' ||
+          executionResult.actionType === 'markAllNotificationsRead'
+        ) {
+          onRefreshNotifications?.();
+        } else {
+          onRefreshHouseholdData?.();
+          onRefreshNotifications?.();
+        }
       }
     } catch (err: any) {
       console.error('Failed to approve action in floating widget:', err);
@@ -166,7 +198,11 @@ export function FloatingHelpWidget({ onNavigate, activeTab, onOpenTour }: Floati
         {!isOpen && (
           <button
             id="floating-help-widget-btn"
-            onClick={() => setIsOpen(true)}
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              setIsOpen(true);
+            }}
             className="group inline-flex items-center gap-2.5 px-4 py-3 rounded-full bg-gradient-to-r from-indigo-600 via-indigo-600 to-slate-900 text-white shadow-xl shadow-indigo-600/30 hover:shadow-indigo-600/50 hover:scale-102 transition-all cursor-pointer border border-indigo-400/30 active:scale-98"
             title="Ask HouseMind Copilot & Quick Help"
           >
@@ -202,6 +238,21 @@ export function FloatingHelpWidget({ onNavigate, activeTab, onOpenTour }: Floati
             </div>
 
             <div className="flex items-center gap-1">
+              {activeMode === 'copilot' && (
+                <button
+                  id="floating-help-new-chat-btn"
+                  onClick={() => {
+                    setMessages([]);
+                    setConversationId(null);
+                    setChatError(null);
+                    setLastFailedQuery(null);
+                  }}
+                  className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition cursor-pointer"
+                  title="New Chat / Reset Conversation"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                </button>
+              )}
               <button
                 onClick={() => {
                   setIsOpen(false);
@@ -260,9 +311,21 @@ export function FloatingHelpWidget({ onNavigate, activeTab, onOpenTour }: Floati
                 onSendMessage={handleSendMessage}
                 onApproveAction={handleApproveAction}
                 onCancelAction={handleCancelAction}
-                onNavigateTab={(tab) => {
+                onNavigateTab={(tab, subTab, entityId) => {
                   setIsOpen(false);
-                  onNavigate(tab as NavigationTab);
+                  if (onExecuteAction) {
+                    onExecuteAction({ actionType: 'view', tab, subTab, entityId });
+                  } else {
+                    onNavigate(tab as NavigationTab, subTab, entityId);
+                  }
+                }}
+                onExecuteAction={(action) => {
+                  setIsOpen(false);
+                  if (onExecuteAction) {
+                    onExecuteAction(action);
+                  } else {
+                    onNavigate(action.tab as NavigationTab, action.subTab, action.entityId);
+                  }
                 }}
                 isCompact={true}
                 executingActionId={executingActionId}

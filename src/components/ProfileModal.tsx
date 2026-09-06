@@ -1315,7 +1315,7 @@ export function ProfileModal({
                     Data Governance & Deletion Controls
                   </h4>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    You have total ownership over your data. Delete sample starter records or perform a complete wipe.
+                    You have total ownership over your data. Delete sample demo records or perform a complete wipe.
                   </p>
                 </div>
 

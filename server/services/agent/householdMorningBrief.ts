@@ -14,7 +14,13 @@ import {
   AgentToolAuditRecord,
   AgentAuditMetadata,
 } from '../../../src/types';
-import { getGeminiApiKey, getGeminiModel } from '../../config/secrets';
+import {
+  getGeminiApiKey,
+  getGeminiModel,
+  isGeminiQuotaExhausted,
+  recordGeminiQuotaExhausted,
+  isResourceExhaustedError,
+} from '../../config/secrets';
 
 // Lazy-initialized Gemini Client
 let genAIClient: GoogleGenAI | null = null;
@@ -47,6 +53,28 @@ export class HouseholdMorningBriefService {
     const todayStr = timestamp.split('T')[0];
     const sevenDaysDate = new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0];
 
+    const safeExecute = async (toolName: any, params?: any) => {
+      try {
+        return await ToolExecutor.executeTool(userId, toolName, params);
+      } catch (err: any) {
+        return {
+          toolName,
+          category: 'READ' as const,
+          status: 'error' as const,
+          error: String(err?.message || err),
+          data: {},
+          auditRecord: {
+            toolName,
+            category: 'READ' as const,
+            status: 'error' as const,
+            executionTimeMs: 0,
+            denialReason: String(err?.message || err),
+            paramsSummary: {},
+          },
+        };
+      }
+    };
+
     // 1. Gather context from all safe read-only tools and database services in parallel
     const [
       profile,
@@ -62,26 +90,24 @@ export class HouseholdMorningBriefService {
       maintenancesList,
     ] = await Promise.all([
       DatabaseService.getProfile(userId).catch(() => null),
-      ToolExecutor.executeTool(userId, 'getHouseholdHealth'),
-      ToolExecutor.executeTool(userId, 'getUpcomingObligations', { days: 14 }),
-      ToolExecutor.executeTool(userId, 'getOverdueMaintenance'),
-      ToolExecutor.executeTool(userId, 'getFinancialSummary'),
-      ToolExecutor.executeTool(userId, 'getExpiringWarrantiesAndDocuments', { daysAhead: 60 }),
-      ToolExecutor.executeTool(userId, 'getRecentNotifications', { unreadOnly: true }),
+      safeExecute('getHouseholdHealth'),
+      safeExecute('getUpcomingObligations', { days: 14 }),
+      safeExecute('getOverdueMaintenance'),
+      safeExecute('getFinancialSummary'),
+      safeExecute('getExpiringWarrantiesAndDocuments', { daysAhead: 60 }),
+      safeExecute('getRecentNotifications', { unreadOnly: true }),
       UnifiedHouseholdActionService.getUnifiedActions(userId, { limit: 5 }).catch(() => null),
       DatabaseService.listIssues(userId).catch(() => []),
       DatabaseService.listExpenses(userId).catch(() => []),
       DatabaseService.listMaintenances(userId).catch(() => []),
     ]);
 
-    toolAuditRecords.push(
-      healthExec.auditRecord,
-      obligationsExec.auditRecord,
-      maintenanceExec.auditRecord,
-      financeExec.auditRecord,
-      warrantiesExec.auditRecord,
-      notificationsExec.auditRecord
-    );
+    if (healthExec?.auditRecord) toolAuditRecords.push(healthExec.auditRecord);
+    if (obligationsExec?.auditRecord) toolAuditRecords.push(obligationsExec.auditRecord);
+    if (maintenanceExec?.auditRecord) toolAuditRecords.push(maintenanceExec.auditRecord);
+    if (financeExec?.auditRecord) toolAuditRecords.push(financeExec.auditRecord);
+    if (warrantiesExec?.auditRecord) toolAuditRecords.push(warrantiesExec.auditRecord);
+    if (notificationsExec?.auditRecord) toolAuditRecords.push(notificationsExec.auditRecord);
 
     const homeName = profile?.homeName || 'My Household';
     const healthData = healthExec.data || {};
@@ -139,6 +165,10 @@ export class HouseholdMorningBriefService {
           urgency: 'critical',
           reason: notif.message,
           actionTab: notif.targetTab || 'notifications',
+          subTab: notif.subTab,
+          entityId: notif.targetId || notif.entityId || notif.id,
+          dueDate: notif.relevantDate || notif.dueDate,
+          currency,
           actionLabel: 'Review Alert',
         });
       }
@@ -662,6 +692,11 @@ ${watchList}
 **Recommended First Action:** ${recommendedFirstAction?.title || 'Perform preventative check'} (${recommendedFirstAction?.reason || ''})`;
     };
 
+    // Check circuit breaker and key availability before invoking upstream AI
+    if (!getGeminiApiKey() || isGeminiQuotaExhausted()) {
+      return buildFallbackText();
+    }
+
     // Attempt Gemini synthesis
     const client = getGeminiClient();
     const modelName = getGeminiModel('gemini-2.5-flash');
@@ -700,6 +735,8 @@ RULES:
           temperature: 0.2,
         },
       });
+      // Prevent unhandled promise rejection if timeout fires first
+      generatePromise.catch(() => {});
 
       const timeoutPromise = new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error('Morning brief AI timeout (>3.5s)')), 3500)
@@ -712,7 +749,13 @@ RULES:
       }
       throw new Error('Empty Gemini response received');
     } catch (err: any) {
-      console.warn('[MORNING BRIEF] Using deterministic fallback narrative:', err?.message || String(err));
+      const errStr = err?.message || String(err);
+      if (isResourceExhaustedError(err)) {
+        recordGeminiQuotaExhausted(5 * 60 * 1000); // 5-minute circuit breaker
+        console.warn('[MORNING BRIEF] AI quota/credits depleted (429/RESOURCE_EXHAUSTED). Gracefully using factual fallback narrative.');
+      } else {
+        console.warn('[MORNING BRIEF] Using deterministic fallback narrative:', errStr);
+      }
       return buildFallbackText();
     }
   }

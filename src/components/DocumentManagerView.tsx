@@ -171,7 +171,7 @@ export const DocumentManagerView: React.FC<DocumentManagerViewProps> = ({
   return (
     <div className="space-y-8 pb-12">
       {/* Header */}
-      <div>
+      <div id="documents-page-header" data-tour="documents-manager">
         <div className="flex items-center gap-2.5">
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">
             Financial & Household Document Intelligence
@@ -225,6 +225,8 @@ export const DocumentManagerView: React.FC<DocumentManagerViewProps> = ({
 
         {/* Drag & Drop Area */}
         <div
+          id="doc-manager-upload-dropzone"
+          data-tour="upload-area"
           onDragEnter={handleDrag}
           onDragLeave={handleDrag}
           onDragOver={handleDrag}

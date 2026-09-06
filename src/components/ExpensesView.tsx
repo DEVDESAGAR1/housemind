@@ -169,7 +169,11 @@ export function ExpensesView({
   return (
     <div className="space-y-6 animate-in fade-in">
       {/* Header & Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div
+        id="expenses-page-header"
+        data-tour="expenses-manager"
+        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
+      >
         <div>
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Household Expenses & Bills</h1>
           <p className="text-xs text-slate-500 mt-0.5">Manage recurring utilities, maintenance costs, and home services.</p>

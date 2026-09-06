@@ -152,7 +152,16 @@ export function isAllowedOrigin(origin?: string): boolean {
     return false;
   }
 
-  const trustedSuffixes = ['ai.studio', 'run.app', 'web.app', 'firebaseapp.com'];
+  const trustedSuffixes = [
+    'ai.studio',
+    'googleusercontent.com',
+    'usercontent.goog',
+    'google.com',
+    'cloudworkstations.dev',
+    'run.app',
+    'web.app',
+    'firebaseapp.com',
+  ];
   for (const suffix of trustedSuffixes) {
     if (hostname === suffix || hostname.endsWith(`.${suffix}`)) {
       return true;

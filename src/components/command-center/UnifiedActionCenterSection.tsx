@@ -217,7 +217,8 @@ export function UnifiedActionCenterSection({
 
   return (
     <div
-      id="unified-action-center-section"
+      id="command-center-unified-actions"
+      data-tour="unified-actions"
       className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-7 shadow-xs space-y-6 relative overflow-hidden"
     >
       {/* Background Glow */}

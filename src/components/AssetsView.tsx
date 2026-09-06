@@ -310,7 +310,11 @@ export function AssetsView({
   return (
     <div className="space-y-6 animate-in fade-in">
       {/* Header & Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div
+        id="assets-page-header"
+        data-tour="assets-inventory"
+        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
+      >
         <div>
           <div className="flex items-center gap-2.5">
             <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Home Assets & Appliances</h1>

@@ -418,7 +418,11 @@ export function MaintenanceWarrantiesView({
   return (
     <div className="space-y-6">
       {/* Header & Primary Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div
+        id="maintenance-page-header"
+        data-tour="maintenance-manager"
+        className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+      >
         <div>
           <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
             <Wrench className="w-6 h-6 text-indigo-600" />
@@ -861,20 +865,22 @@ export function MaintenanceWarrantiesView({
 
       {/* Household Issues / Tickets Sub-Tab */}
       {activeSubTab === 'issues' && (
-        <HouseholdIssuesTab
-          issues={issues}
-          assets={assets}
-          properties={properties}
-          rooms={rooms}
-          warranties={warranties}
-          currency={currency}
-          onRefresh={async () => {
-            await onRefresh();
-          }}
-          addToast={addToast}
-          initialIssueId={targetedEntityId}
-          onClearInitialIssue={onClearTargetedEntity}
-        />
+        <div id="issues-manager-container" data-tour="maintenance-issues">
+          <HouseholdIssuesTab
+            issues={issues}
+            assets={assets}
+            properties={properties}
+            rooms={rooms}
+            warranties={warranties}
+            currency={currency}
+            onRefresh={async () => {
+              await onRefresh();
+            }}
+            addToast={addToast}
+            initialIssueId={targetedEntityId}
+            onClearInitialIssue={onClearTargetedEntity}
+          />
+        </div>
       )}
 
       {/* Top Level Issue Modal Trigger */}

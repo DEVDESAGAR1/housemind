@@ -31,42 +31,42 @@ export const HOUSEMIND_TOURS: Record<string, GuidedTour> = {
         tab: 'dashboard',
       },
       {
-        targetSelector: '#nav-tab-dashboard',
+        targetSelector: '#nav-dashboard-tab, #nav-tab-dashboard, [data-tour="nav-dashboard"]',
         tab: 'dashboard',
         title: 'Command Center',
         description: 'Your daily cockpit. See critical obligations, overdue tasks, household health status, and urgent issues needing attention at a single glance.',
         placement: 'bottom',
       },
       {
-        targetSelector: '#nav-tab-assets',
+        targetSelector: '#nav-assets-group-btn, #nav-assets-tab, #nav-tab-assets, [data-tour="nav-assets"]',
         tab: 'assets',
         title: 'Properties & Assets',
         description: 'Catalog your physical spaces, rooms, and high-value appliances with purchase dates, warranty lifespans, and spatial relationships.',
         placement: 'bottom',
       },
       {
-        targetSelector: '#nav-tab-maintenance',
+        targetSelector: '#nav-home-group-btn, #nav-maintenance-tab, #nav-tab-maintenance, [data-tour="nav-maintenance"]',
         tab: 'maintenance',
         title: 'Maintenance & Warranties',
         description: 'Track recurring service schedules, active warranty coverage, and open repair tickets with step-by-step diagnostic checklists.',
         placement: 'bottom',
       },
       {
-        targetSelector: '#nav-tab-expenses',
+        targetSelector: '#nav-finances-group-btn, #nav-item-expenses, #nav-tab-expenses, [data-tour="nav-expenses"]',
         tab: 'expenses',
         title: 'Finances & Commitments',
         description: 'Consolidate recurring utility bills, loan amortizations, credit cards, and cash flow obligations with real-time currency conversions.',
         placement: 'bottom',
       },
       {
-        targetSelector: '#nav-tab-documents',
+        targetSelector: '#nav-more-menu-btn, #nav-documents-tab, #nav-tab-documents, [data-tour="nav-documents"]',
         tab: 'documents',
         title: 'Upload & Scan Vault',
         description: 'Extract structure from receipts, invoices, and warranties using zero-trust local OCR and entity mapping.',
         placement: 'bottom',
       },
       {
-        targetSelector: '#nav-tab-copilot',
+        targetSelector: '#nav-more-menu-btn, #nav-copilot-tab, #nav-tab-copilot, #copilot-page-header, [data-tour="nav-copilot"]',
         tab: 'copilot',
         title: 'Household Copilot',
         description: 'Ask natural-language questions grounded in verified household data with deterministic facts and cited sources.',
@@ -88,7 +88,7 @@ export const HOUSEMIND_TOURS: Record<string, GuidedTour> = {
         placement: 'center',
       },
       {
-        targetSelector: '#command-center-health-widget',
+        targetSelector: '#command-center-health-score, #command-center-health-widget, [data-tour="health-score"]',
         tab: 'dashboard',
         title: 'Household Health Score',
         description: 'A composite 0–100 score across 4 pillars. Click any pillar to inspect underlying signals, positive habits, and steps to improve household reliability.',
@@ -124,7 +124,7 @@ export const HOUSEMIND_TOURS: Record<string, GuidedTour> = {
         placement: 'center',
       },
       {
-        targetSelector: '#command-center-health-widget',
+        targetSelector: '#command-center-health-score, #command-center-health-widget, [data-tour="health-score"]',
         tab: 'dashboard',
         title: 'Health Breakdown',
         description: 'Click the health score at any time to inspect specific risk factors, positive habits, and actionable steps to raise your score.',
@@ -146,7 +146,7 @@ export const HOUSEMIND_TOURS: Record<string, GuidedTour> = {
         placement: 'center',
       },
       {
-        targetSelector: '#nav-global-upload-btn',
+        targetSelector: '#nav-global-upload-btn, #add-opt-document, #doc-manager-upload-dropzone, [data-tour="upload-area"]',
         tab: 'documents',
         title: 'Universal Upload',
         description: 'Click "Upload" from any screen to drop tax invoices, warranty cards, or service slips for automated ingestion.',
@@ -168,14 +168,14 @@ export const HOUSEMIND_TOURS: Record<string, GuidedTour> = {
     category: 'core',
     steps: [
       {
-        targetSelector: '#nav-tab-assets',
+        targetSelector: '#nav-assets-group-btn, #nav-assets-tab, #nav-tab-assets, [data-tour="nav-assets"]',
         tab: 'assets',
         title: 'Asset Inventory',
         description: 'Keep detailed specs for HVAC, major appliances, water purification, and electronics with purchase receipts and serial numbers.',
         placement: 'bottom',
       },
       {
-        targetSelector: '#nav-tab-maintenance',
+        targetSelector: '#nav-home-group-btn, #nav-maintenance-tab, #nav-tab-maintenance, [data-tour="nav-maintenance"]',
         tab: 'maintenance',
         subTab: 'issues',
         title: 'Issue & Ticket Management',
@@ -192,14 +192,14 @@ export const HOUSEMIND_TOURS: Record<string, GuidedTour> = {
     category: 'financial',
     steps: [
       {
-        targetSelector: '#nav-tab-expenses',
+        targetSelector: '#nav-finances-group-btn, #nav-item-expenses, #nav-tab-expenses, [data-tour="nav-expenses"]',
         tab: 'expenses',
         title: 'Expenses & Budget Burn Rate',
         description: 'Track recurring household cash outflows with automated categorization and multi-currency support.',
         placement: 'bottom',
       },
       {
-        targetSelector: '#nav-tab-utilities',
+        targetSelector: '#nav-home-group-btn, #nav-utilities-tab, #nav-tab-utilities, [data-tour="nav-utilities"]',
         tab: 'utilities',
         title: 'Utilities, Loans & Cards',
         description: 'Manage power, water, gas providers alongside housing loans and credit card payment milestones in one place.',
@@ -215,14 +215,14 @@ export const HOUSEMIND_TOURS: Record<string, GuidedTour> = {
     category: 'core',
     steps: [
       {
-        targetSelector: '#nav-tab-calendar',
+        targetSelector: '#nav-calendar-tab, #nav-more-menu-btn, #nav-tab-calendar, [data-tour="nav-calendar"]',
         tab: 'calendar',
         title: 'Household Unified Calendar',
         description: 'All maintenance service visits, bill payment dates, and warranty expiries merged into one consolidated timeline.',
         placement: 'bottom',
       },
       {
-        targetSelector: '#nav-notifications-btn',
+        targetSelector: '#nav-notifications-btn, [data-tour="notifications-bell"]',
         tab: 'dashboard',
         title: 'Notification Center',
         description: 'Categorized alerts with one-click deep linking directly to the affected asset, warranty, or financial record.',
@@ -238,7 +238,7 @@ export const HOUSEMIND_TOURS: Record<string, GuidedTour> = {
     category: 'intelligence',
     steps: [
       {
-        targetSelector: '#command-center-unified-actions',
+        targetSelector: '#command-center-unified-actions, [data-tour="unified-actions"]',
         tab: 'dashboard',
         title: 'Action Engine',
         description: 'Unified actions surface deduplicated recommendations based on real-time household telemetry with full explainability.',
@@ -284,7 +284,7 @@ export const HOUSEMIND_TOURS: Record<string, GuidedTour> = {
     category: 'intelligence',
     steps: [
       {
-        targetSelector: '#nav-tab-copilot',
+        targetSelector: '#nav-more-menu-btn, #nav-copilot-tab, #nav-tab-copilot, #copilot-page-header, [data-tour="nav-copilot"]',
         tab: 'copilot',
         title: 'Grounded Household Chat',
         description: 'Ask questions like "When is my AC warranty expiring?" or "What bills are due this week?". Every answer cites exact source records.',

@@ -26,6 +26,7 @@ import {
 import { DeleteConfirmModal } from './DeleteConfirmModal';
 import { CopilotChatContainer } from './copilot/CopilotChatContainer';
 import { trackEvent } from '../lib/analytics';
+import { CopilotActionInput } from '../utils/copilotActionResolver';
 
 export interface CopilotViewProps {
   profile: HouseholdProfile | null;
@@ -35,6 +36,8 @@ export interface CopilotViewProps {
   initialPrompt?: string;
   initialDomain?: string;
   onRefreshNotifications?: () => void;
+  onRefreshHouseholdData?: () => void;
+  onExecuteAction?: (action: CopilotActionInput) => void;
 }
 
 export const CopilotView: React.FC<CopilotViewProps> = ({
@@ -45,9 +48,17 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
   initialPrompt,
   initialDomain,
   onRefreshNotifications,
+  onRefreshHouseholdData,
+  onExecuteAction,
 }) => {
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
-  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem('housemind_active_copilot_conv_id') || null;
+    } catch {
+      return null;
+    }
+  });
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingConvs, setIsLoadingConvs] = useState(false);
@@ -56,6 +67,8 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
   const [deletingConv, setDeletingConv] = useState<ConversationSummary | null>(null);
   const [isDeletingConv, setIsDeletingConv] = useState(false);
   const [executingActionId, setExecutingActionId] = useState<string | null>(null);
+  const [aiStatus, setAiStatus] = useState<{ status: 'available' | 'unavailable' | 'not_configured' } | null>(null);
+  const [isMobileHistoryOpen, setIsMobileHistoryOpen] = useState(false);
 
   // Agent Activity Timeline State
   const [showActivityModal, setShowActivityModal] = useState(false);
@@ -65,10 +78,13 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
 
   const executedInitialPromptRef = useRef<string | null>(null);
 
-  // Load conversation list on mount & track open
+  // Load conversation list and AI availability status on mount & track open
   useEffect(() => {
     trackEvent('copilot_opened');
     loadConversations();
+    api.getAiStatus()
+      .then((res) => setAiStatus({ status: res.status }))
+      .catch(() => setAiStatus({ status: 'unavailable' }));
   }, []);
 
   // Handle initial contextual prompt if provided
@@ -79,11 +95,30 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
     }
   }, [initialPrompt]);
 
+  useEffect(() => {
+    if (!isMobileHistoryOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsMobileHistoryOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isMobileHistoryOpen]);
+
   const loadConversations = async () => {
     try {
       setIsLoadingConvs(true);
       const list = await api.getCopilotConversations();
       setConversations(list);
+      if (activeConversationId) {
+        const found = list.find((c) => c.id === activeConversationId);
+        if (found) {
+          api.getCopilotConversation(found.id).then((detail) => {
+            if (detail?.messages) setMessages(detail.messages);
+          }).catch(() => {});
+        }
+      }
     } catch (err: any) {
       console.error('Failed to load copilot conversations:', err);
     } finally {
@@ -105,12 +140,15 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
 
   // Switch or load a specific conversation
   const handleSelectConversation = async (convId: string) => {
-    if (convId === activeConversationId) return;
+    if (convId === activeConversationId && messages.length > 0) return;
     try {
       setIsLoading(true);
       setChatError(null);
       setLastFailedQuery(null);
       setActiveConversationId(convId);
+      try {
+        localStorage.setItem('housemind_active_copilot_conv_id', convId);
+      } catch {}
       const detail = await api.getCopilotConversation(convId);
       setMessages(detail.messages || []);
     } catch (err: any) {
@@ -124,6 +162,9 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
   // Start a fresh conversation
   const handleNewConversation = () => {
     setActiveConversationId(null);
+    try {
+      localStorage.removeItem('housemind_active_copilot_conv_id');
+    } catch {}
     setMessages([]);
     setChatError(null);
     setLastFailedQuery(null);
@@ -199,6 +240,9 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
 
       if (!activeConversationId && response.conversationId) {
         setActiveConversationId(response.conversationId);
+        try {
+          localStorage.setItem('housemind_active_copilot_conv_id', response.conversationId);
+        } catch {}
       }
 
       // Refresh conversations list to update titles/ordering
@@ -234,11 +278,26 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
         return next;
       });
 
-      // If navigation action and target tab is specified, trigger navigation
-      if (executionResult.actionType === 'navigateTab' && executionResult.postState?.tab) {
-        onNavigateTab(executionResult.postState.tab);
-      } else if (executionResult.actionType === 'markNotificationRead' || executionResult.actionType === 'markAllNotificationsRead') {
-        onRefreshNotifications?.();
+      // Truthful post-action updates: refresh household state and trigger navigation if requested
+      if (executionResult.success) {
+        if (executionResult.actionType === 'navigateTab' && executionResult.postState?.tab) {
+          if (onExecuteAction) {
+            onExecuteAction({
+              actionType: 'navigate',
+              tab: executionResult.postState.tab,
+              subTab: executionResult.postState.subTab,
+              entityId: executionResult.postState.entityId,
+            });
+          } else {
+            onNavigateTab(executionResult.postState.tab, executionResult.postState.subTab, executionResult.postState.entityId);
+          }
+        } else if (executionResult.actionType === 'markNotificationRead' || executionResult.actionType === 'markAllNotificationsRead') {
+          onRefreshNotifications?.();
+        } else {
+          // Entity mutations: tasks, issues, expenses, etc.
+          onRefreshHouseholdData?.();
+          onRefreshNotifications?.();
+        }
       }
     } catch (err: any) {
       console.error('Failed to approve action:', err);
@@ -280,6 +339,15 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
     .toFixed(0);
 
   const handleNavigateFromCopilot = (tab: string, subTab?: string, entityIdentifier?: string) => {
+    if (onExecuteAction) {
+      onExecuteAction({
+        actionType: 'view',
+        tab,
+        subTab,
+        entityId: entityIdentifier,
+      });
+      return;
+    }
     let resolvedEntityId = entityIdentifier;
     if (entityIdentifier) {
       const lower = entityIdentifier.toLowerCase();
@@ -299,19 +367,36 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-150">
+    <div className="space-y-5 animate-in fade-in duration-150">
       {/* 1. Header & Grounding Context Bar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div
+        id="copilot-page-header"
+        data-tour="copilot-assistant"
+        className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 rounded-2xl bg-white border border-slate-200/80 shadow-xs"
+      >
         <div>
           <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
-            <Sparkles className="w-6 h-6 text-indigo-600" />
-            <span>HouseMind Copilot</span>
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/60">
-              Gemini Intelligence
+            <span className="p-2 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100 shadow-2xs">
+              <Sparkles className="w-5 h-5" />
             </span>
+            <span>HouseMind Copilot</span>
+            {aiStatus?.status === 'available' ? (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/60">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                AI Active
+              </span>
+            ) : aiStatus?.status === 'not_configured' ? (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+                AI Not Configured
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200/60">
+                AI Unavailable
+              </span>
+            )}
           </h1>
-          <p className="text-xs text-slate-500 mt-1">
-            Grounded on your verified household database, appliances, and recurring bills.
+          <p className="text-xs text-slate-500 mt-1.5">
+            Autonomous, grounded intelligence for your home appliances, maintenance, bills, and warranty protection.
           </p>
         </div>
 
@@ -319,18 +404,18 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
         <div className="flex flex-wrap items-center gap-2 text-xs">
           <button
             onClick={() => onNavigateTab('dashboard')}
-            className="flex items-center space-x-1.5 px-2.5 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg text-slate-700 transition cursor-pointer"
+            className="flex items-center space-x-1.5 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-slate-700 transition cursor-pointer"
             title="Current Home Profile"
           >
             <Building className="w-3.5 h-3.5 text-indigo-600" />
-            <span className="font-medium truncate max-w-[120px]">
+            <span className="font-semibold text-slate-900 truncate max-w-[130px]">
               {profile?.homeName || 'Maplewood'}
             </span>
           </button>
 
           <button
             onClick={() => onNavigateTab('expenses')}
-            className="flex items-center space-x-1.5 px-2.5 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg text-slate-700 transition cursor-pointer"
+            className="flex items-center space-x-1.5 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-slate-700 transition cursor-pointer"
             title="Expenses Grounded"
           >
             <CreditCard className="w-3.5 h-3.5 text-emerald-600" />
@@ -343,7 +428,7 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
 
           <button
             onClick={() => onNavigateTab('assets')}
-            className="flex items-center space-x-1.5 px-2.5 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg text-slate-700 transition cursor-pointer"
+            className="flex items-center space-x-1.5 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-slate-700 transition cursor-pointer"
             title="Assets Grounded"
           >
             <Wrench className="w-3.5 h-3.5 text-amber-600" />
@@ -354,11 +439,12 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
 
           <button
             id="btn-open-agent-activity"
+            data-tour="agent-activity"
             onClick={() => {
               setShowActivityModal(true);
               loadActivityTimeline();
             }}
-            className="flex items-center space-x-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-800 rounded-lg font-medium transition cursor-pointer shadow-2xs"
+            className="flex items-center space-x-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 rounded-xl font-semibold transition cursor-pointer shadow-2xs"
             title="View Autonomous Agent Activity & Audit Trail"
           >
             <Activity className="w-3.5 h-3.5 text-indigo-600" />
@@ -368,33 +454,68 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
       </div>
 
       {/* 2. Main Chat Layout with Left Conversation Sidebar & Unified Chat Container */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 min-h-[640px]">
-        {/* Left Sidebar: Conversation History */}
-        <div className="lg:col-span-1 bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs flex flex-col justify-between h-[640px]">
-          <div>
-            <div className="flex items-center justify-between mb-3">
+      {/* Mobile History Control Bar */}
+      <div className="flex lg:hidden items-center justify-between gap-2 p-3 bg-white border border-slate-200/80 rounded-2xl shadow-xs">
+        <button
+          id="btn-mobile-conversations"
+          type="button"
+          onClick={() => setIsMobileHistoryOpen(true)}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl transition cursor-pointer"
+        >
+          <MessageSquare className="w-3.5 h-3.5 text-indigo-600" />
+          <span>Conversations ({conversations.length})</span>
+        </button>
+
+        <div className="flex items-center gap-1.5">
+          <button
+            id="btn-mobile-new-chat"
+            type="button"
+            onClick={handleNewConversation}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200/70 rounded-xl transition cursor-pointer"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>New Chat</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleNewConversation}
+            className="p-1.5 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-50 border border-slate-200 transition cursor-pointer"
+            title="Reset active chat"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-5 min-h-[580px] h-[calc(100vh-14rem)] max-h-[860px]">
+        {/* Left Sidebar: Conversation History (Desktop) */}
+        <div className="hidden lg:flex lg:col-span-1 bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs flex-col justify-between h-full overflow-hidden">
+          <div className="flex flex-col h-[calc(100%-48px)]">
+            <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
                 Conversations
               </span>
               <button
                 id="btn-new-chat"
                 onClick={handleNewConversation}
-                className="inline-flex items-center space-x-1 text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200/70 rounded-lg transition cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>New</span>
+                <span>New Chat</span>
               </button>
             </div>
 
             {/* Conversation List */}
-            <div className="space-y-1 overflow-y-auto max-h-[500px] pr-1">
+            <div className="space-y-1 overflow-y-auto flex-1 pr-1">
               {isLoadingConvs ? (
-                <div className="py-6 text-center text-xs text-slate-400">Loading history...</div>
+                <div className="py-8 text-center text-xs text-slate-400">Loading history...</div>
               ) : conversations.length === 0 ? (
-                <div className="py-8 text-center text-xs text-slate-400">
-                  <MessageSquare className="w-6 h-6 mx-auto mb-1 opacity-40" />
-                  <p>No chat history yet.</p>
-                  <p className="text-[10px] mt-1 text-slate-400">Start asking questions below!</p>
+                <div className="py-12 text-center text-xs text-slate-400 px-3">
+                  <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center mx-auto mb-2 text-slate-400">
+                    <MessageSquare className="w-5 h-5" />
+                  </div>
+                  <p className="font-semibold text-slate-600">No conversations yet</p>
+                  <p className="text-[11px] mt-1 text-slate-400">Ask a question to start exploring your home data.</p>
                 </div>
               ) : (
                 conversations.map((conv) => {
@@ -403,10 +524,10 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
                     <div
                       key={conv.id}
                       onClick={() => handleSelectConversation(conv.id)}
-                      className={`group flex items-center justify-between p-2.5 rounded-xl text-left cursor-pointer transition ${
+                      className={`group flex items-center justify-between p-2.5 rounded-xl text-left cursor-pointer transition border ${
                         isActive
-                          ? 'bg-indigo-50/80 border border-indigo-200/60 text-indigo-950 font-medium'
-                          : 'hover:bg-slate-50 border border-transparent text-slate-700'
+                          ? 'bg-indigo-50/90 border-indigo-200 text-indigo-950 font-medium shadow-2xs'
+                          : 'hover:bg-slate-50 border-transparent text-slate-700'
                       }`}
                     >
                       <div className="flex-1 min-w-0 pr-2">
@@ -420,7 +541,7 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
                       </div>
                       <button
                         onClick={(e) => handleDeleteConversation(e, conv)}
-                        className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-rose-600 rounded transition cursor-pointer"
+                        className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
                         title="Delete conversation"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -433,7 +554,10 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
           </div>
 
           <div className="pt-3 border-t border-slate-100 text-[11px] text-slate-400 flex items-center justify-between">
-            <span>Isolation: Tenant Grounded</span>
+            <span className="flex items-center gap-1">
+              <Lock className="w-3 h-3 text-slate-400" />
+              <span>Tenant Grounded</span>
+            </span>
             <button
               onClick={handleNewConversation}
               className="text-indigo-600 hover:text-indigo-800 font-medium flex items-center gap-1 cursor-pointer"
@@ -445,7 +569,7 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
         </div>
 
         {/* Right Main Chat Thread: Using Unified CopilotChatContainer */}
-        <div className="lg:col-span-3 bg-white border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden h-[640px]">
+        <div className="lg:col-span-3 bg-white border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden h-full flex flex-col">
           <CopilotChatContainer
             messages={messages}
             isLoading={isLoading}
@@ -455,6 +579,7 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
             onApproveAction={handleApproveAction}
             onCancelAction={handleCancelAction}
             onNavigateTab={handleNavigateFromCopilot}
+            onExecuteAction={onExecuteAction}
             isCompact={false}
             executingActionId={executingActionId}
             placeholder="Ask HouseMind Copilot about bills, maintenance, appliances, or savings..."
@@ -603,6 +728,93 @@ export const CopilotView: React.FC<CopilotViewProps> = ({
               >
                 Close
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mobile History Drawer Modal */}
+      {isMobileHistoryOpen && (
+        <div
+          id="mobile-history-drawer-backdrop"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsMobileHistoryOpen(false);
+          }}
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/50 backdrop-blur-xs"
+        >
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl border border-slate-200 shadow-xl w-full max-w-lg max-h-[80vh] flex flex-col overflow-hidden animate-in slide-in-from-bottom sm:zoom-in-95 duration-200">
+            <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/60">
+              <div className="flex items-center gap-2">
+                <MessageSquare className="w-4 h-4 text-indigo-600" />
+                <h3 className="font-bold text-sm text-slate-900">Household Conversations</h3>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  id="btn-mobile-new-chat"
+                  onClick={() => {
+                    handleNewConversation();
+                    setIsMobileHistoryOpen(false);
+                  }}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>New Chat</span>
+                </button>
+                <button
+                  type="button"
+                  id="btn-close-mobile-history"
+                  onClick={() => setIsMobileHistoryOpen(false)}
+                  className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-3 space-y-1.5 overflow-y-auto max-h-[60vh]">
+              {conversations.length === 0 ? (
+                <div className="py-12 text-center text-xs text-slate-400">
+                  <p className="font-semibold text-slate-600">No conversations yet</p>
+                  <p className="text-[11px] mt-1 text-slate-400">Ask a question to start exploring your home data.</p>
+                </div>
+              ) : (
+                conversations.map((conv) => {
+                  const isActive = conv.id === activeConversationId;
+                  return (
+                    <div
+                      key={conv.id}
+                      onClick={() => {
+                        handleSelectConversation(conv.id);
+                        setIsMobileHistoryOpen(false);
+                      }}
+                      className={`flex items-center justify-between p-3 rounded-xl cursor-pointer transition border ${
+                        isActive
+                          ? 'bg-indigo-50/90 border-indigo-200 text-indigo-950 font-medium'
+                          : 'hover:bg-slate-50 border-slate-100 text-slate-700'
+                      }`}
+                    >
+                      <div className="flex-1 min-w-0 pr-2">
+                        <p className="text-xs truncate font-medium">{conv.title}</p>
+                        <p className="text-[10px] text-slate-400 mt-0.5 truncate">
+                          {new Date(conv.updatedAt).toLocaleDateString(undefined, {
+                            month: 'short',
+                            day: 'numeric',
+                          })}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={(e) => handleDeleteConversation(e, conv)}
+                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                        title="Delete conversation"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
         </div>

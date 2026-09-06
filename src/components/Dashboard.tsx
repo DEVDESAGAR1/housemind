@@ -50,6 +50,7 @@ import { DomainSnapshotsSection } from './command-center/DomainSnapshotsSection'
 import { RecentActivitySection } from './command-center/RecentActivitySection';
 import { EmptyHouseholdOnboarding } from './command-center/EmptyHouseholdOnboarding';
 import { api } from '../lib/api';
+import { getContextualGreeting } from '../utils/greeting';
 
 interface DashboardProps {
   profile: HouseholdProfile | null;
@@ -234,7 +235,11 @@ export function Dashboard({
   return (
     <div className="space-y-8 animate-in fade-in pb-12">
       {/* 1. Command Center Operating Header */}
-      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 text-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-800 relative overflow-hidden">
+      <div
+        id="command-center-header"
+        data-tour="command-center"
+        className="bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 text-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-800 relative overflow-hidden"
+      >
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
@@ -267,7 +272,7 @@ export function Dashboard({
               className="inline-flex items-center gap-2 px-4 py-2.5 bg-linear-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-slate-950 text-xs sm:text-sm font-bold rounded-xl transition shadow-xs cursor-pointer"
             >
               <Sun className="w-4 h-4 text-slate-950" />
-              <span>Morning Brief</span>
+              <span>{getContextualGreeting(profile?.timezone).briefTitle}</span>
             </button>
 
             <button

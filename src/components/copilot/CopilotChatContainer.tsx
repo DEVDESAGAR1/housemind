@@ -26,9 +26,12 @@ import {
   FileText,
   Calendar,
   Zap,
+  ArrowDown,
 } from 'lucide-react';
 import { ChatMessage } from '../../types';
 import { api } from '../../lib/api';
+import { getContextualGreeting } from '../../utils/greeting';
+import { CopilotActionInput } from '../../utils/copilotActionResolver';
 
 export interface CopilotChatContainerProps {
   messages: ChatMessage[];
@@ -39,6 +42,7 @@ export interface CopilotChatContainerProps {
   onApproveAction?: (msgIndex: number, actionId: string) => Promise<void> | void;
   onCancelAction?: (msgIndex: number, actionId: string) => Promise<void> | void;
   onNavigateTab: (tab: string, subTab?: string, entityId?: string) => void;
+  onExecuteAction?: (action: CopilotActionInput) => void;
   isCompact?: boolean;
   executingActionId?: string | null;
   placeholder?: string;
@@ -162,6 +166,7 @@ export const CopilotChatContainer: React.FC<CopilotChatContainerProps> = ({
   onApproveAction,
   onCancelAction,
   onNavigateTab,
+  onExecuteAction,
   isCompact = false,
   executingActionId = null,
   placeholder = 'Ask HouseMind Copilot about bills, maintenance, appliances, or savings...',
@@ -174,8 +179,11 @@ export const CopilotChatContainer: React.FC<CopilotChatContainerProps> = ({
     model: string;
     fallbackMode: string;
   } | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement | HTMLInputElement>(null);
+  const [isUserNearBottom, setIsUserNearBottom] = useState(true);
+  const [hasUnseenNewResponse, setHasUnseenNewResponse] = useState(false);
+  const prevMessagesLengthRef = useRef(messages.length);
 
   useEffect(() => {
     api.getAiStatus().then((res) => {
@@ -185,19 +193,47 @@ export const CopilotChatContainer: React.FC<CopilotChatContainerProps> = ({
     }).catch(() => {
       setAiStatus({
         status: 'unavailable',
-        model: 'gemini-2.5-flash',
+        model: 'household-intelligence',
         fallbackMode: 'deterministic_household_intelligence',
       });
     });
   }, []);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTo({
+        top: messagesContainerRef.current.scrollHeight,
+        behavior,
+      });
+      setIsUserNearBottom(true);
+      setHasUnseenNewResponse(false);
+    }
   };
 
+  const handleScroll = () => {
+    if (!messagesContainerRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
+    const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+    const near = distanceFromBottom < 80;
+    setIsUserNearBottom(near);
+    if (near) {
+      setHasUnseenNewResponse(false);
+    }
+  };
+
+  // Safe container-only auto-scroll on new messages or loading states (never scrolls window)
   useEffect(() => {
-    scrollToBottom();
-  }, [messages, isLoading]);
+    const isNewMessage = messages.length > prevMessagesLengthRef.current;
+    prevMessagesLengthRef.current = messages.length;
+
+    if (isNewMessage || isLoading) {
+      if (isUserNearBottom) {
+        scrollToBottom('smooth');
+      } else if (isNewMessage) {
+        setHasUnseenNewResponse(true);
+      }
+    }
+  }, [messages.length, isLoading]);
 
   const handleSend = (textToSend?: string) => {
     const query = (textToSend || inputText).trim();
@@ -220,35 +256,51 @@ export const CopilotChatContainer: React.FC<CopilotChatContainerProps> = ({
   };
 
   return (
-    <div className={`flex flex-col h-full overflow-hidden bg-white ${className}`}>
+    <div className={`relative flex flex-col h-full overflow-hidden bg-white ${className}`}>
       {/* AI Assistant Live Capability Status Banner */}
-      <div className="px-4 py-1.5 border-b border-slate-200/80 bg-slate-50 flex items-center justify-between text-[11px] text-slate-500">
+      <div className="px-4 py-1.5 border-b border-slate-200/80 bg-slate-50 flex items-center justify-between text-[11px] text-slate-500 shrink-0">
         <div className="flex items-center gap-1.5">
           <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
           <span>Assistant Engine:</span>
           {aiStatus?.status === 'available' ? (
             <span className="font-semibold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-full text-[10px] flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              AI Active ({aiStatus.model})
+              AI Active
             </span>
           ) : aiStatus?.status === 'not_configured' ? (
             <span className="font-semibold text-slate-600 bg-slate-200 px-2 py-0.5 rounded-full text-[10px]">
-              Deterministic Logic Mode
+              AI Not Configured
             </span>
           ) : (
             <span className="font-semibold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full text-[10px]">
-              Fallback Mode Active
+              AI Unavailable
             </span>
           )}
         </div>
         <div className="hidden sm:flex items-center gap-1 text-[10px] text-slate-400">
           <ShieldCheck className="w-3 h-3 text-emerald-500" />
-          <span>Zero Model Training</span>
+          <span>Grounded & Private</span>
         </div>
       </div>
 
+      {/* Floating Jump to Latest Button (shown when user scrolled up and new response arrived) */}
+      {hasUnseenNewResponse && !isUserNearBottom && (
+        <button
+          type="button"
+          onClick={() => scrollToBottom('smooth')}
+          className="absolute bottom-16 left-1/2 -translate-x-1/2 z-20 inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-full shadow-lg transition cursor-pointer"
+        >
+          <ArrowDown className="w-3.5 h-3.5 animate-bounce" />
+          <span>New message below</span>
+        </button>
+      )}
+
       {/* Scrollable Messages Area */}
-      <div className={`flex-1 overflow-y-auto space-y-4 ${isCompact ? 'p-3.5 text-xs bg-slate-50/60' : 'p-5 space-y-5 bg-slate-50/40'}`}>
+      <div
+        ref={messagesContainerRef}
+        onScroll={handleScroll}
+        className={`flex-1 overflow-y-auto space-y-4 ${isCompact ? 'p-3.5 text-xs bg-slate-50/60' : 'p-5 space-y-5 bg-slate-50/40'}`}
+      >
         {messages.length === 0 ? (
           <div className={`${isCompact ? 'py-4 px-1 space-y-3' : 'py-6 px-2 space-y-6'}`}>
             {isCompact ? (
@@ -386,7 +438,7 @@ export const CopilotChatContainer: React.FC<CopilotChatContainerProps> = ({
                                   <Sun className="w-3.5 h-3.5" />
                                 </div>
                                 <div>
-                                  <h4 className="text-xs font-bold text-slate-900">Household Morning Brief</h4>
+                                  <h4 className="text-xs font-bold text-slate-900">{getContextualGreeting().briefTitle}</h4>
                                   <p className="text-[10px] text-slate-500">Autonomous Daily Household Diagnostic</p>
                                 </div>
                               </div>
@@ -453,7 +505,23 @@ export const CopilotChatContainer: React.FC<CopilotChatContainerProps> = ({
                                         </div>
                                         {item.actionTab && (
                                           <button
-                                            onClick={() => onNavigateTab(item.actionTab!)}
+                                            type="button"
+                                            onClick={() => {
+                                              const isAdd = /^(add|create|new)\b/i.test(item.actionLabel || item.title);
+                                              if (onExecuteAction) {
+                                                onExecuteAction({
+                                                  actionType: isAdd ? 'create' : 'view',
+                                                  tab: item.actionTab,
+                                                  subTab: item.subTab,
+                                                  entityId: item.entityId,
+                                                  title: item.title,
+                                                  actionLabel: item.actionLabel,
+                                                  reason: item.reason,
+                                                });
+                                              } else {
+                                                onNavigateTab(item.actionTab, item.subTab, item.entityId);
+                                              }
+                                            }}
                                             className="shrink-0 px-1.5 py-0.5 bg-white/90 hover:bg-white text-slate-800 rounded border border-slate-200/80 font-medium text-[10px] transition cursor-pointer"
                                           >
                                             View
@@ -479,7 +547,24 @@ export const CopilotChatContainer: React.FC<CopilotChatContainerProps> = ({
                                 </div>
                                 {msg.morningBrief.recommendedFirstAction.actionTab && (
                                   <button
-                                    onClick={() => onNavigateTab(msg.morningBrief!.recommendedFirstAction!.actionTab)}
+                                    type="button"
+                                    onClick={() => {
+                                      const rec = msg.morningBrief!.recommendedFirstAction!;
+                                      const isAdd = /^(add|create|new|register|setup)\b/i.test(rec.actionLabel || rec.title);
+                                      if (onExecuteAction) {
+                                        onExecuteAction({
+                                          actionType: isAdd ? 'create' : 'navigate',
+                                          tab: rec.actionTab,
+                                          subTab: rec.subTab,
+                                          entityId: rec.entityId,
+                                          title: rec.title,
+                                          actionLabel: rec.actionLabel,
+                                          reason: rec.reason,
+                                        });
+                                      } else {
+                                        onNavigateTab(rec.actionTab, rec.subTab, rec.entityId);
+                                      }
+                                    }}
                                     className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-[10.5px] font-semibold transition cursor-pointer"
                                   >
                                     <span>Open</span>
@@ -603,7 +688,19 @@ export const CopilotChatContainer: React.FC<CopilotChatContainerProps> = ({
                                   <button
                                     key={sIdx}
                                     type="button"
-                                    onClick={() => onNavigateTab(src.targetTab, src.subTab, src.label)}
+                                    onClick={() => {
+                                      if (onExecuteAction) {
+                                        onExecuteAction({
+                                          actionType: 'view',
+                                          tab: src.targetTab,
+                                          subTab: src.subTab,
+                                          entityId: src.label,
+                                          title: src.label,
+                                        });
+                                      } else {
+                                        onNavigateTab(src.targetTab, src.subTab, src.label);
+                                      }
+                                    }}
                                     className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-50/80 hover:bg-indigo-100 text-indigo-700 text-[11px] font-medium border border-indigo-200/60 transition cursor-pointer shadow-2xs"
                                   >
                                     <span>{src.icon}</span>
@@ -714,8 +811,6 @@ export const CopilotChatContainer: React.FC<CopilotChatContainerProps> = ({
             )}
           </div>
         )}
-
-        <div ref={messagesEndRef} />
       </div>
 
       {/* Composer Input Area */}
@@ -764,7 +859,7 @@ export const CopilotChatContainer: React.FC<CopilotChatContainerProps> = ({
         {!isCompact && (
           <div className="flex items-center justify-between text-[11px] text-slate-400 mt-2 px-1">
             <span>Press Enter to send, Shift+Enter for new line</span>
-            <span>Gemini • Grounded to your data</span>
+            <span>Grounded to your data</span>
           </div>
         )}
       </div>

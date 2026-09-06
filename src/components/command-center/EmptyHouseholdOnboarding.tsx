@@ -76,7 +76,7 @@ export function EmptyHouseholdOnboarding({
           Start Building Your Household Operating Picture
         </h2>
         <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
-          HouseMind operates as your household's central command center. Follow the steps below to populate your home's systems, or load realistic starter data to explore immediately.
+          HouseMind operates as your household's central command center. Follow the steps below to populate your home's systems, or load realistic demo data to explore immediately.
         </p>
       </div>
 
@@ -131,7 +131,7 @@ export function EmptyHouseholdOnboarding({
           className="inline-flex items-center gap-2 px-5 py-2.5 bg-slate-900 hover:bg-indigo-600 text-white text-xs sm:text-sm font-bold rounded-xl transition shadow-xs cursor-pointer disabled:opacity-50 shrink-0"
         >
           <Sparkles className="w-4 h-4 text-amber-300" />
-          <span>{isSeeding ? 'Populating...' : 'Load Realistic Starter Data'}</span>
+          <span>{isSeeding ? 'Populating...' : 'Load Demo Data'}</span>
         </button>
       </div>
     </div>
